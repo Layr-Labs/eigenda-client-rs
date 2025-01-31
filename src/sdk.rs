@@ -1,11 +1,8 @@
 use std::{str::FromStr, sync::Arc};
 
 use super::{
-    blob_info::BlobInfo,
-    config::EigenConfig,
-    eth_client,
-    generated::disperser::BlobInfo as DisperserBlobInfo,
-    verifier::{Verifier, VerifierConfig},
+    blob_info::BlobInfo, config::EigenConfig, eth_client,
+    generated::disperser::BlobInfo as DisperserBlobInfo, verifier::Verifier,
 };
 use crate::{
     blob_info,
@@ -21,7 +18,6 @@ use crate::{
     },
 };
 use byteorder::{BigEndian, ByteOrder};
-use ethereum_types::Address;
 use secp256k1::{ecdsa::RecoverableSignature, SecretKey};
 use tiny_keccak::{Hasher, Keccak};
 use tokio::sync::{mpsc, Mutex};
@@ -30,28 +26,15 @@ use tonic::{
     transport::{Channel, ClientTlsConfig, Endpoint},
     Streaming,
 };
-use url::Url;
 
 /// Raw Client that comunicates with the disperser
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct RawEigenClient {
     client: Arc<Mutex<DisperserClient<Channel>>>,
     private_key: SecretKey,
     pub config: EigenConfig,
     verifier: Verifier,
-    get_blob_data: Box<dyn GetBlobData>,
-}
-
-impl Clone for RawEigenClient {
-    fn clone(&self) -> Self {
-        Self {
-            client: self.client.clone(),
-            private_key: self.private_key,
-            config: self.config.clone(),
-            verifier: self.verifier.clone(),
-            get_blob_data: self.get_blob_data.clone_boxed(),
-        }
-    }
+    get_blob_data: Arc<dyn GetBlobData>,
 }
 
 pub(crate) const DATA_CHUNK_SIZE: usize = 32;
@@ -62,7 +45,7 @@ impl RawEigenClient {
     pub(crate) async fn new(
         private_key: SecretKey,
         config: EigenConfig,
-        get_blob_data: Box<dyn GetBlobData>,
+        get_blob_data: Arc<dyn GetBlobData>,
     ) -> Result<Self, EigenClientError> {
         let endpoint = Endpoint::from_str(config.disperser_rpc.as_str())
             .map_err(ConfigError::Tonic)?
@@ -74,19 +57,13 @@ impl RawEigenClient {
                 .map_err(ConfigError::Tonic)?,
         ));
 
-        let verifier_config = VerifierConfig {
-            svc_manager_addr: Address::from_str(&config.eigenda_svc_manager_address)
-                .map_err(|e| VerificationError::ServiceManager(e.to_string()))?,
-            max_blob_size: Self::BLOB_SIZE_LIMIT as u32,
-            g1_url: Url::parse(&config.g1_url)
-                .map_err(|e| VerificationError::Kzg(e.to_string()))?,
-            g2_url: Url::parse(&config.g2_url)
-                .map_err(|e| VerificationError::Kzg(e.to_string()))?,
-            settlement_layer_confirmation_depth: config.settlement_layer_confirmation_depth,
-        };
-        let eth_client = eth_client::EthClient::new(&config.eigenda_eth_rpc);
+        let url = config
+            .eigenda_eth_rpc
+            .clone()
+            .ok_or(ConfigError::NoEthRpc)?;
+        let eth_client = eth_client::EthClient::new(url);
 
-        let verifier = Verifier::new(verifier_config, eth_client).await?;
+        let verifier = Verifier::new(config.clone(), Arc::new(eth_client)).await?;
         Ok(RawEigenClient {
             client,
             private_key,
@@ -166,7 +143,7 @@ impl RawEigenClient {
             .next()
             .await
             .ok_or(CommunicationError::NoResponseFromServer)?
-            .unwrap()
+            .map_err(BlobStatusError::Status)?
             .payload
             .ok_or(CommunicationError::NoPayloadInResponse)?;
 
@@ -420,51 +397,26 @@ fn get_account_id(secret_key: &SecretKey) -> String {
 fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {
     let parse_size = DATA_CHUNK_SIZE - 1;
 
-    // Calculate the number of chunks
-    let data_len = (data.len() + parse_size - 1) / parse_size;
+    let chunk_count = data.len().div_ceil(parse_size);
+    let mut valid_data = Vec::with_capacity(data.len() + chunk_count);
 
-    // Pre-allocate `valid_data` with enough space for all chunks
-    let mut valid_data = vec![0u8; data_len * DATA_CHUNK_SIZE];
-    let mut valid_end = data_len * DATA_CHUNK_SIZE;
-
-    for (i, chunk) in data.chunks(parse_size).enumerate() {
-        let offset = i * DATA_CHUNK_SIZE;
-        valid_data[offset] = 0x00; // Set first byte of each chunk to 0x00 for big-endian compliance
-
-        let copy_end = offset + 1 + chunk.len();
-        valid_data[offset + 1..copy_end].copy_from_slice(chunk);
-
-        if i == data_len - 1 && chunk.len() < parse_size {
-            valid_end = offset + 1 + chunk.len();
-        }
+    for chunk in data.chunks(parse_size) {
+        valid_data.push(0x00); // Add the padding byte (0x00)
+        valid_data.extend_from_slice(chunk);
     }
-
-    valid_data.truncate(valid_end);
     valid_data
 }
 
 fn remove_empty_byte_from_padded_bytes(data: &[u8]) -> Vec<u8> {
     let parse_size = DATA_CHUNK_SIZE;
 
-    // Calculate the number of chunks
-    let data_len = (data.len() + parse_size - 1) / parse_size;
+    let chunk_count = data.len().div_ceil(parse_size);
+    // Safe subtraction, as we know chunk_count is always less than the length of the data
+    let mut valid_data = Vec::with_capacity(data.len() - chunk_count);
 
-    // Pre-allocate `valid_data` with enough space for all chunks
-    let mut valid_data = vec![0u8; data_len * (DATA_CHUNK_SIZE - 1)];
-    let mut valid_end = data_len * (DATA_CHUNK_SIZE - 1);
-
-    for (i, chunk) in data.chunks(parse_size).enumerate() {
-        let offset = i * (DATA_CHUNK_SIZE - 1);
-
-        let copy_end = offset + chunk.len() - 1;
-        valid_data[offset..copy_end].copy_from_slice(&chunk[1..]);
-
-        if i == data_len - 1 && chunk.len() < parse_size {
-            valid_end = offset + chunk.len() - 1;
-        }
+    for chunk in data.chunks(parse_size) {
+        valid_data.extend_from_slice(&chunk[1..]);
     }
-
-    valid_data.truncate(valid_end);
     valid_data
 }
 
