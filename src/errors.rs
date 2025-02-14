@@ -1,7 +1,8 @@
+use ark_bn254::G1Affine;
 use tokio::sync::mpsc::error::SendError;
 use tonic::{transport::Error as TonicError, Status};
 
-use crate::{eth_client::RpcErrorResponse, generated::disperser};
+use crate::{blob_info::BlobQuorumParam, eth_client::RpcErrorResponse, generated::disperser};
 
 /// Errors returned by this crate
 #[derive(Debug, thiserror::Error)]
@@ -24,6 +25,8 @@ pub enum EigenClientError {
 pub enum ConfigError {
     #[error("Private Key Error")]
     PrivateKey,
+    #[error("ETH RPC URL not set")]
+    NoEthRpcUrl,
     #[error(transparent)]
     Secp(#[from] secp256k1::Error),
     #[error(transparent)]
@@ -75,6 +78,8 @@ pub enum BlobStatusError {
 pub enum ConversionError {
     #[error("Failed to convert {0}")]
     NotPresent(String),
+    #[error("Failed to cast {0}")]
+    Cast(String),
 }
 
 /// Errors for the EthClient
@@ -85,36 +90,57 @@ pub enum EthClientError {
     #[error(transparent)]
     SerdeJSON(#[from] serde_json::Error),
     #[error("RPC: {0}")]
-    RPC(RpcErrorResponse),
+    Rpc(RpcErrorResponse),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KzgError {
+    #[error("Kzg setup error: {0}")]
+    Setup(String),
+    #[error(transparent)]
+    Internal(#[from] rust_kzg_bn254::errors::KzgError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ServiceManagerError {
+    #[error(transparent)]
+    EthClient(#[from] EthClientError),
+    #[error("Decoding error: {0}")]
+    Decoding(String),
 }
 
 /// Errors for the Verifier
 #[derive(Debug, thiserror::Error)]
 pub enum VerificationError {
-    #[error("Service Manager Error: {0}")]
-    ServiceManager(String),
-    #[error("Kzg Error: {0}")]
-    Kzg(String),
+    #[error(transparent)]
+    ServiceManager(#[from] ServiceManagerError),
+    #[error(transparent)]
+    Kzg(#[from] KzgError),
     #[error("Wrong proof")]
     WrongProof,
-    #[error("Different commitments")]
-    DifferentCommitments,
-    #[error("Different roots")]
-    DifferentRoots,
+    #[error("Different commitments: expected {expected:?}, got {actual:?}")]
+    DifferentCommitments {
+        expected: Box<G1Affine>,
+        actual: Box<G1Affine>,
+    },
+    #[error("Different roots: expected {expected:?}, got {actual:?}")]
+    DifferentRoots { expected: String, actual: String },
     #[error("Empty hashes")]
     EmptyHash,
-    #[error("Different hashes")]
-    DifferentHashes,
-    #[error("Wrong quorum params")]
-    WrongQuorumParams,
+    #[error("Different hashes: expected {expected:?}, got {actual:?}")]
+    DifferentHashes { expected: String, actual: String },
+    #[error("Wrong quorum params: {blob_quorum_params:?}")]
+    WrongQuorumParams { blob_quorum_params: BlobQuorumParam },
     #[error("Quorum not confirmed")]
     QuorumNotConfirmed,
-    #[error("Commitment not on curve")]
-    CommitmentNotOnCurve,
-    #[error("Commitment not on correct subgroup")]
-    CommitmentNotOnCorrectSubgroup,
-    #[error("Link Error: {0}")]
-    Link(String),
+    #[error("Commitment not on curve: {0}")]
+    CommitmentNotOnCurve(G1Affine),
+    #[error("Commitment not on correct subgroup: {0}")]
+    CommitmentNotOnCorrectSubgroup(G1Affine),
+    #[error("Point download error: {0}")]
+    PointDownloadError(String),
     #[error("Data Mismatch")]
     DataMismatch,
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
 }

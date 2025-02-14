@@ -4,8 +4,9 @@ use bytes::Bytes;
 use ethereum_types::{Address, U256};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use url::Url;
 
-use crate::errors::EthClientError;
+use crate::{config::SecretUrl, errors::EthClientError};
 
 /// Request ID for the RPC
 #[derive(Debug, Serialize, Deserialize)]
@@ -67,22 +68,25 @@ pub(crate) struct RpcRequest {
 #[derive(Debug, Clone)]
 pub(crate) struct EthClient {
     client: reqwest::Client,
-    pub(crate) url: String,
+    pub(crate) url: SecretUrl,
+    pub(crate) svc_manager_addr: Address,
 }
 
 impl EthClient {
     /// Creates a new EthClient
-    pub(crate) fn new(url: &str) -> Self {
+    pub(crate) fn new(url: SecretUrl, svc_manager_addr: Address) -> Self {
         Self {
             client: reqwest::Client::new(),
-            url: url.to_string(),
+            url,
+            svc_manager_addr,
         }
     }
 
     /// Sends a request to the Ethereum node
     async fn send_request(&self, request: RpcRequest) -> Result<RpcResponse, EthClientError> {
+        let url: Url = self.url.clone().into();
         self.client
-            .post(&self.url)
+            .post(url)
             .header("content-type", "application/json")
             .body(serde_json::ser::to_string(&request).map_err(EthClientError::SerdeJSON)?)
             .send()
@@ -105,7 +109,7 @@ impl EthClient {
             Ok(RpcResponse::Success(result)) => {
                 serde_json::from_value(result.result).map_err(EthClientError::SerdeJSON)
             }
-            Ok(RpcResponse::Error(error_response)) => Err(EthClientError::RPC(error_response)),
+            Ok(RpcResponse::Error(error_response)) => Err(EthClientError::Rpc(error_response)),
             Err(error) => Err(error),
         }
     }
@@ -139,7 +143,7 @@ impl EthClient {
             Ok(RpcResponse::Success(result)) => {
                 serde_json::from_value(result.result).map_err(EthClientError::SerdeJSON)
             }
-            Ok(RpcResponse::Error(error_response)) => Err(EthClientError::RPC(error_response)),
+            Ok(RpcResponse::Error(error_response)) => Err(EthClientError::Rpc(error_response)),
             Err(error) => Err(error),
         }
     }

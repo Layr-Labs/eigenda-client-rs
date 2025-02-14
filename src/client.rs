@@ -17,10 +17,8 @@ use std::{str::FromStr, sync::Arc};
 pub trait GetBlobData: std::fmt::Debug + Send + Sync {
     async fn get_blob_data(
         &self,
-        input: &str,
+        blob_id: &str,
     ) -> Result<Option<Vec<u8>>, Box<dyn Error + Send + Sync>>;
-
-    fn clone_boxed(&self) -> Box<dyn GetBlobData>;
 }
 
 /// EigenClient is a client for the Eigen DA service.
@@ -34,7 +32,7 @@ impl EigenClient {
     pub async fn new(
         config: EigenConfig,
         secrets: EigenSecrets,
-        get_blob_data: Box<dyn GetBlobData>,
+        get_blob_data: Arc<dyn GetBlobData>,
     ) -> Result<Self, EigenClientError> {
         let private_key = SecretKey::from_str(secrets.private_key.0.expose_secret().as_str())
             .map_err(ConfigError::Secp)?;
