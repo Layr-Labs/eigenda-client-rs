@@ -34,7 +34,7 @@ pub(crate) struct RawEigenClient {
     private_key: SecretKey,
     pub config: EigenConfig,
     verifier: Verifier<eth_client::EthClient>,
-    get_blob_data: Arc<dyn GetBlobData>,
+    blob_data_provider: Arc<dyn GetBlobData>,
 }
 
 pub(crate) const FIELD_ELEMENT_SIZE_BYTES: usize = 32;
@@ -45,7 +45,7 @@ impl RawEigenClient {
     pub(crate) async fn new(
         private_key: SecretKey,
         config: EigenConfig,
-        get_blob_data: Arc<dyn GetBlobData>,
+        blob_data_provider: Arc<dyn GetBlobData>,
     ) -> Result<Self, EigenClientError> {
         let endpoint = Endpoint::from_str(config.disperser_rpc.as_str())
             .map_err(ConfigError::Tonic)?
@@ -66,7 +66,7 @@ impl RawEigenClient {
             private_key,
             config,
             verifier,
-            get_blob_data,
+            blob_data_provider,
         })
     }
 
@@ -180,7 +180,7 @@ impl RawEigenClient {
         };
 
         let data_db = self
-            .get_blob_data
+            .blob_data_provider
             .get_blob_data(request_id)
             .await
             .map_err(CommunicationError::GetBlobData)?;
@@ -198,6 +198,7 @@ impl RawEigenClient {
             .await;
         if let Err(e) = result {
             match e {
+                // in case of an error, the dispatcher will retry, so the need to return None
                 VerificationError::EmptyHash => return Ok(None),
                 _ => Err(EigenClientError::Verification(e))?,
             }
