@@ -32,12 +32,12 @@ impl EigenClient {
     pub async fn new(
         config: EigenConfig,
         secrets: EigenSecrets,
-        get_blob_data: Arc<dyn GetBlobData>,
+        blob_data_provider: Arc<dyn GetBlobData>,
     ) -> Result<Self, EigenClientError> {
         let private_key = SecretKey::from_str(secrets.private_key.0.expose_secret().as_str())
             .map_err(ConfigError::Secp)?;
 
-        let client = RawEigenClient::new(private_key, config, get_blob_data).await?;
+        let client = RawEigenClient::new(private_key, config, blob_data_provider).await?;
         Ok(Self {
             client: Arc::new(client),
         })

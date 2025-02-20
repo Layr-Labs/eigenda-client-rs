@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    config::EigenConfig,
+    config::{EigenConfig, SrsPointsSource},
     errors::{ConversionError, KzgError, ServiceManagerError, VerificationError},
     sdk::RawEigenClient,
 };
@@ -226,14 +226,14 @@ impl<T: SvcManagerClient> Verifier<T> {
     }
 
     async fn get_points(cfg: &EigenConfig) -> Result<(PointFile, PointFile), VerificationError> {
-        match &cfg.srs_points_dir {
-            Some(path) => Ok((
+        match &cfg.srs_points_source {
+            SrsPointsSource::Path(path) => Ok((
                 PointFile::Path(PathBuf::from(format!("{}/{}", path, Self::G1POINT))),
                 PointFile::Path(PathBuf::from(format!("{}/{}", path, Self::G2POINT))),
             )),
-            None => Ok((
-                PointFile::Temp(Self::download_temp_point(&cfg.g1_url).await?),
-                PointFile::Temp(Self::download_temp_point(&cfg.g2_url).await?),
+            SrsPointsSource::Url((g1_url, g2_url)) => Ok((
+                PointFile::Temp(Self::download_temp_point(g1_url).await?),
+                PointFile::Temp(Self::download_temp_point(g2_url).await?),
             )),
         }
     }

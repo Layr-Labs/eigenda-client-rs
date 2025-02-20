@@ -5,11 +5,6 @@ use url::Url;
 
 use crate::errors::{ConfigError, EigenClientError};
 
-/// Default address of the EigenDA service manager contract deployed on Holesky.
-const EIGENDA_SVC_MANAGER_HOLESKY_ADDRESS: H160 = H160(hex_literal::hex!(
-    "d4a7e1bd8015057293f0d0a557088c286942e84b"
-));
-
 #[derive(Debug, Clone)]
 /// A URL stored securely using the `Secret` type from the secrecy crate
 pub struct SecretUrl {
@@ -39,6 +34,14 @@ impl PartialEq for SecretUrl {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum SrsPointsSource {
+    /// Path to the SRS points file, it should have both g1 and power of g2 points
+    Path(String),
+    /// Urls to g1 and power of g2 points
+    Url((String, String)),
+}
+
 /// Configuration for the EigenDA remote disperser client.
 #[derive(Clone, Debug, PartialEq)]
 pub struct EigenConfig {
@@ -55,28 +58,8 @@ pub struct EigenConfig {
     pub wait_for_finalization: bool,
     /// Authenticated dispersal
     pub authenticated: bool,
-    /// Optional path to downloaded points directory
-    pub srs_points_dir: Option<String>,
-    /// Url to the file containing the G1 point used for KZG
-    pub g1_url: String,
-    /// Url to the file containing the G2 point used for KZG
-    pub g2_url: String,
-}
-
-impl Default for EigenConfig {
-    fn default() -> Self {
-        Self {
-            disperser_rpc: "https://disperser-holesky.eigenda.xyz:443".to_string(),
-            settlement_layer_confirmation_depth: 0,
-            eth_rpc_url: Some(SecretUrl::new(Url::from_str("https://ethereum-holesky-rpc.publicnode.com").unwrap())), // Safe to unwrap, never fails
-            eigenda_svc_manager_address: EIGENDA_SVC_MANAGER_HOLESKY_ADDRESS,
-            wait_for_finalization: false,
-            authenticated: false,
-            srs_points_dir: None,
-            g1_url: "https://github.com/Layr-Labs/eigenda-proxy/raw/2fd70b99ef5bf137d7bbca3461cf9e1f2c899451/resources/g1.point".to_string(),
-            g2_url: "https://github.com/Layr-Labs/eigenda-proxy/raw/2fd70b99ef5bf137d7bbca3461cf9e1f2c899451/resources/g2.point.powerOf2".to_string(),
-        }
-    }
+    /// Points source
+    pub srs_points_source: SrsPointsSource,
 }
 
 /// Contains the private key
