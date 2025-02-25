@@ -1,5 +1,8 @@
 [package]
-name = "eigen-client"
+# This is named with the rust- prefix to match https://github.com/Layr-Labs/rust-kzg-bn254
+# We will remove the prefix and publish as new crates once we combine all of these repos
+# and move them into the eigenda monorepo.
+name = "rust-eigen-client"
 description = "Eigen Client"
 version = "0.1.0"
 edition = "2021"
