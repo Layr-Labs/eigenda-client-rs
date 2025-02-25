@@ -2,12 +2,15 @@
 # This is named with the rust- prefix to match https://github.com/Layr-Labs/rust-kzg-bn254
 # We will remove the prefix and publish as new crates once we combine all of these repos
 # and move them into the eigenda monorepo.
-name = "rust-eigen-client"
-description = "Eigen Client"
+name = "rust-eigenda-client"
+repository = "https://github.com/Layr-Labs/eigenda-client-rs"
+description = "EigenDA Client"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 exclude = [
+    # Excluded because g1.point is 32MiB and max crates.io package size is 10MiB.
+    # Users should download the SRS points themselves from the repo or elsewhere.
     "resources/*",
 ]
 
