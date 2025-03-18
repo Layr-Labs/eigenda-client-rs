@@ -14,6 +14,7 @@ const BYTES_PER_SYMBOL: u8 = 32;
 ///             Encoded Payload header (32 bytes total)                   Encoded Payload Data (len is multiple of 32)
 /// [0x00, version byte, big-endian uint32 len of payload, 0x00, ...] + [0x00, 31 bytes of data, 0x00, 31 bytes of data,...]
 /// ```
+#[derive(Debug, PartialEq)]
 pub struct EncodedPayload {
     /// the size of these bytes is guaranteed to be a multiple of 32
     bytes: Vec<u8>,
@@ -148,6 +149,19 @@ fn pad_to_bn254(data: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use crate::core::{encoded_payload::EncodedPayload, payload::Payload};
+
+
+    #[test]
+    fn test_encode() {
+        let payload = Payload::new("hello world".to_string().into_bytes());
+        let encoded_payload = EncodedPayload::new(&payload);
+        assert!(encoded_payload.is_ok());
+        
+        let decoded_payload = encoded_payload.unwrap().decode();
+        assert!(decoded_payload.is_ok());
+        assert_eq!(payload, decoded_payload.unwrap());
+    }
 
     // checks that an encoded payload with a length less than claimed length fails at decode time
     #[test]

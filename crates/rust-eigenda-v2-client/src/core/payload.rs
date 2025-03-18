@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub struct Payload {
     bytes: Vec<u8>,
 }
@@ -8,6 +9,6 @@ impl Payload {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        todo!()
+        self.bytes.clone()
     }
 }
