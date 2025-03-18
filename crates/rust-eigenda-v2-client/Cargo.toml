@@ -33,5 +33,6 @@ ethereum-types = { workspace = true }
 prost = { workspace = true }
 tonic = { workspace = true }
 tokio-stream = { workspace = true }
+ark-bn254 = { workspace = true }
 rust-kzg-bn254-primitives = "0.1.0"
 rust-kzg-bn254-verifier = "0.1.0"
