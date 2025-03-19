@@ -43,7 +43,7 @@ impl From<DisperserG1Commitment> for G1Commitment {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlobQuorumParam {
     /// The ID of the quorum.
-    pub quorum_number: u32,
+    pub quorum_number: u8,
     /// The max percentage of stake within the quorum that can be held by or delegated to adversarial operators.
     pub adversary_threshold_percentage: u32,
     /// The min percentage of stake that must attest in order to consider the dispersal successful.
@@ -70,14 +70,26 @@ impl BlobQuorumParam {
     }
 }
 
-impl From<DisperserBlobQuorumParam> for BlobQuorumParam {
-    fn from(value: DisperserBlobQuorumParam) -> Self {
-        Self {
-            quorum_number: value.quorum_number,
+impl TryFrom<DisperserBlobQuorumParam> for BlobQuorumParam {
+    type Error = ConversionError;
+
+    fn try_from(value: DisperserBlobQuorumParam) -> Result<Self, Self::Error> {
+        let quorum_number = match value.quorum_number.try_into() {
+            Ok(value) => value,
+            Err(_) => {
+                return Err(ConversionError::Cast(format!(
+                    "{} as u8",
+                    value.quorum_number
+                )))
+            }
+        };
+
+        Ok(Self {
+            quorum_number,
             adversary_threshold_percentage: value.adversary_threshold_percentage,
             confirmation_threshold_percentage: value.confirmation_threshold_percentage,
             chunk_length: value.chunk_length,
-        }
+        })
     }
 }
 
@@ -112,11 +124,10 @@ impl BlobHeader {
 impl TryFrom<DisperserBlobHeader> for BlobHeader {
     type Error = ConversionError;
     fn try_from(value: DisperserBlobHeader) -> Result<Self, Self::Error> {
-        let blob_quorum_params: Vec<BlobQuorumParam> = value
-            .blob_quorum_params
-            .iter()
-            .map(|param| BlobQuorumParam::from(param.clone()))
-            .collect();
+        let mut blob_quorum_params = vec![];
+        for quorum in value.blob_quorum_params {
+            blob_quorum_params.push(BlobQuorumParam::try_from(quorum)?);
+        }
         Ok(Self {
             commitment: G1Commitment::from(
                 value

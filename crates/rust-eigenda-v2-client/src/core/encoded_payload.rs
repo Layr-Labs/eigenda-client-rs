@@ -1,4 +1,4 @@
-use crate::core::{BYTES_PER_SYMBOL, Payload, PayloadEncodingVersion};
+use crate::core::{Payload, PayloadEncodingVersion, BYTES_PER_SYMBOL};
 use ark_bn254::Fr;
 use rust_kzg_bn254_primitives::helpers::{to_byte_array, to_fr_array};
 
@@ -216,8 +216,8 @@ fn pad_to_bn254(data: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{EncodedPayload, Payload, encoded_payload::BYTES_PER_SYMBOL};
-    use rand::{Rng, thread_rng};
+    use crate::core::{encoded_payload::BYTES_PER_SYMBOL, EncodedPayload, Payload};
+    use rand::{thread_rng, Rng};
 
     /// Checks that encoding and decoding a payload works correctly.
     #[test]

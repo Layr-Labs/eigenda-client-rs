@@ -46,22 +46,48 @@ pub enum SrsPointsSource {
 #[derive(Clone, Debug, PartialEq)]
 pub struct EigenConfig {
     /// URL of the Disperser RPC server
-    pub disperser_rpc: String,
+    pub(crate) disperser_rpc: String,
     /// URL of the Ethereum RPC server
-    pub eth_rpc_url: SecretUrl,
+    pub(crate) eth_rpc_url: SecretUrl,
     /// Block height needed to reach in order to consider the blob finalized
     /// a value less or equal to 0 means that the disperser will not wait for finalization
-    pub settlement_layer_confirmation_depth: u32,
+    pub(crate) settlement_layer_confirmation_depth: u32,
     /// Address of the service manager contract
-    pub eigenda_svc_manager_address: H160,
+    pub(crate) eigenda_svc_manager_address: H160,
     /// Wait for the blob to be finalized before returning the response
-    pub wait_for_finalization: bool,
+    pub(crate) wait_for_finalization: bool,
     /// Authenticated dispersal
-    pub authenticated: bool,
+    pub(crate) authenticated: bool,
     /// Points source
-    pub srs_points_source: SrsPointsSource,
+    pub(crate) srs_points_source: SrsPointsSource,
     /// Custom quorum numbers
-    pub custom_quorum_numbers: Vec<u32>,
+    pub(crate) custom_quorum_numbers: Vec<u8>,
+}
+
+impl EigenConfig {
+    /// Create a new EigenConfig
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        disperser_rpc: String,
+        eth_rpc_url: SecretUrl,
+        settlement_layer_confirmation_depth: u32,
+        eigenda_svc_manager_address: H160,
+        wait_for_finalization: bool,
+        authenticated: bool,
+        srs_points_source: SrsPointsSource,
+        custom_quorum_numbers: Vec<u8>,
+    ) -> Result<Self, ConfigError> {
+        Ok(Self {
+            disperser_rpc,
+            eth_rpc_url,
+            settlement_layer_confirmation_depth,
+            eigenda_svc_manager_address,
+            wait_for_finalization,
+            authenticated,
+            srs_points_source,
+            custom_quorum_numbers,
+        })
+    }
 }
 
 /// Contains the private key

@@ -54,7 +54,7 @@ mod test {
 
         async fn quorum_adversary_threshold_percentages(
             &self,
-            quorum_number: u32,
+            quorum_number: u8,
         ) -> Result<u8, VerificationError> {
             let func_selector = ethabi::short_signature("quorumAdversaryThresholdPercentages", &[]);
             let data = func_selector.to_vec();

@@ -63,7 +63,7 @@ pub(crate) trait SvcManagerClient: Sync + Send + std::fmt::Debug {
     /// the quorum adversary threshold percentages for a given quorum number
     async fn quorum_adversary_threshold_percentages(
         &self,
-        quorum_number: u32,
+        quorum_number: u8,
     ) -> Result<u8, VerificationError>;
 
     /// Request to the EigenDA service manager contract
@@ -123,7 +123,7 @@ impl SvcManagerClient for EthClient {
 
     async fn quorum_adversary_threshold_percentages(
         &self,
-        quorum_number: u32,
+        quorum_number: u8,
     ) -> Result<u8, VerificationError> {
         let func_selector = ethabi::short_signature("quorumAdversaryThresholdPercentages", &[]);
         let data = func_selector.to_vec();
@@ -480,7 +480,7 @@ impl<T: SvcManagerClient> Verifier<T> {
 
     async fn get_quorum_adversary_threshold(
         &self,
-        quorum_number: u32,
+        quorum_number: u8,
     ) -> Result<u8, VerificationError> {
         self.eth_client
             .quorum_adversary_threshold_percentages(quorum_number)
@@ -499,11 +499,9 @@ impl<T: SvcManagerClient> Verifier<T> {
         let blob_header = &cert.blob_header;
         let batch_header = &cert.blob_verification_proof.batch_medatada.batch_header;
 
-        let mut confirmed_quorums: HashMap<u32, bool> = HashMap::new();
+        let mut confirmed_quorums: HashMap<u8, bool> = HashMap::new();
         for i in 0..blob_header.blob_quorum_params.len() {
-            if batch_header.quorum_numbers[i] as u32
-                != blob_header.blob_quorum_params[i].quorum_number
-            {
+            if batch_header.quorum_numbers[i] != blob_header.blob_quorum_params[i].quorum_number {
                 return Err(VerificationError::WrongQuorumParams {
                     blob_quorum_params: blob_header.blob_quorum_params[i].clone(),
                 });
@@ -542,7 +540,7 @@ impl<T: SvcManagerClient> Verifier<T> {
         let required_quorums = self.call_quorum_numbers_required().await?;
 
         for quorum in required_quorums {
-            if !confirmed_quorums.contains_key(&(quorum as u32)) {
+            if !confirmed_quorums.contains_key(&quorum) {
                 return Err(VerificationError::QuorumNotConfirmed);
             }
         }

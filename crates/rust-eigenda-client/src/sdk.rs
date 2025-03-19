@@ -81,9 +81,16 @@ impl RawEigenClient {
         data: Vec<u8>,
     ) -> Result<String, EigenClientError> {
         let padded_data = convert_by_padding_empty_byte(&data);
+
+        let custom_quorum_numbers: Vec<u32> = self
+            .config
+            .custom_quorum_numbers
+            .iter()
+            .map(|&x| x as u32)
+            .collect();
         let request = disperser::DisperseBlobRequest {
             data: padded_data,
-            custom_quorum_numbers: self.config.custom_quorum_numbers.clone(),
+            custom_quorum_numbers,
             account_id: String::default(), // Account Id is not used in non-authenticated mode
         };
 
@@ -233,10 +240,16 @@ impl RawEigenClient {
         data: Vec<u8>,
         tx: &mpsc::UnboundedSender<disperser::AuthenticatedRequest>,
     ) -> Result<(), EigenClientError> {
+        let custom_quorum_numbers: Vec<u32> = self
+            .config
+            .custom_quorum_numbers
+            .iter()
+            .map(|&x| x as u32)
+            .collect();
         let req = disperser::AuthenticatedRequest {
             payload: Some(DisperseRequest(disperser::DisperseBlobRequest {
                 data,
-                custom_quorum_numbers: self.config.custom_quorum_numbers.clone(),
+                custom_quorum_numbers,
                 account_id: get_account_id(&self.private_key),
             })),
         };
