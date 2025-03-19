@@ -1,15 +1,6 @@
-use crate::core::Payload;
+use crate::core::{BYTES_PER_SYMBOL, Payload, PayloadEncodingVersion};
 use ark_bn254::Fr;
 use rust_kzg_bn254_primitives::helpers::{to_byte_array, to_fr_array};
-
-const BYTES_PER_SYMBOL: u8 = 32;
-
-// Payload encoding version
-//
-#[derive(Debug, PartialEq)]
-pub enum PayloadEncodingVersion {
-    Zero = 0,
-}
 
 /// `EncodedPayload` represents a payload that has had an encoding applied to it
 ///
