@@ -110,31 +110,23 @@ impl EncodedPayload {
         let encoded_payload_length = padded_length + 32;
 
         let serialized_felts_length = serialized_felts.len();
-        let mut length_to_copy = encoded_payload_length;
+        let length_to_copy = encoded_payload_length.min(serialized_felts_length);
 
-        match encoded_payload_length.cmp(&serialized_felts_length) {
-            std::cmp::Ordering::Greater => {
-                // serialized_felts is longer than encoded_payload_length, so we need to truncate it
-                // to avoid copying more than we need.
-                length_to_copy = serialized_felts_length;
-            }
-            std::cmp::Ordering::Less => {
-                // serialized_felts is shorter than encoded_payload_length,
-                // so we need to check that the remaining bytes are all 0.
-                let serialized_felts_without_header = serialized_felts
-                    .iter()
-                    .enumerate()
-                    .skip(encoded_payload_length);
-                for (index, &byte) in serialized_felts_without_header {
-                    if byte != 0 {
-                        return Err(format!(
-                            "byte at index {} was expected to be 0x00, but instead was 0x{:02x}",
-                            index, byte
-                        ));
-                    }
+        if encoded_payload_length < serialized_felts_length {
+            // serialized_felts is longer than encoded_payload_length,
+            // so we need to check that the remaining bytes are all 0.
+            let remaining_serialized_felts = serialized_felts
+                .iter()
+                .enumerate()
+                .skip(encoded_payload_length);
+            for (index, &byte) in remaining_serialized_felts {
+                if byte != 0 {
+                    return Err(format!(
+                        "byte at index {} was expected to be 0x00, but instead was 0x{:02x}",
+                        index, byte
+                    ));
                 }
             }
-            std::cmp::Ordering::Equal => {}
         }
 
         // Create a byte vector of size encoded_payload_length filled with zeros
