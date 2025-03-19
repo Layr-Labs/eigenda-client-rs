@@ -1,12 +1,5 @@
+use crate::core::{Blob, EncodedPayload, PayloadForm};
 use crate::utils::eval_to_coeff_poly;
-
-use super::{blob::Blob, encoded_payload::EncodedPayload};
-
-// TODO: remove, this will be implemented somewhere else
-pub enum PayloadForm {
-    Eval,
-    Coeff,
-}
 
 /// Payload represents arbitrary user data, without any processing.
 #[derive(Debug, PartialEq)]
