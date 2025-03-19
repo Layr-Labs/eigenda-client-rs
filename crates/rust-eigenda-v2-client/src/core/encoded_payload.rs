@@ -222,6 +222,7 @@ mod tests {
     /// Checks that encoding and decoding a payload works correctly.
     #[test]
     fn test_encoding_decoding() {
+        // TODO: add proptest
         let payload = Payload::new("hello world".to_string().into_bytes());
         let encoded_payload = EncodedPayload::new(&payload);
         assert!(encoded_payload.is_ok());
@@ -234,6 +235,7 @@ mod tests {
     /// Checks that an encoded payload with a length less than claimed length fails at decode time
     #[test]
     fn test_decode_short_bytes() {
+        // TODO: add proptest
         let mut rng = thread_rng();
         let random_length = rng.gen_range(33..1057); // 33 + random value up to 1024
         let original_data: Vec<u8> = (0..random_length).map(|_| rng.r#gen()).collect();
@@ -257,6 +259,7 @@ mod tests {
     #[test]
     fn test_decode_long_bytes() {
         // Generate random data
+        // TODO: add proptest
         let mut rng = thread_rng();
         let random_length = rng.gen_range(1..1025); // 1 + random value up to 1024
         let original_data: Vec<u8> = (0..random_length).map(|_| rng.r#gen()).collect();
@@ -282,6 +285,7 @@ mod tests {
     /// then back to an `EncodedPayload` results in the same data.
     #[test]
     fn test_from_to_field_elements() {
+        // TODO: add proptest
         let payload = Payload::new("hello world".to_string().into_bytes());
         let encoded_payload = EncodedPayload::new(&payload).unwrap();
 
@@ -296,7 +300,8 @@ mod tests {
     /// Checks that an encoded payload with trailing non-zero bytes fails at decode    
     #[test]
     fn test_trailing_non_zeros() {
-        // Generate random data similar to testRandom.Bytes(testRandom.Intn(1024) + 1)
+        // TODO: add proptest
+        // Generate random data
         let mut rng = thread_rng();
         let random_length = rng.gen_range(1..1025); // 1 + random value up to 1024
         let original_data: Vec<u8> = (0..random_length).map(|_| rng.r#gen()).collect();
@@ -310,7 +315,7 @@ mod tests {
 
         // Create a copy with a zero element appended
         let mut field_elements1 = original_elements.clone();
-        // Append zero element - ark_bn254::Fr::zero() creates a zero field element
+        // Append zero element
         field_elements1.push(ark_bn254::Fr::from(0));
 
         // This should succeed - adding a zero is fine
@@ -320,10 +325,10 @@ mod tests {
 
         // Create another copy with a non-zero element appended
         let mut field_elements2 = original_elements.clone();
-        // Append non-zero element - we can use ark_bn254::Fr::one() or a custom value
-        field_elements2.push(ark_bn254::Fr::from(1)); // equivalent to {0,0,0,1} in the Go code
+        // Append non-zero element
+        field_elements2.push(ark_bn254::Fr::from(1));
 
-        // This should fail - adding a non-zero is not fine
+        // This should fail - adding a trailing non-zero value is not fine
         let max_payload_length = (field_elements2.len() * BYTES_PER_SYMBOL as usize) as u32;
         let result2 = EncodedPayload::from_field_elements(&field_elements2, max_payload_length);
         assert!(result2.is_err());
