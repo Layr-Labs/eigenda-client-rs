@@ -128,7 +128,7 @@ impl EncodedPayload {
                 length_to_copy = serialized_felts_length;
             }
             std::cmp::Ordering::Less => {
-                // serialized_felts is shorter than encoded_payload_length, 
+                // serialized_felts is shorter than encoded_payload_length,
                 // so we need to check that the remaining bytes are all 0.
                 let serialized_felts_without_header = serialized_felts
                     .iter()
@@ -233,7 +233,7 @@ fn pad_to_bn254(data: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{EncodedPayload, Payload};
+    use crate::core::{EncodedPayload, Payload, encoded_payload::BYTES_PER_SYMBOL};
     use rand::{Rng, thread_rng};
 
     /// Checks that encoding and decoding a payload works correctly.
@@ -273,8 +273,6 @@ mod tests {
     /// Checks that an encoded payload with length greater than claimed fails at decode
     #[test]
     fn test_decode_long_bytes() {
-        use rand::{Rng, thread_rng};
-
         // Generate random data
         let mut rng = thread_rng();
         let random_length = rng.gen_range(1..1025); // 1 + random value up to 1024
@@ -284,7 +282,7 @@ mod tests {
         let payload = Payload::new(original_data);
         let encoded_payload = EncodedPayload::new(&payload).unwrap();
 
-        // Create an extended version by appending 33 bytes (zeros)
+        // Create an extended version by appending 33 bytes (all zeros)
         let mut extended_bytes = encoded_payload.bytes.clone();
         extended_bytes.extend_from_slice(&vec![0u8; 33]);
 
@@ -292,7 +290,7 @@ mod tests {
             bytes: extended_bytes,
         };
 
-        // Try to decode the extended payload - should fail
+        // Try to decode the extended payload, it should fail since it has too many bytes
         let decode_result = extended_payload.decode();
         assert!(decode_result.is_err());
     }
@@ -312,14 +310,39 @@ mod tests {
         assert_eq!(encoded_payload, new_encoded_payload);
     }
 
-    // Checks that an encoded payload with too many elements fails at decode
-    // #[test]
-    // fn test_encode_too_many_elements() {
-    //     todo!()
-    // }
+    /// Checks that an encoded payload with trailing non-zero bytes fails at decode    
+    #[test]
+    fn test_trailing_non_zeros() {
+        // Generate random data similar to testRandom.Bytes(testRandom.Intn(1024) + 1)
+        let mut rng = thread_rng();
+        let random_length = rng.gen_range(1..1025); // 1 + random value up to 1024
+        let original_data: Vec<u8> = (0..random_length).map(|_| rng.r#gen()).collect();
 
-    // #[test]
-    // fn test_trailing_non_zeros() {
-    //     todo!()
-    // }
+        // Create payload and encode it
+        let payload = Payload::new(original_data);
+        let encoded_payload = EncodedPayload::new(&payload).unwrap();
+
+        // Get the field elements
+        let original_elements = encoded_payload.to_field_elements();
+
+        // Create a copy with a zero element appended
+        let mut field_elements1 = original_elements.clone();
+        // Append zero element - ark_bn254::Fr::zero() creates a zero field element
+        field_elements1.push(ark_bn254::Fr::from(0));
+
+        // This should succeed - adding a zero is fine
+        let max_payload_length = (field_elements1.len() * BYTES_PER_SYMBOL as usize) as u32;
+        let result1 = EncodedPayload::from_field_elements(&field_elements1, max_payload_length);
+        assert!(result1.is_ok());
+
+        // Create another copy with a non-zero element appended
+        let mut field_elements2 = original_elements.clone();
+        // Append non-zero element - we can use ark_bn254::Fr::one() or a custom value
+        field_elements2.push(ark_bn254::Fr::from(1)); // equivalent to {0,0,0,1} in the Go code
+
+        // This should fail - adding a non-zero is not fine
+        let max_payload_length = (field_elements2.len() * BYTES_PER_SYMBOL as usize) as u32;
+        let result2 = EncodedPayload::from_field_elements(&field_elements2, max_payload_length);
+        assert!(result2.is_err());
+    }
 }
