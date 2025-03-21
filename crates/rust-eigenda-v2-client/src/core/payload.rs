@@ -1,4 +1,5 @@
 use crate::core::{Blob, EncodedPayload, PayloadForm};
+use crate::errors::ConversionError;
 use crate::utils::eval_to_coeff_poly;
 
 /// Payload represents arbitrary user data, without any processing.
@@ -17,7 +18,7 @@ impl Payload {
     ///
     /// The payload_form indicates how payloads are interpreted. The form of a payload dictates what conversion, if any, must
     /// be performed when creating a blob from the payload.
-    pub fn to_blob(&self, payload_form: PayloadForm) -> Result<Blob, String> {
+    pub fn to_blob(&self, payload_form: PayloadForm) -> Result<Blob, ConversionError> {
         let encoded_payload = EncodedPayload::new(self)?;
         let field_elements = encoded_payload.to_field_elements();
 

@@ -5,6 +5,7 @@ use ethabi::Token;
 use ethereum_types::U256;
 use tiny_keccak::{Hasher, Keccak};
 
+use crate::errors::{BlobError, ConversionError, EigenClientError};
 use crate::generated::disperser::v2::BlobStatusReply;
 
 use crate::generated::{
@@ -19,22 +20,21 @@ use crate::generated::{
 };
 
 #[derive(Debug, PartialEq, Clone)]
-// TODO: replace this dummy error with a proper error type
-pub(crate) struct EigenDACertError;
-
-#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct G1Commitment {
     pub(crate) x: Vec<u8>,
     pub(crate) y: Vec<u8>,
 }
 
 impl TryFrom<Vec<u8>> for G1Commitment {
-    type Error = EigenDACertError;
+    type Error = ConversionError;
 
     // TODO: How many bytes does each field take?
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         if value.len() != 64 {
-            return Err(EigenDACertError);
+            return Err(ConversionError::G1Point(format!(
+                "Invalid byte length {}",
+                value.len()
+            )));
         }
 
         let mut x = vec![0u8; 32];
@@ -54,12 +54,15 @@ pub(crate) struct G2Commitment {
 }
 
 impl TryFrom<Vec<u8>> for G2Commitment {
-    type Error = EigenDACertError;
+    type Error = ConversionError;
 
     // TODO: How many bytes does each field take?
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         if value.len() != 128 {
-            return Err(EigenDACertError);
+            return Err(ConversionError::G2Point(format!(
+                "Invalid byte length {}",
+                value.len()
+            )));
         }
 
         let mut x_a0 = vec![0u8; 32];
@@ -97,9 +100,9 @@ impl From<ProtoPaymentHeader> for PaymentHeader {
 }
 
 impl PaymentHeader {
-    pub fn hash(&self) -> Result<[u8; 32], EigenDACertError> {
-        let cumulative_payment =
-            U256::try_from(self.cumulative_payment.as_slice()).map_err(|_| EigenDACertError)?;
+    pub fn hash(&self) -> Result<[u8; 32], ConversionError> {
+        let cumulative_payment = U256::try_from(self.cumulative_payment.as_slice())
+            .map_err(|_| ConversionError::BlobHeader("Invalid cumulative payment".to_string()))?;
         let token = Token::Tuple(vec![
             Token::String(self.account_id.clone()),
             Token::Int(self.timestamp.into()),
@@ -126,7 +129,7 @@ pub(crate) struct BlobCommitment {
 }
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
-    type Error = EigenDACertError;
+    type Error = ConversionError;
 
     fn try_from(value: ProtoBlobCommitment) -> Result<Self, Self::Error> {
         let commitment = G1Commitment::try_from(value.commitment)?;
@@ -144,31 +147,42 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct V2BlobHeader {
+pub(crate) struct BlobHeader {
     version: u16,
     quorum_numbers: Vec<u8>,
     commitment: BlobCommitment,
     payment_header_hash: [u8; 32],
 }
 
-impl TryFrom<ProtoBlobHeader> for V2BlobHeader {
-    type Error = EigenDACertError;
+impl TryFrom<ProtoBlobHeader> for BlobHeader {
+    type Error = ConversionError;
 
     fn try_from(value: ProtoBlobHeader) -> Result<Self, Self::Error> {
         let version: u16 = match value.version.try_into() {
             Ok(version) => version,
-            Err(_) => return Err(EigenDACertError),
+            Err(_) => {
+                return Err(ConversionError::BlobHeader(format!(
+                    "Invalid version {}",
+                    value.version
+                )))
+            }
         };
 
         let mut quorum_numbers: Vec<u8> = Vec::new();
         for number in value.quorum_numbers.iter() {
-            quorum_numbers.push((*number).try_into().map_err(|_| EigenDACertError)?);
+            quorum_numbers.push((*number).try_into().map_err(|_| {
+                ConversionError::BlobHeader(format!("Invalid quorum number {}", number))
+            })?);
         }
 
-        let commitment = BlobCommitment::try_from(value.commitment.ok_or(EigenDACertError)?)?;
+        let commitment = BlobCommitment::try_from(value.commitment.ok_or(
+            ConversionError::BlobHeader("Missing commitment".to_string()),
+        )?)?;
 
-        let payment_header_hash =
-            PaymentHeader::from(value.payment_header.ok_or(EigenDACertError)?).hash()?;
+        let payment_header_hash = PaymentHeader::from(value.payment_header.ok_or(
+            ConversionError::BlobHeader("Missing payment header".to_string()),
+        )?)
+        .hash()?;
 
         Ok(Self {
             version,
@@ -180,18 +194,20 @@ impl TryFrom<ProtoBlobHeader> for V2BlobHeader {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct V2BlobCertificate {
-    blob_header: V2BlobHeader,
+pub(crate) struct BlobCertificate {
+    blob_header: BlobHeader,
     signature: Vec<u8>,
     relay_keys: Vec<u32>,
 }
 
-impl TryFrom<ProtoBlobCertificate> for V2BlobCertificate {
-    type Error = EigenDACertError;
+impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
+    type Error = ConversionError;
 
     fn try_from(value: ProtoBlobCertificate) -> Result<Self, Self::Error> {
         Ok(Self {
-            blob_header: V2BlobHeader::try_from(value.blob_header.ok_or(EigenDACertError)?)?,
+            blob_header: BlobHeader::try_from(value.blob_header.ok_or(
+                ConversionError::BlobCertificate("Missing blob header".to_string()),
+            )?)?,
             signature: value.signature,
             relay_keys: value.relay_keys,
         })
@@ -200,19 +216,19 @@ impl TryFrom<ProtoBlobCertificate> for V2BlobCertificate {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobInclusionInfo {
-    blob_certificate: V2BlobCertificate,
+    blob_certificate: BlobCertificate,
     blob_index: u32,
     inclusion_proof: Vec<u8>,
 }
 
 impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
-    type Error = EigenDACertError;
+    type Error = ConversionError;
 
     fn try_from(value: ProtoBlobInclusionInfo) -> Result<Self, Self::Error> {
         Ok(Self {
-            blob_certificate: V2BlobCertificate::try_from(
-                value.blob_certificate.ok_or(EigenDACertError)?,
-            )?,
+            blob_certificate: BlobCertificate::try_from(value.blob_certificate.ok_or(
+                ConversionError::BlobInclusion("Missing blob certificate".to_string()),
+            )?)?,
             blob_index: value.blob_index,
             inclusion_proof: value.inclusion_proof,
         })
@@ -226,14 +242,24 @@ pub(crate) struct BatchHeaderV2 {
 }
 
 impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
-    type Error = EigenDACertError;
+    type Error = ConversionError;
 
     fn try_from(value: ProtoBatchHeader) -> Result<Self, Self::Error> {
-        let batch_root: [u8; 32] = value.batch_root.try_into().map_err(|_| EigenDACertError)?;
-        let reference_block_number = value
-            .reference_block_number
-            .try_into()
-            .map_err(|_| EigenDACertError)?;
+        let batch_root: [u8; 32] = match value.batch_root.clone().try_into() {
+            Ok(root) => root,
+            Err(_) => {
+                return Err(ConversionError::BatchHeader(format!(
+                    "Invalid batch root: {}",
+                    hex::encode(value.batch_root)
+                )))
+            }
+        };
+        let reference_block_number = value.reference_block_number.try_into().map_err(|_| {
+            ConversionError::BatchHeader(format!(
+                "Invalid reference block number: {}",
+                value.reference_block_number
+            ))
+        })?;
         Ok(Self {
             batch_root,
             reference_block_number,
@@ -269,16 +295,32 @@ impl EigenDACert {
     pub(crate) fn new(
         blob_status_reply: BlobStatusReply,
         non_signer_stakes_and_signature: NonSignerStakesAndSignature,
-    ) -> Result<Self, EigenDACertError> {
-        let binding_inclusion_info =
-            BlobInclusionInfo::try_from(blob_status_reply.blob_inclusion_info.ok_or(EigenDACertError)?)?;
+    ) -> Result<Self, EigenClientError> {
+        let binding_inclusion_info = BlobInclusionInfo::try_from(
+            blob_status_reply
+                .blob_inclusion_info
+                .ok_or(BlobError::MissingField("blob_inclusion_info".to_string()))?,
+        )?;
 
-        let signed_batch = blob_status_reply.signed_batch.ok_or(EigenDACertError)?;
-        let binding_batch_header = BatchHeaderV2::try_from(signed_batch.header.ok_or(EigenDACertError)?)?;
+        let signed_batch = blob_status_reply
+            .signed_batch
+            .ok_or(BlobError::MissingField("signed_batch".to_string()))?;
+        let binding_batch_header = BatchHeaderV2::try_from(
+            signed_batch
+                .header
+                .ok_or(BlobError::MissingField("header".to_string()))?,
+        )?;
 
         let mut signed_quorum_numbers: Vec<u8> = Vec::new();
-        for q in signed_batch.attestation.ok_or(EigenDACertError)?.quorum_numbers {
-            signed_quorum_numbers.push(q.try_into().map_err(|_| EigenDACertError)?);
+        for q in signed_batch
+            .attestation
+            .ok_or(BlobError::MissingField("attestation".to_string()))?
+            .quorum_numbers
+        {
+            signed_quorum_numbers.push(
+                q.try_into()
+                    .map_err(|_| BlobError::InvalidQuorumNumber(q))?,
+            );
         }
 
         Ok(Self {
@@ -290,7 +332,7 @@ impl EigenDACert {
     }
 
     /// Computes the blob_key of the blob that belongs to the EigenDACert
-    pub(crate) fn compute_blob_key(&self) -> Result<BlobKey, EigenDACertError> {
+    pub(crate) fn compute_blob_key(&self) -> Result<BlobKey, ConversionError> {
         let blob_header = self
             .blob_inclusion_info
             .blob_certificate
@@ -308,7 +350,11 @@ impl EigenDACert {
 
         let blob_key: BlobKey = match blob_key_bytes.try_into() {
             Ok(key) => key,
-            Err(_) => panic!("invalid blob key length: expected 32 bytes"),
+            Err(_) => {
+                return Err(ConversionError::BlobKey(
+                    "Failed to parse blob key".to_string(),
+                ))
+            }
         };
         Ok(blob_key)
     }
@@ -331,7 +377,7 @@ fn compute_blob_key_bytes(
     blob_commitments: BlobCommitment,
     quorum_numbers: Vec<u8>,
     payment_metadata_hash: [u8; 32],
-) -> Result<Vec<u8>, EigenDACertError> {
+) -> Result<Vec<u8>, ConversionError> {
     let mut sorted_quorums = quorum_numbers;
     sorted_quorums.sort();
 
@@ -409,5 +455,7 @@ fn compute_blob_key_bytes(
     keccak.update(&packed_bytes);
     let mut blob_key = [0u8; 32];
     keccak.finalize(&mut blob_key);
-    blob_key.try_into().map_err(|_| EigenDACertError)
+    blob_key
+        .try_into()
+        .map_err(|_| ConversionError::BlobKey("Failed to parse blob key".to_string()))
 }

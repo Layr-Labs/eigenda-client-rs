@@ -1,6 +1,6 @@
 use ark_bn254::Fr;
-use std::error::Error;
 
+use crate::errors::{BlobError, EigenClientError};
 use crate::utils::coeff_to_eval_poly;
 
 use crate::core::{EncodedPayload, Payload, PayloadForm, BYTES_PER_SYMBOL};
@@ -24,14 +24,11 @@ pub struct Blob {
 // todo: use real errors
 impl Blob {
     /// deserialize_blob initializes a Blob from bytes
-    pub fn deserialize_blob(
-        bytes: Vec<u8>,
-        blob_length_symbols: usize,
-    ) -> Result<Blob, Box<dyn Error>> {
+    pub fn deserialize_blob(bytes: Vec<u8>, blob_length_symbols: usize) -> Result<Blob, BlobError> {
         // we check that length of bytes is <= blob length, rather than checking for equality, because it's possible
         // that the bytes being deserialized have had trailing 0s truncated.
         if bytes.len() > blob_length_symbols * BYTES_PER_SYMBOL {
-            return Err("Blob length is too long".into());
+            return Err(BlobError::InvalidBlobLength(bytes.len()));
         }
 
         let coeff_polynomial = rust_kzg_bn254_primitives::helpers::to_fr_array(&bytes);
@@ -54,17 +51,19 @@ impl Blob {
     ///
     /// The payload_form indicates how payloads are interpreted. The way that payloads are interpreted dictates what
     /// conversion, if any, must be performed when creating a payload from the blob.
-    pub fn to_payload(&self, payload_form: PayloadForm) -> Result<Payload, Box<dyn Error>> {
+    pub fn to_payload(&self, payload_form: PayloadForm) -> Result<Payload, EigenClientError> {
         let encoded_payload = self.to_encoded_payload(payload_form)?;
-        encoded_payload.decode().map_err(|e| e.into())
+        encoded_payload
+            .decode()
+            .map_err(EigenClientError::Conversion)
     }
 
     /// get_unpadded_data_length accepts the length of an array that has been padded with pad_payload
     ///
     /// It returns what the length of the output array would be, if you called remove_internal_padding on it.
-    fn get_unpadded_data_length(&self, input_len: usize) -> Result<usize, Box<dyn Error>> {
+    fn get_unpadded_data_length(&self, input_len: usize) -> Result<usize, BlobError> {
         if input_len % BYTES_PER_SYMBOL != 0 {
-            return Err("Input length must be a multiple of 32".into());
+            return Err(BlobError::InvalidDataLength(input_len));
         }
         let chunck_count = input_len / BYTES_PER_SYMBOL;
         let bytes_per_chunk = BYTES_PER_SYMBOL - 1;
@@ -77,12 +76,12 @@ impl Blob {
     fn get_max_permissible_payloadlength(
         &self,
         blob_length_symbols: usize,
-    ) -> Result<usize, Box<dyn Error>> {
+    ) -> Result<usize, BlobError> {
         if blob_length_symbols == 0 {
-            return Err("Blob length must be greater than 0".into());
+            return Err(BlobError::InvalidBlobLength(blob_length_symbols));
         }
         if !blob_length_symbols.is_power_of_two() {
-            return Err("Blob length must be a power of 2".into());
+            return Err(BlobError::InvalidBlobLength(blob_length_symbols));
         }
 
         self.get_unpadded_data_length(blob_length_symbols * BYTES_PER_SYMBOL - 32)
@@ -95,7 +94,7 @@ impl Blob {
     pub fn to_encoded_payload(
         &self,
         payload_form: PayloadForm,
-    ) -> Result<EncodedPayload, Box<dyn Error>> {
+    ) -> Result<EncodedPayload, EigenClientError> {
         let payload_elements = match payload_form {
             PayloadForm::Coeff => self.coeff_polynomial.clone(),
             PayloadForm::Eval => {
@@ -103,10 +102,13 @@ impl Blob {
             }
         };
 
-        let max_possible_payload_length =
-            self.get_max_permissible_payloadlength(self.blob_length_symbols)?;
-        EncodedPayload::from_field_elements(&payload_elements, max_possible_payload_length)
-            .map_err(|e| e.into())
+        let max_possible_payload_length = self
+            .get_max_permissible_payloadlength(self.blob_length_symbols)
+            .map_err(EigenClientError::Blob)?;
+        Ok(EncodedPayload::from_field_elements(
+            &payload_elements,
+            max_possible_payload_length,
+        )?)
     }
 }
 
