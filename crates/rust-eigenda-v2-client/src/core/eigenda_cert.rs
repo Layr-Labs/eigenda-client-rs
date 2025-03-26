@@ -124,10 +124,10 @@ impl PaymentHeader {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobCommitment {
-    commitment: G1Commitment,
-    length_commitment: G2Commitment,
-    length_proof: G2Commitment,
-    length: u32,
+    pub(crate) commitment: G1Commitment,
+    pub(crate) length_commitment: G2Commitment,
+    pub(crate) length_proof: G2Commitment,
+    pub(crate) length: u32,
 }
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
