@@ -19,6 +19,8 @@ use crate::generated::{
     disperser::v2::BlobInclusionInfo as ProtoBlobInclusionInfo,
 };
 
+use super::BlobKey;
+
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct G1Commitment {
     pub(crate) x: Vec<u8>,
@@ -124,10 +126,10 @@ impl PaymentHeader {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobCommitment {
-    commitment: G1Commitment,
-    length_commitment: G2Commitment,
-    length_proof: G2Commitment,
-    length: u32,
+    pub(crate) commitment: G1Commitment,
+    pub(crate) length_commitment: G2Commitment,
+    pub(crate) length_proof: G2Commitment,
+    pub(crate) length: u32,
 }
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
@@ -343,121 +345,11 @@ impl EigenDACert {
 
         let blob_commitments = blob_header.commitment;
 
-        let blob_key_bytes = compute_blob_key_bytes(
+        BlobKey::compute_blob_key(
             blob_header.version,
             blob_commitments,
             blob_header.quorum_numbers,
             blob_header.payment_header_hash,
-        )?;
-
-        let blob_key: BlobKey = match blob_key_bytes.try_into() {
-            Ok(key) => key,
-            Err(_) => {
-                return Err(ConversionError::BlobKey(
-                    "Failed to parse blob key".to_string(),
-                ))
-            }
-        };
-        Ok(blob_key)
+        )
     }
-}
-
-// BlobKey is the unique identifier for a blob dispersal.
-//
-// It is computed as the Keccak256 hash of some serialization of the blob header
-// where the PaymentHeader has been replaced with Hash(PaymentHeader), in order
-// to be easily verifiable onchain.
-//
-// It can be used to retrieve a blob from relays.
-//
-// Note that two blobs can have the same content but different headers,
-// so they are allowed to both exist in the system.
-pub(crate) type BlobKey = [u8; 32];
-
-fn compute_blob_key_bytes(
-    blob_version: u16,
-    blob_commitments: BlobCommitment,
-    quorum_numbers: Vec<u8>,
-    payment_metadata_hash: [u8; 32],
-) -> Result<Vec<u8>, ConversionError> {
-    let mut sorted_quorums = quorum_numbers;
-    sorted_quorums.sort();
-
-    let packed_bytes = ethabi::encode(&[
-        Token::Uint(blob_version.into()), // BlobVersion
-        Token::Bytes(
-            sorted_quorums
-                .iter()
-                .flat_map(|q| q.to_be_bytes())
-                .collect(),
-        ), // SortedQuorums
-        Token::Tuple(vec![
-            // AbiBlobCommitments
-            // Commitment
-            Token::Tuple(vec![
-                Token::Uint(U256::from_big_endian(&blob_commitments.commitment.x)), // commitment X
-                Token::Uint(U256::from_big_endian(&blob_commitments.commitment.y)), // commitment Y
-            ]),
-            // Most cryptography library serializes a G2 point by having
-            // A0 followed by A1 for both X, Y field of G2. However, ethereum
-            // precompile assumes an ordering of A1, A0. We choose
-            // to conform with Ethereum order when serializing a blobHeaderV2
-            // for instance, gnark, https://github.com/Consensys/gnark-crypto/blob/de0d77f2b4d520350bc54c612828b19ce2146eee/ecc/bn254/marshal.go#L1078
-            // Ethereum, https://eips.ethereum.org/EIPS/eip-197#definition-of-the-groups
-            // LengthCommitment
-            Token::Tuple(vec![
-                // X
-                Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.x_a1,
-                    )),
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.x_a0,
-                    )),
-                ]),
-                // Y
-                Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.y_a1,
-                    )),
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.y_a0,
-                    )),
-                ]),
-            ]),
-            // Same as above
-            // LengthProof
-            Token::Tuple(vec![
-                Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.x_a1)),
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.x_a0)),
-                ]),
-                Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.y_a1)),
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.y_a0)),
-                ]),
-            ]),
-            Token::Uint(blob_commitments.length.into()), // DataLength
-        ]),
-    ]);
-
-    let mut keccak = Keccak::v256();
-    keccak.update(&packed_bytes);
-    let mut header_hash = [0u8; 32];
-    keccak.finalize(&mut header_hash);
-
-    let s2 = vec![
-        Token::FixedBytes(header_hash.to_vec()),
-        Token::FixedBytes(payment_metadata_hash.to_vec()),
-    ];
-
-    let packed_bytes = ethabi::encode(&s2);
-
-    let mut keccak = Keccak::v256();
-    keccak.update(&packed_bytes);
-    let mut blob_key = [0u8; 32];
-    keccak.finalize(&mut blob_key);
-    blob_key
-        .try_into()
-        .map_err(|_| ConversionError::BlobKey("Failed to parse blob key".to_string()))
 }
