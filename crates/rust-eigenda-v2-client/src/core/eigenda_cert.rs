@@ -18,69 +18,7 @@ use crate::generated::{
     },
     disperser::v2::BlobInclusionInfo as ProtoBlobInclusionInfo,
 };
-
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) struct G1Commitment {
-    pub(crate) x: Vec<u8>,
-    pub(crate) y: Vec<u8>,
-}
-
-impl TryFrom<Vec<u8>> for G1Commitment {
-    type Error = ConversionError;
-
-    // TODO: How many bytes does each field take?
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        if value.len() != 64 {
-            return Err(ConversionError::G1Point(format!(
-                "Invalid byte length {}",
-                value.len()
-            )));
-        }
-
-        let mut x = vec![0u8; 32];
-        let mut y = vec![0u8; 32];
-        x.copy_from_slice(&value[0..32]);
-        y.copy_from_slice(&value[32..64]);
-        Ok(G1Commitment { x, y })
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) struct G2Commitment {
-    pub(crate) x_a0: Vec<u8>,
-    pub(crate) x_a1: Vec<u8>,
-    pub(crate) y_a0: Vec<u8>,
-    pub(crate) y_a1: Vec<u8>,
-}
-
-impl TryFrom<Vec<u8>> for G2Commitment {
-    type Error = ConversionError;
-
-    // TODO: How many bytes does each field take?
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        if value.len() != 128 {
-            return Err(ConversionError::G2Point(format!(
-                "Invalid byte length {}",
-                value.len()
-            )));
-        }
-
-        let mut x_a0 = vec![0u8; 32];
-        let mut x_a1 = vec![0u8; 32];
-        let mut y_a0 = vec![0u8; 32];
-        let mut y_a1 = vec![0u8; 32];
-        x_a0.copy_from_slice(&value[0..32]);
-        x_a1.copy_from_slice(&value[32..64]);
-        y_a0.copy_from_slice(&value[64..96]);
-        y_a1.copy_from_slice(&value[96..128]);
-        Ok(G2Commitment {
-            x_a0,
-            x_a1,
-            y_a0,
-            y_a1,
-        })
-    }
-}
+use crate::utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct PaymentHeader {
@@ -124,9 +62,9 @@ impl PaymentHeader {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobCommitment {
-    commitment: G1Commitment,
-    length_commitment: G2Commitment,
-    length_proof: G2Commitment,
+    commitment: G1Affine,
+    length_commitment: G2Affine,
+    length_proof: G2Affine,
     length: u32,
 }
 
@@ -134,9 +72,9 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
     type Error = ConversionError;
 
     fn try_from(value: ProtoBlobCommitment) -> Result<Self, Self::Error> {
-        let commitment = G1Commitment::try_from(value.commitment)?;
-        let length_commitment = G2Commitment::try_from(value.length_commitment)?;
-        let length_proof = G2Commitment::try_from(value.length_proof)?;
+        let commitment = g1_commitment_from_bytes(&value.commitment)?;
+        let length_commitment = g2_commitment_from_bytes(&value.length_commitment)?;
+        let length_proof = g2_commitment_from_bytes(&value.length_proof)?;
         let length = value.length;
 
         Ok(Self {
@@ -395,8 +333,12 @@ fn compute_blob_key_bytes(
             // AbiBlobCommitments
             // Commitment
             Token::Tuple(vec![
-                Token::Uint(U256::from_big_endian(&blob_commitments.commitment.x)), // commitment X
-                Token::Uint(U256::from_big_endian(&blob_commitments.commitment.y)), // commitment Y
+                Token::Uint(
+                    U256::from_dec_str(&blob_commitments.commitment.x.to_string()).unwrap(),
+                ), // commitment X
+                Token::Uint(
+                    U256::from_dec_str(&blob_commitments.commitment.y.to_string()).unwrap(),
+                ), // commitment Y
             ]),
             // Most cryptography library serializes a G2 point by having
             // A0 followed by A1 for both X, Y field of G2. However, ethereum
@@ -408,33 +350,49 @@ fn compute_blob_key_bytes(
             Token::Tuple(vec![
                 // X
                 Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.x_a1,
-                    )),
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.x_a0,
-                    )),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_commitment.x.c1.to_string())
+                            .unwrap(),
+                    ),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_commitment.x.c0.to_string())
+                            .unwrap(),
+                    ),
                 ]),
                 // Y
                 Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.y_a1,
-                    )),
-                    Token::Uint(U256::from_big_endian(
-                        &blob_commitments.length_commitment.y_a0,
-                    )),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_commitment.y.c1.to_string())
+                            .unwrap(),
+                    ),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_commitment.y.c0.to_string())
+                            .unwrap(),
+                    ),
                 ]),
             ]),
             // Same as above
             // LengthProof
             Token::Tuple(vec![
                 Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.x_a1)),
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.x_a0)),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_proof.x.c1.to_string())
+                            .unwrap(),
+                    ),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_proof.x.c0.to_string())
+                            .unwrap(),
+                    ),
                 ]),
                 Token::FixedArray(vec![
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.y_a1)),
-                    Token::Uint(U256::from_big_endian(&blob_commitments.length_proof.y_a0)),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_proof.y.c1.to_string())
+                            .unwrap(),
+                    ),
+                    Token::Uint(
+                        U256::from_dec_str(&blob_commitments.length_proof.y.c0.to_string())
+                            .unwrap(),
+                    ),
                 ]),
             ]),
             Token::Uint(blob_commitments.length.into()), // DataLength
