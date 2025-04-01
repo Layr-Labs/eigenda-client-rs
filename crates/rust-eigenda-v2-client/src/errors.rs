@@ -1,3 +1,5 @@
+use crate::eth_client::RpcErrorResponse;
+
 /// Errors returned by this crate
 #[derive(Debug, thiserror::Error)]
 pub enum EigenClientError {
@@ -5,6 +7,8 @@ pub enum EigenClientError {
     Conversion(#[from] ConversionError),
     #[error(transparent)]
     Blob(#[from] BlobError),
+    #[error(transparent)]
+    EthClient(#[from] EthClientError),
 }
 
 /// Errors specific to conversion
@@ -51,4 +55,15 @@ pub enum BlobError {
     InvalidQuorumNumber(u32),
     #[error("Missing field: {0}")]
     MissingField(String),
+}
+
+/// Errors for the EthClient
+#[derive(Debug, thiserror::Error)]
+pub enum EthClientError {
+    #[error(transparent)]
+    HTTPClient(#[from] reqwest::Error),
+    #[error(transparent)]
+    SerdeJSON(#[from] serde_json::Error),
+    #[error("RPC: {0}")]
+    Rpc(RpcErrorResponse),
 }

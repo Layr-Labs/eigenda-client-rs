@@ -4,6 +4,7 @@ pub mod errors;
 pub mod retrieval_client;
 mod utils;
 pub mod verifier;
+pub mod eth_client;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {

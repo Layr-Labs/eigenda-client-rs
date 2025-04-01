@@ -1,6 +1,8 @@
 use crate::errors::ConversionError;
 use ark_bn254::Fr;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use secrecy::{ExposeSecret,Secret};
+use url::Url;
 
 /// Converts an eval_poly to a coeff_poly, using the IFFT operation
 ///
@@ -25,4 +27,33 @@ pub(crate) fn coeff_to_eval_poly(
         ))?
         .fft(&coeff_poly);
     Ok(evals)
+}
+
+#[derive(Debug, Clone)]
+/// A URL stored securely using the `Secret` type from the secrecy crate
+pub struct SecretUrl {
+    // We keep the URL as a String because Secret<T> enforces T: DefaultIsZeroes
+    // which is not the case for the type Url
+    inner: Secret<String>,
+}
+
+impl SecretUrl {
+    /// Create a new `SecretUrl` from a `Url`
+    pub fn new(url: Url) -> Self {
+        Self {
+            inner: Secret::new(url.to_string()),
+        }
+    }
+}
+
+impl From<SecretUrl> for Url {
+    fn from(secret_url: SecretUrl) -> Self {
+        Url::parse(secret_url.inner.expose_secret()).unwrap() // Safe to unwrap, as the `new` fn ensures the URL is valid
+    }
+}
+
+impl PartialEq for SecretUrl {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.expose_secret().eq(other.inner.expose_secret())
+    }
 }
