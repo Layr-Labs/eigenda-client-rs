@@ -56,11 +56,11 @@ impl PaymentHeader {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobCommitment {
-    commitment: G1Affine,
-    length_commitment: G2Affine,
-    length_proof: G2Affine,
-    length: u32,
+pub struct BlobCommitment {
+    pub commitment: G1Affine,
+    pub length_commitment: G2Affine,
+    pub length_proof: G2Affine,
+    pub length: u32,
 }
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitment {

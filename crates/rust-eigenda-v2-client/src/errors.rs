@@ -5,6 +5,8 @@ pub enum EigenClientError {
     Conversion(#[from] ConversionError),
     #[error(transparent)]
     Blob(#[from] BlobError),
+    #[error(transparent)]
+    RetrievalClient(#[from] RetrievalClientError),
 }
 
 /// Errors specific to conversion
@@ -53,6 +55,40 @@ pub enum BlobError {
     InvalidDataLength(usize),
     #[error("Invalid quorum number: {0}")]
     InvalidQuorumNumber(u32),
+    #[error("No chunks found")]
+    EmptyChunks,
     #[error("Missing field: {0}")]
     MissingField(String),
+}
+
+/// Errors specific to the Retriever Client type
+#[derive(Debug, thiserror::Error)]
+pub enum RetrievalClientError {
+    #[error("Unkown encoding format")]
+    EncodingFormatUnkown,
+    #[error("Failed to retrieve any chunks")]
+    EmptyChunksResponse,
+    #[error("Invalid chunks: {0}")]
+    InvalidChunks(String),
+    #[error("too many operators ({0}) to get assignments: max number of operators is {1}")]
+    TooManyOperators(usize, usize),
+    #[error("Missing operator for quorum id: {0}")]
+    MissingOperator(u8),
+    #[error("Missing total stake for quorum id: {0}")]
+    MissingTotalStake(u8),
+    #[error("Missing parameters for blob version: {0}")]
+    MissingBlobVersionParams(u16),
+    #[error("Missing assignment in operator reply: {0}")]
+    MissingAssignment(usize),
+    #[error(transparent)]
+    Tonic(#[from] TonicError),
+}
+
+/// Errors specific to Tonic
+#[derive(Debug, thiserror::Error)]
+pub enum TonicError {
+    #[error(transparent)]
+    StatusError(#[from] tonic::Status),
+    #[error(transparent)]
+    TransportError(#[from] tonic::transport::Error),
 }
