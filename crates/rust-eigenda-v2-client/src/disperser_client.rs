@@ -1,14 +1,20 @@
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ark_ff::Zero;
+use rust_kzg_bn254_primitives::helpers::to_fr_array;
 
 use crate::accountant::Accountant;
+use crate::core::eigenda_cert::{BlobCommitment, BlobHeader};
 use crate::core::{BlobKey, BlobRequestSigner, LocalBlobRequestSigner};
+use crate::generated::common::v2::{BlobHeader as BlobHeaderProto, PaymentHeader};
+use crate::generated::common::BlobCommitment as BlobCommitmentProto;
 use crate::generated::disperser::v2::{
-    disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatusReply,
-    BlobStatusRequest, GetPaymentStateReply, GetPaymentStateRequest,
+    disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus, BlobStatusReply, BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply, GetPaymentStateRequest
 };
 use crate::prover::Prover;
+
+const MAX_QUORUM_ID: u8 = 255;
+const BYTES_PER_SYMBOL: usize = 32;
 
 #[derive(Debug)]
 pub struct DisperserClientConfig {
@@ -57,6 +63,7 @@ pub struct DisperserClient {
     accountant: Accountant,
 }
 
+// todo: add locks
 impl DisperserClient {
     pub fn new(
         config: DisperserClientConfig,
@@ -74,8 +81,68 @@ impl DisperserClient {
         }
     }
 
-    pub fn disperse_blob(data: &[u8], quorums: &[u8]) {
-        todo!()
+    //todo: error handling
+    pub async fn disperse_blob(&mut self, data: &[u8], blob_version: u16, quorums: &[u8]) -> Result<(BlobStatus,BlobKey), String> {
+        if quorums.is_empty() {
+            return Err("quorum numbers must be provided".to_string());
+        }
+
+        for quorum in quorums {
+            if *quorum > MAX_QUORUM_ID {
+                return Err("quorum number must be less than 256".to_string());
+            }
+        }
+        
+        let symbol_length = ((data.len() + BYTES_PER_SYMBOL - 1)/ BYTES_PER_SYMBOL).next_power_of_two();
+        let payment = self.accountant.account_blob(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as i64, symbol_length as u64, quorums).unwrap();
+        //to_fr_array(data); //doesn't return error so no need to do the check
+
+        // if prover is null: //todo: prover not null
+        let blob_commitment_reply = self.blob_commitment(data).await?;
+        let Some(blob_commitment) = blob_commitment_reply.blob_commitment else {
+            return Err("blob commitment is empty".to_string());
+        };
+        let core_blob_commitment: BlobCommitment = blob_commitment.try_into().unwrap();
+        if core_blob_commitment.length != symbol_length as u32 {
+            return Err(format!(
+                "blob commitment length {} does not match symbol length {}",
+                core_blob_commitment.length, symbol_length
+            ));
+        }
+
+        let blob_header = BlobHeader {
+            version: blob_version,
+            commitment: core_blob_commitment,
+            quorum_numbers: quorums.to_vec(),
+            payment_header_hash: todo!(),
+        };
+        let signature = self.signer.sign(blob_header)?;
+        let disperse_request = DisperseBlobRequest{
+            blob: data.to_vec(),
+            blob_header: Some(BlobHeaderProto{
+                version: blob_header.version as u32,
+                commitment: Some(blob_commitment),
+                quorum_numbers: quorums.to_vec().iter().map(|&x| x as u32).collect(),
+                payment_header: Some(PaymentHeader{
+                    account_id: payment.account_id.to_string(),
+                    timestamp: payment.timestamp,
+                    cumulative_payment: payment.cumulative_payment.to_signed_bytes_be(),
+                }),
+            }),
+            signature
+        };
+
+        let reply = self.rpc_client.disperse_blob(disperse_request).await
+        .map(|response| response.into_inner())
+        .map_err(|status| format!("Failed RPC call: {}", status))?;
+
+        
+
+        if blob_header.blob_key().unwrap().to_bytes().to_vec() != reply.blob_key {
+            return Err("blob key mismatch".to_string());
+        }
+        
+        Ok((BlobStatus::try_from(reply.result).unwrap(), blob_header.blob_key().unwrap()))
     }
 
     /// Populates the accountant with the payment state from the disperser.

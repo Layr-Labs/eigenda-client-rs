@@ -33,7 +33,7 @@ pub struct Accountant {
 
 impl Accountant {
     /// TODO: add docs
-    fn account_blob(
+    pub fn account_blob(
         &mut self,
         timestamp: i64,
         num_symbols: u64,

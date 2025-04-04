@@ -5,11 +5,11 @@ use super::BlobKey;
 
 #[derive(Debug, PartialEq)]
 pub struct BlobCommitment {
-    commitment: G1Affine,
-    length_commitment: G2Affine,
-    length_proof: G2Affine,
+    pub(crate) commitment: G1Affine,
+    pub(crate) length_commitment: G2Affine,
+    pub(crate) length_proof: G2Affine,
     /// Length in field elements (32 bytes) of the blob. It must be a power of 2.
-    data_length: usize,
+    pub(crate) data_length: usize,
 }
 
 impl BlobCommitment {
@@ -37,13 +37,13 @@ impl BlobCommitment {
 #[derive(Debug, PartialEq)]
 pub struct BlobHeader {
     /// Blob version
-    blob_version: u16,
+    pub(crate) blob_version: u16,
     /// Contains the commitments for the blob.
-    blob_commitments: BlobCommitment,
+    pub(crate) blob_commitments: BlobCommitment,
     /// Contains the quorums that the blob was dispersed to.
-    quorum_numbers: Vec<u8>,
+    pub(crate) quorum_numbers: Vec<u8>,
     /// Contains the payment information for the blob.
-    payment_metadata: PaymentMetadata,
+    pub(crate) payment_metadata: PaymentMetadata,
 }
 
 impl BlobHeader {

@@ -1,7 +1,8 @@
-use crate::core::BlobHeader;
 use ethereum_types::Address;
 use secp256k1::{SecretKey, SECP256K1};
 use sha2::{Digest, Sha256};
+
+use super::eigenda_cert::BlobHeader;
 
 pub trait BlobRequestSigner {
     fn sign(&self, blob_header: BlobHeader) -> Result<Vec<u8>, String>;
