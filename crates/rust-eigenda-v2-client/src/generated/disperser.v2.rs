@@ -104,6 +104,10 @@ pub struct GetPaymentStateRequest {
     /// Signature over the account ID
     #[prost(bytes = "vec", tag = "2")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
+    /// Timestamp of the request in nanoseconds since the Unix epoch. If too far out of sync with the server's clock,
+    /// request may be rejected.
+    #[prost(uint64, tag = "3")]
+    pub timestamp: u64,
 }
 /// GetPaymentStateReply contains the payment state of an account.
 #[allow(clippy::derive_partial_eq_without_eq)]
