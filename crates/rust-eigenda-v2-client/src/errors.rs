@@ -1,3 +1,5 @@
+use crate::eth_client::RpcErrorResponse;
+
 /// Errors returned by this crate
 #[derive(Debug, thiserror::Error)]
 pub enum EigenClientError {
@@ -7,6 +9,17 @@ pub enum EigenClientError {
     Blob(#[from] BlobError),
     #[error(transparent)]
     RetrievalClient(#[from] RetrievalClientError),
+}
+
+/// Errors specific to Eth Abi encoding and decoding
+#[derive(Debug, thiserror::Error)]
+pub enum AbiEncodeError {
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Invalid token type: {0}")]
+    InvalidTokenType(String),
+    #[error("Could not encode token as bytes")]
+    EncodeTokenAsBytes,
 }
 
 /// Errors specific to conversion
@@ -36,6 +49,10 @@ pub enum ConversionError {
     BlobKey(String),
     #[error("Failed to convert U256: {0}")]
     U256Conversion(String),
+    #[error("Failed to convert u32: {0}")]
+    U32Conversion(String),
+    #[error("Failed to convert u16: {0}")]
+    U16Conversion(String),
     #[error(transparent)]
     ArkSerializationError(#[from] ark_serialize::SerializationError),
 }
@@ -81,7 +98,13 @@ pub enum RetrievalClientError {
     #[error("Missing assignment in operator reply: {0}")]
     MissingAssignment(usize),
     #[error(transparent)]
+    VerifierError(#[from] VerifierError),
+    #[error(transparent)]
     Tonic(#[from] TonicError),
+    #[error(transparent)]
+    EthClient(#[from] EthClientError),
+    #[error(transparent)]
+    AbiDecode(#[from] AbiEncodeError),
 }
 
 /// Errors specific to Tonic
@@ -91,4 +114,28 @@ pub enum TonicError {
     StatusError(#[from] tonic::Status),
     #[error(transparent)]
     TransportError(#[from] tonic::transport::Error),
+}
+
+/// Errors for the EthClient
+#[derive(Debug, thiserror::Error)]
+pub enum EthClientError {
+    #[error(transparent)]
+    HTTPClient(#[from] reqwest::Error),
+    #[error(transparent)]
+    SerdeJSON(#[from] serde_json::Error),
+    #[error(transparent)]
+    HexEncoding(#[from] hex::FromHexError),
+    #[error(transparent)]
+    EthAbi(#[from] ethabi::Error),
+    #[error("RPC: {0}")]
+    Rpc(RpcErrorResponse),
+    #[error("Invalid response: {0}")]
+    InvalidResponse(String),
+}
+
+/// Errors for the verifier
+#[derive(Debug, thiserror::Error)]
+pub enum VerifierError {
+    #[error("Failed to verify commit equivalence batch")]
+    FailedToVerifyCommitEquivalenceBatch,
 }
