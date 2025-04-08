@@ -1,6 +1,7 @@
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
+pub mod eth_client;
 pub mod retrieval_client;
 pub mod utils;
 pub mod verifier;

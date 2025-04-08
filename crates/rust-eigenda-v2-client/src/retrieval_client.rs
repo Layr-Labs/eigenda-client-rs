@@ -2,6 +2,7 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use ark_bn254::{Fr, G1Affine};
 use ark_ff::PrimeField;
+use ethabi::{ParamType, Token};
 use ethereum_types::U256;
 use rust_kzg_bn254_primitives::traits::ReadPointFromBytes;
 use tokio::sync::Mutex;
@@ -12,10 +13,15 @@ use crate::{
         eigenda_cert::{BlobCommitment, BlobKey},
         BYTES_PER_SYMBOL,
     },
-    errors::{BlobError, ConversionError, EigenClientError, RetrievalClientError, TonicError},
+    errors::{
+        AbiEncodeError, BlobError, ConversionError, EigenClientError, EthClientError,
+        RetrievalClientError, TonicError,
+    },
+    eth_client::EthClient,
     generated::validator::{
         retrieval_client::RetrievalClient as GrpcRetrievalClient, GetChunksRequest,
     },
+    utils::{u16_from_token, u32_from_token},
 };
 
 // TODO: Relocate structs?
@@ -53,6 +59,70 @@ pub trait RetrievalEthClient: Sync + Send + std::fmt::Debug {
     async fn get_all_versioned_blob_params(
         &self,
     ) -> Result<HashMap<u16, BlobVersionParameters>, RetrievalClientError>;
+}
+
+#[async_trait::async_trait]
+impl RetrievalEthClient for EthClient {
+    async fn get_all_versioned_blob_params(
+        &self,
+    ) -> Result<HashMap<u16, BlobVersionParameters>, RetrievalClientError> {
+        // Solidity: function nextBlobVersion() view returns(uint16)
+        let func_selector = ethabi::short_signature("nextBlobVersion", &[]);
+        let data = func_selector.to_vec();
+        let response_bytes = self
+            .call(
+                self.threshold_registry_addr,
+                bytes::Bytes::copy_from_slice(&data),
+                None,
+            )
+            .await?;
+        let output_type = [ParamType::Uint(16)];
+
+        let tokens =
+            ethabi::decode(&output_type, &response_bytes).map_err(EthClientError::EthAbi)?;
+
+        // Safe unwrap because decode guarantees type correctness and non-empty output
+        let next_blob_version_token = tokens.iter().next().unwrap();
+        let next_blob_version = u16_from_token(next_blob_version_token)?;
+
+        let mut blob_params = HashMap::new();
+        for blob_version in 0..next_blob_version {
+            // Solidity: function getBlobParams(uint16 version) view returns((uint32,uint32,uint8))
+            let func_selector = ethabi::short_signature("getBlobParams", &[]);
+            let mut data = func_selector.to_vec();
+            let mut blob_version_token = Token::Uint(U256::from(blob_version))
+                .into_bytes()
+                .ok_or(AbiEncodeError::EncodeTokenAsBytes)?;
+            data.append(&mut blob_version_token);
+
+            let response_bytes = self
+                .call(
+                    self.threshold_registry_addr,
+                    bytes::Bytes::copy_from_slice(&data),
+                    None,
+                )
+                .await?;
+            let output_type = [ParamType::Uint(32), ParamType::Uint(32), ParamType::Uint(8)];
+            let tokens =
+                ethabi::decode(&output_type, &response_bytes).map_err(EthClientError::EthAbi)?;
+            let mut tokens_iter = tokens.iter();
+
+            // Safe unwrap because decode guarantees type correctness and non-empty output
+            let coding_rate_token = tokens_iter.next().unwrap();
+            let max_num_operators_token = tokens_iter.next().unwrap();
+            let num_chunks_token = tokens_iter.next().unwrap();
+            blob_params.insert(
+                blob_version.into(),
+                BlobVersionParameters {
+                    coding_rate: u32_from_token(coding_rate_token)?,
+                    max_num_operators: u32_from_token(max_num_operators_token)?,
+                    num_chunks: u32_from_token(num_chunks_token)?,
+                },
+            );
+        }
+
+        Ok(blob_params)
+    }
 }
 
 /// OperatorState contains information about the current state of operators which is stored in the blockchain state
