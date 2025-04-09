@@ -66,7 +66,7 @@ impl Encoder {
     }
 
     pub(crate) fn num_evaluations(&self) -> u64 {
-        unimplemented!()
+        self.num_chunks * self.chunk_len
     }
 
     // https://github.com/Layr-Labs/eigenda/blob/57a7b3b20907dfe0f46dc534a0d2673203e69267/encoding/rs/interpolation.go#L19
@@ -74,9 +74,31 @@ impl Encoder {
         unimplemented!()
     }
 
-    pub(crate) fn recover_poly_from_samples(&self, samples: Vec<Fr>) -> Vec<Fr> {
+    fn zero_poly_via_multiplication(&self, missing_indices: Vec<usize>, length: u64) -> (Vec<Fr>, Vec<Fr>) {
         unimplemented!()
     }
+
+    pub(crate) fn recover_poly_from_samples(&self, samples: Vec<Fr>) -> Vec<Fr> {
+        // TODO: using a single additional temporary array, all the FFTs can run in-place.
+
+        // TODO: received samples will change for a Vec<Option<Fr>>
+        let mut missing_indices = Vec::new();
+        for (i, sample) in samples.iter().enumerate() {
+            if *sample == Fr::default() {
+                missing_indices.push(i);
+            }
+        };
+
+        let (zero_eval, zero_poly) = self.zero_poly_via_multiplication(missing_indices, samples.len() as u64);
+
+        for (i, sample) in samples.iter().enumerate() {
+            let eval_at_i = zero_eval[i];
+            panic!("check if zero")
+        };
+
+        unimplemented!()
+
+	}
 
     pub(crate) fn fft(&self, data: Vec<Fr>) -> Vec<Fr> {
         unimplemented!()
@@ -340,6 +362,9 @@ impl RetrievalVerifier for EthClient {
             }
         }
 
+        // We assume that if any Fr is still default after filling data,
+        // then there are missing Frs.
+        // TODO: change samples: Vec<Fr> for Vec<Option<Fr>>
         let reconstructed_data = match samples.iter().any(|sample| *sample == Fr::default()) {
             true => encoder.recover_poly_from_samples(samples),
             false => samples.clone(),
