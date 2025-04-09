@@ -6,7 +6,7 @@ use ark_bn254::{
     Fr, G1Affine, G1Projective, G2Affine, G2Projective,
 };
 use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{BigInteger, Field, PrimeField, UniformRand};
+use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField, UniformRand};
 use ethereum_types::U256;
 use rust_kzg_bn254_primitives::{helpers::pairings_verify, traits::ReadPointFromBytes};
 use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
@@ -70,37 +70,95 @@ impl Encoder {
     }
 
     // https://github.com/Layr-Labs/eigenda/blob/57a7b3b20907dfe0f46dc534a0d2673203e69267/encoding/rs/interpolation.go#L19
-    pub(crate) fn get_interpolation_poly_eval(&self, interpolation_poly: &[Fr], j: usize) -> Vec<Fr> {
+    pub(crate) fn get_interpolation_poly_eval(
+        &self,
+        interpolation_poly: &[Fr],
+        j: usize,
+    ) -> Vec<Fr> {
         unimplemented!()
     }
 
-    fn zero_poly_via_multiplication(&self, missing_indices: Vec<usize>, length: u64) -> (Vec<Fr>, Vec<Fr>) {
+    fn zero_poly_via_multiplication(
+        &self,
+        missing_indices: Vec<usize>,
+        length: u64,
+    ) -> (Vec<Fr>, Vec<Fr>) {
         unimplemented!()
     }
 
-    pub(crate) fn recover_poly_from_samples(&self, samples: Vec<Fr>) -> Vec<Fr> {
+    pub(crate) fn recover_poly_from_samples(&self, samples: Vec<Option<Fr>>) -> Vec<Fr> {
         // TODO: using a single additional temporary array, all the FFTs can run in-place.
 
-        // TODO: received samples will change for a Vec<Option<Fr>>
         let mut missing_indices = Vec::new();
         for (i, sample) in samples.iter().enumerate() {
-            if *sample == Fr::default() {
+            if sample.is_none() {
                 missing_indices.push(i);
             }
-        };
+        }
 
-        let (zero_eval, zero_poly) = self.zero_poly_via_multiplication(missing_indices, samples.len() as u64);
+        let (zero_eval, mut zero_poly) =
+            self.zero_poly_via_multiplication(missing_indices, samples.len() as u64);
 
         for (i, sample) in samples.iter().enumerate() {
             let eval_at_i = zero_eval[i];
-            panic!("check if zero")
-        };
+            if (sample.is_none()) != (eval_at_i.into_bigint().is_zero()) {
+                panic!("bad zero eval")
+            }
+        }
 
+        let mut poly_evaluations_with_zero = Vec::new();
+        for (i, sample) in samples.iter().enumerate() {
+            if let Some(sample) = sample {
+                poly_evaluations_with_zero.push(*sample * zero_eval[i])
+            } else {
+                poly_evaluations_with_zero.push(Fr::ZERO);
+            }
+        }
+
+        let mut poly_with_zero = self.fft(poly_evaluations_with_zero, true);
+
+        // shift in-place
+        self.shift_poly(&mut poly_with_zero);
+        let shifted_poly_with_zero = poly_with_zero;
+
+        self.shift_poly(&mut zero_poly);
+        let shifted_zero_poly = zero_poly;
+
+        let eval_shifted_poly_with_zero = self.fft(shifted_poly_with_zero, false);
+        let eval_shifted_zero_poly = self.fft(shifted_zero_poly, false);
+
+        let mut eval_shifted_reconstructed_poly = eval_shifted_poly_with_zero;
+        for i in 0..eval_shifted_reconstructed_poly.len() {
+            eval_shifted_reconstructed_poly[i] =
+                eval_shifted_reconstructed_poly[i] / eval_shifted_zero_poly[i]
+        }
+
+        let mut shifted_reconstructed_poly = self.fft(eval_shifted_reconstructed_poly, true);
+        self.unshift_poly(&mut shifted_reconstructed_poly);
+        let reconstructed_poly = shifted_reconstructed_poly;
+
+        let reconstructed_data = self.fft(reconstructed_poly, false);
+
+        for (i, sample) in samples.iter().enumerate() {
+            if let Some(sample) = sample {
+                if reconstructed_data[i] != *sample {
+                    panic!("failed to reconstruct data correctly, changed value at index {}. Expected: {:?}, got: {:?}", i, sample, reconstructed_data[i])
+                }
+            }
+        }
+
+        reconstructed_data
+    }
+
+    pub(crate) fn fft(&self, data: Vec<Fr>, inv: bool) -> Vec<Fr> {
         unimplemented!()
+    }
 
-	}
+    fn shift_poly(&self, poly: &mut Vec<Fr>) {
+        unimplemented!()
+    }
 
-    pub(crate) fn fft(&self, data: Vec<Fr>) -> Vec<Fr> {
+    fn unshift_poly(&self, poly: &mut Vec<Fr>) {
         unimplemented!()
     }
 }
@@ -335,7 +393,7 @@ impl RetrievalVerifier for EthClient {
             panic!("number of frame must be sufficient")
         }
 
-        let mut samples: Vec<Fr> = vec![Fr::default(); encoder.num_evaluations() as usize];
+        let mut samples: Vec<Option<Fr>> = vec![None; encoder.num_evaluations() as usize];
         // copy evals based on frame coeffs into samples
         for (i, chunk_number) in indices.iter().enumerate() {
             let frame = frames[i].clone();
@@ -358,19 +416,18 @@ impl RetrievalVerifier for EthClient {
             // Some pattern i butterfly swap. Find the leading coset, then increment by number of coset
             for j in 0..chunk_len {
                 let p = j * encoder.num_chunks as usize + e;
-                samples.insert(p, evals[j]);
+                samples.insert(p, Some(evals[j]));
             }
         }
 
         // We assume that if any Fr is still default after filling data,
         // then there are missing Frs.
-        // TODO: change samples: Vec<Fr> for Vec<Option<Fr>>
-        let reconstructed_data = match samples.iter().any(|sample| *sample == Fr::default()) {
+        let reconstructed_data = match samples.iter().any(|sample| sample.is_none()) {
             true => encoder.recover_poly_from_samples(samples),
-            false => samples.clone(),
+            false => samples.iter().map(|s| s.unwrap()).collect(), // Safe to unwrap as we check above that all are `Some`
         };
 
-        let reconstructed_poly = encoder.fft(reconstructed_data);
+        let reconstructed_poly = encoder.fft(reconstructed_data, true);
 
         Ok(to_byte_array(&reconstructed_poly, max_input_size))
     }
