@@ -148,7 +148,7 @@ pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionErr
 
 pub(crate) fn get_timestamp() -> Result<u64, SystemTimeError> {
     let now = SystemTime::now();
-    Ok(now.duration_since(UNIX_EPOCH)?.as_millis() as u64)
+    Ok(now.duration_since(UNIX_EPOCH)?.as_nanos() as u64)
 }
 
 #[cfg(test)]
