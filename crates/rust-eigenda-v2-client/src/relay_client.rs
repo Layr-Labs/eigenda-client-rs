@@ -1,5 +1,6 @@
 use crate::{
     core::eigenda_cert::BlobKey,
+    errors::RelayClientError,
     generated::relay::{
         chunk_request, relay_client::RelayClient as RpcRelayClient, ChunkRequest,
         ChunkRequestByIndex as RpcChunkRequestByIndex,
@@ -39,15 +40,17 @@ impl RelayClient {
     pub fn new(
         config: RelayClientConfig,
         rpc_clients: Vec<RpcRelayClient<tonic::transport::Channel>>,
-    ) -> Self {
+    ) -> Result<Self, RelayClientError> {
         if config.max_grpc_message_size == 0 {
-            panic!("max grpc message size must be greater than 0");
+            return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
 
-        Self {
+        // TODO: create rpc_clients here?
+
+        Ok(Self {
             config,
             rpc_clients,
-        }
+        })
     }
 
     // get_blob retrieves a blob from a relay.
@@ -55,17 +58,16 @@ impl RelayClient {
         &mut self,
         relay_key: RelayKey,
         blob_key: BlobKey,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, RelayClientError> {
         if relay_key as usize >= self.rpc_clients.len() {
-            return Err("Invalid relay key".to_string());
+            return Err(RelayClientError::InvalidRelayKey(relay_key));
         }
 
         let res = self.rpc_clients[relay_key as usize]
             .get_blob(GetBlobRequest {
                 blob_key: blob_key.to_vec(),
             })
-            .await
-            .unwrap()
+            .await?
             .into_inner();
 
         Ok(res.blob)
@@ -78,9 +80,9 @@ impl RelayClient {
         &mut self,
         relay_key: RelayKey,
         requests: Vec<ChunkRequestByRange>,
-    ) -> Result<Vec<Vec<u8>>, String> {
+    ) -> Result<Vec<Vec<u8>>, RelayClientError> {
         if requests.is_empty() {
-            return Err("Invalid request".to_string());
+            return Err(RelayClientError::EmptyRequest);
         }
 
         let mut grpc_requests = Vec::new();
@@ -97,14 +99,13 @@ impl RelayClient {
         let request = GetChunksRequest {
             chunk_requests: grpc_requests,
             operator_id: self.config.operator_id.to_be_bytes().to_vec(),
-            timestamp: get_timestamp().unwrap() as u32,
+            timestamp: get_timestamp().map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)? as u32,
             operator_signature: self.config.operator_signature.clone(),
         };
 
         let res = self.rpc_clients[relay_key as usize]
             .get_chunks(request)
-            .await
-            .unwrap()
+            .await?
             .into_inner();
 
         Ok(res.data)
@@ -117,9 +118,9 @@ impl RelayClient {
         &mut self,
         relay_key: RelayKey,
         requests: Vec<ChunkRequestByIndex>,
-    ) -> Result<Vec<Vec<u8>>, String> {
+    ) -> Result<Vec<Vec<u8>>, RelayClientError> {
         if requests.is_empty() {
-            return Err("Invalid request".to_string());
+            return Err(RelayClientError::EmptyRequest);
         }
 
         let mut grpc_requests = Vec::new();
@@ -135,14 +136,13 @@ impl RelayClient {
         let request = GetChunksRequest {
             chunk_requests: grpc_requests,
             operator_id: self.config.operator_id.to_be_bytes().to_vec(),
-            timestamp: get_timestamp().unwrap() as u32,
+            timestamp: get_timestamp().map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)? as u32,
             operator_signature: self.config.operator_signature.clone(),
         };
 
         let res = self.rpc_clients[relay_key as usize]
             .get_chunks(request)
-            .await
-            .unwrap()
+            .await?
             .into_inner();
 
         Ok(res.data)

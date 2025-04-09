@@ -1,3 +1,5 @@
+use crate::relay_client::RelayKey;
+
 /// Errors returned by this crate
 #[derive(Debug, thiserror::Error)]
 pub enum EigenClientError {
@@ -55,4 +57,19 @@ pub enum BlobError {
     InvalidQuorumNumber(u32),
     #[error("Missing field: {0}")]
     MissingField(String),
+}
+
+/// Errors specific to the Relay Client
+#[derive(Debug, thiserror::Error)]
+pub enum RelayClientError {
+    #[error("Max grpc message size must be greater than 0")]
+    InvalidMaxGrpcMessageSize,
+    #[error("Failed RPC call: {0}")]
+    FailedRPC(#[from] tonic::Status),
+    #[error("Invalid relay key {0}")]
+    InvalidRelayKey(RelayKey),
+    #[error("Request cannot be empty")]
+    EmptyRequest,
+    #[error("Failed to fetch current timestamp")]
+    FailedToFetchCurrentTimestamp,
 }
