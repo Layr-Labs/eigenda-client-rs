@@ -1,9 +1,15 @@
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-use ark_bn254::{Fr, G1Affine};
-use ark_ff::PrimeField;
+use ark_bn254::{
+    g1::{G1_GENERATOR_X, G1_GENERATOR_Y},
+    g2::{G2_GENERATOR_X, G2_GENERATOR_Y},
+    Fr, G1Affine, G1Projective, G2Affine, G2Projective,
+};
+use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
+use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField, UniformRand};
 use ethereum_types::U256;
-use rust_kzg_bn254_primitives::traits::ReadPointFromBytes;
+use rust_kzg_bn254_primitives::{helpers::pairings_verify, traits::ReadPointFromBytes};
+use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
 
@@ -12,7 +18,11 @@ use crate::{
         eigenda_cert::{BlobCommitment, BlobKey},
         BYTES_PER_SYMBOL,
     },
-    errors::{BlobError, ConversionError, EigenClientError, RetrievalClientError, TonicError},
+    errors::{
+        BlobError, ConversionError, EigenClientError, RetrievalClientError, TonicError,
+        VerifierError,
+    },
+    eth_client::EthClient,
     generated::validator::{
         retrieval_client::RetrievalClient as GrpcRetrievalClient, GetChunksRequest,
     },
@@ -37,8 +47,120 @@ pub type ChunkNumber = usize;
 
 #[derive(Clone)]
 pub struct EncodingParams {
-    _num_chunks: u64, // number of total chunks that are padded to power of 2
-    _chunk_len: u64,  // number of Fr symbol stored inside a chunk
+    pub(crate) num_chunks: u64, // number of total chunks that are padded to power of 2
+    pub(crate) chunk_len: u64,  // number of Fr symbol stored inside a chunk
+}
+
+#[derive(Clone)]
+pub struct Encoder {
+    pub(crate) num_chunks: u64, // number of total chunks that are padded to power of 2
+    pub(crate) chunk_len: u64,  // number of Fr symbol stored inside a chunk
+}
+
+impl Encoder {
+    pub(crate) fn from_params(params: EncodingParams) -> Self {
+        Self {
+            num_chunks: params.num_chunks,
+            chunk_len: params.chunk_len,
+        }
+    }
+
+    pub(crate) fn num_evaluations(&self) -> u64 {
+        self.num_chunks * self.chunk_len
+    }
+
+    // https://github.com/Layr-Labs/eigenda/blob/57a7b3b20907dfe0f46dc534a0d2673203e69267/encoding/rs/interpolation.go#L19
+    pub(crate) fn get_interpolation_poly_eval(
+        &self,
+        interpolation_poly: &[Fr],
+        j: usize,
+    ) -> Vec<Fr> {
+        unimplemented!()
+    }
+
+    fn zero_poly_via_multiplication(
+        &self,
+        missing_indices: Vec<usize>,
+        length: u64,
+    ) -> (Vec<Fr>, Vec<Fr>) {
+        unimplemented!()
+    }
+
+    pub(crate) fn recover_poly_from_samples(&self, samples: Vec<Option<Fr>>) -> Vec<Fr> {
+        // TODO: using a single additional temporary array, all the FFTs can run in-place.
+
+        let mut missing_indices = Vec::new();
+        for (i, sample) in samples.iter().enumerate() {
+            if sample.is_none() {
+                missing_indices.push(i);
+            }
+        }
+
+        let (zero_eval, mut zero_poly) =
+            self.zero_poly_via_multiplication(missing_indices, samples.len() as u64);
+
+        for (i, sample) in samples.iter().enumerate() {
+            let eval_at_i = zero_eval[i];
+            if (sample.is_none()) != (eval_at_i.into_bigint().is_zero()) {
+                panic!("bad zero eval")
+            }
+        }
+
+        let mut poly_evaluations_with_zero = Vec::new();
+        for (i, sample) in samples.iter().enumerate() {
+            if let Some(sample) = sample {
+                poly_evaluations_with_zero.push(*sample * zero_eval[i])
+            } else {
+                poly_evaluations_with_zero.push(Fr::ZERO);
+            }
+        }
+
+        let mut poly_with_zero = self.fft(poly_evaluations_with_zero, true);
+
+        // shift in-place
+        self.shift_poly(&mut poly_with_zero);
+        let shifted_poly_with_zero = poly_with_zero;
+
+        self.shift_poly(&mut zero_poly);
+        let shifted_zero_poly = zero_poly;
+
+        let eval_shifted_poly_with_zero = self.fft(shifted_poly_with_zero, false);
+        let eval_shifted_zero_poly = self.fft(shifted_zero_poly, false);
+
+        let mut eval_shifted_reconstructed_poly = eval_shifted_poly_with_zero;
+        for i in 0..eval_shifted_reconstructed_poly.len() {
+            eval_shifted_reconstructed_poly[i] =
+                eval_shifted_reconstructed_poly[i] / eval_shifted_zero_poly[i]
+        }
+
+        let mut shifted_reconstructed_poly = self.fft(eval_shifted_reconstructed_poly, true);
+        self.unshift_poly(&mut shifted_reconstructed_poly);
+        let reconstructed_poly = shifted_reconstructed_poly;
+
+        let reconstructed_data = self.fft(reconstructed_poly, false);
+
+        for (i, sample) in samples.iter().enumerate() {
+            if let Some(sample) = sample {
+                if reconstructed_data[i] != *sample {
+                    panic!("failed to reconstruct data correctly, changed value at index {}. Expected: {:?}, got: {:?}", i, sample, reconstructed_data[i])
+                }
+            }
+        }
+
+        reconstructed_data
+    }
+
+    pub(crate) fn fft(&self, data: Vec<Fr>, inv: bool) -> Vec<Fr> {
+        unimplemented!()
+    }
+
+    fn shift_poly(&self, poly: &mut Vec<Fr>) {
+        unimplemented!()
+    }
+
+    fn unshift_poly(&self, poly: &mut Vec<Fr>) {
+        unimplemented!()
+    }
 }
 
 pub struct BlobVersionParameters {
@@ -85,20 +207,230 @@ pub trait RetrievalVerifier: Sync + Send + std::fmt::Debug {
         indices: &[ChunkNumber],
         commitments: BlobCommitment,
         params: EncodingParams,
-    ) -> Result<(), RetrievalClientError>;
+        kzg: KZG,
+        srs: SRS,
+    ) -> Result<(), VerifierError>;
 
     async fn verify_commit_equivalence_batch(
         &self,
-        commitments: BlobCommitment,
-    ) -> Result<(), RetrievalClientError>;
+        commitments: Vec<BlobCommitment>,
+    ) -> Result<(), VerifierError>;
 
     async fn decode(
         &self,
         chunks: Vec<Frame>,
         indices: Vec<ChunkNumber>,
         params: EncodingParams,
-        input_size: usize,
-    ) -> Result<Vec<u8>, RetrievalClientError>;
+        max_input_size: usize,
+    ) -> Result<Vec<u8>, VerifierError>;
+}
+
+/// Serializes a slice of field elements to a vector of bytes in big-endian format.
+/// The resulting byte vector's length will not exceed `max_data_size`.
+fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
+    let bytes_per_symbol = Fr::MODULUS_BIT_SIZE as usize / 8;
+    let mut data = Vec::with_capacity(data_fr.len() * bytes_per_symbol);
+
+    for &element in data_fr.iter() {
+        let mut bytes = element.into_bigint().to_bytes_be(); // Get big-endian byte representation
+                                                             // Ensure the byte array is exactly `bytes_per_symbol` in length
+        if bytes.len() < bytes_per_symbol {
+            let padding = vec![0u8; bytes_per_symbol - bytes.len()];
+            bytes = [padding, bytes].concat();
+        }
+        data.extend_from_slice(&bytes);
+        if data.len() >= max_data_size {
+            data.truncate(max_data_size);
+            break;
+        }
+    }
+
+    data
+}
+
+#[async_trait::async_trait]
+impl RetrievalVerifier for EthClient {
+    async fn verify_frames(
+        &self,
+        frames: &[Frame],
+        indices: &[ChunkNumber],
+        commitments: BlobCommitment,
+        params: EncodingParams,
+        kzg: KZG,
+        srs: SRS,
+    ) -> Result<(), VerifierError> {
+        if frames.len() != indices.len() {
+            panic!(
+                "invalid number of frames and indices: {} != {}",
+                frames.len(),
+                indices.len()
+            );
+        }
+
+        for (i, frame) in frames.iter().enumerate() {
+            let j = match (indices[i] as u64) < params.num_chunks {
+                true => {
+                    // Equivalent of: ReverseBitsLimited(uint32(numChunks), uint32(i)) in go
+                    let length = params.num_chunks;
+                    let value = indices[i];
+                    let used_bits = 32 - length.leading_zeros();
+                    let unused_bit_len = 32 - used_bits;
+                    value.reverse_bits() >> unused_bit_len
+                }
+                false => panic!("cannot create number of frame higher than possible"),
+            };
+
+            let n = frame.coeffs.len();
+            if n >= srs.order as usize {
+                panic!(
+                    "requested power {} is larger than SRSOrder {}",
+                    n, srs.order
+                );
+            }
+            // TODO: should be: kzg.get_g2_points()[n];
+            // But we don't have access to this method with the new kzg/srs structs
+            let g2_at_n = G2Affine::default();
+
+            let commitment = commitments.commitment;
+
+            // TODO: We might not be using the expanded roots of unity here.
+            // maybe use directly: `calculate_roots_of_unity` with a correct value
+            // for `length_of_data_after_padding`.
+            // line bellow might panic due to index out of bounds:
+            let x = &kzg.get_roots_of_unities()[j];
+
+            let mut x_pow = Fr::ONE;
+            for _ in 0..frame.coeffs.len() {
+                x_pow *= x
+            }
+
+            // [x^n]_2
+            let xn2 = G2Affine::new_unchecked(G2_GENERATOR_X, G2_GENERATOR_Y)
+                .mul_bigint(x_pow.into_bigint());
+
+            // [s^n - x^n]_2
+            let xn_minus_yn = (g2_at_n - xn2).into_affine();
+
+            // [interpolation_polynomial(s)]_1
+            let srs_g1 = srs.g1[0..frame.coeffs.len()].to_vec();
+            let is1 = G1Projective::msm(&srs_g1, &frame.coeffs)
+                .unwrap()
+                .into_affine();
+
+            // [commitment - interpolation_polynomial(s)]_1 = [commit]_1 - [interpolation_polynomial(s)]_1
+            let commit_minus_interpolation = (commitment - is1).into_affine();
+
+            // Verify the pairing equation
+            //
+            // e([commitment - interpolation_polynomial(s)], [1]) = e([proof],  [s^n - x^n])
+            //    equivalent to
+            // e([commitment - interpolation_polynomial]^(-1), [1]) * e([proof],  [s^n - x^n]) = 1_T
+            //
+            let kzg_gen_g2 = G2Affine::new_unchecked(G2_GENERATOR_X, G2_GENERATOR_Y);
+            if !pairings_verify(
+                commit_minus_interpolation,
+                kzg_gen_g2,
+                frame.proof,
+                xn_minus_yn,
+            ) {
+                return Err(VerifierError::FailedToVerifyCommitEquivalenceBatch);
+            };
+        }
+
+        Ok(())
+    }
+
+    async fn verify_commit_equivalence_batch(
+        &self,
+        commitments: Vec<BlobCommitment>,
+    ) -> Result<(), VerifierError> {
+        let commitments_amount = commitments.len();
+        let mut g1commits = Vec::new();
+        let mut g2commits = Vec::new();
+
+        for blob_commitment in commitments {
+            g1commits.push(blob_commitment.commitment);
+            g2commits.push(blob_commitment.length_commitment);
+        }
+
+        let mut random_scalars = Vec::new();
+        for _ in 0..commitments_amount {
+            random_scalars.push(Fr::rand(&mut rand::thread_rng())); // TODO: USE OTHER RNG!
+        }
+
+        let lhs_g1 = G1Projective::msm(&g1commits, &random_scalars)
+            .unwrap()
+            .into_affine();
+        let lhs_g2 = G2Affine::new_unchecked(G2_GENERATOR_X, G2_GENERATOR_Y);
+        let rhs_g1 = G1Affine::new_unchecked(G1_GENERATOR_X, G1_GENERATOR_Y);
+        let rhs_g2 = G2Projective::msm(&g2commits, &random_scalars)
+            .unwrap()
+            .into_affine();
+
+        if !pairings_verify(lhs_g1, lhs_g2, rhs_g1, rhs_g2) {
+            return Err(VerifierError::FailedToVerifyCommitEquivalenceBatch);
+        };
+        Ok(())
+    }
+
+    async fn decode(
+        &self,
+        chunks: Vec<Frame>,
+        indices: Vec<ChunkNumber>,
+        params: EncodingParams,
+        max_input_size: usize,
+    ) -> Result<Vec<u8>, VerifierError> {
+        let encoder = Encoder::from_params(params);
+        let mut frames = Vec::new();
+        for chunk in chunks {
+            frames.push(chunk.coeffs);
+        }
+
+        let chunk_len = encoder.chunk_len as usize;
+        let data_len = (max_input_size + chunk_len - 1) / chunk_len;
+        let num_sys = data_len / chunk_len;
+        if frames.len() < num_sys {
+            panic!("number of frame must be sufficient")
+        }
+
+        let mut samples: Vec<Option<Fr>> = vec![None; encoder.num_evaluations() as usize];
+        // copy evals based on frame coeffs into samples
+        for (i, chunk_number) in indices.iter().enumerate() {
+            let frame = frames[i].clone();
+            let e = match *chunk_number < encoder.num_chunks as usize {
+                true => {
+                    let value = *chunk_number;
+                    let bit_index = if encoder.num_chunks == 0 {
+                        0
+                    } else {
+                        32 - (encoder.num_chunks - 1).leading_zeros()
+                    };
+                    let unused_bit_len = 32 - bit_index;
+                    value.reverse_bits() >> unused_bit_len
+                }
+                false => panic!("cannot create number of frame higher than possible"),
+            };
+
+            let evals = encoder.get_interpolation_poly_eval(&frame, e);
+
+            // Some pattern i butterfly swap. Find the leading coset, then increment by number of coset
+            for j in 0..chunk_len {
+                let p = j * encoder.num_chunks as usize + e;
+                samples.insert(p, Some(evals[j]));
+            }
+        }
+
+        // We assume that if any Fr is still default after filling data,
+        // then there are missing Frs.
+        let reconstructed_data = match samples.iter().any(|sample| sample.is_none()) {
+            true => encoder.recover_poly_from_samples(samples),
+            false => samples.iter().map(|s| s.unwrap()).collect(), // Safe to unwrap as we check above that all are `Some`
+        };
+
+        let reconstructed_poly = encoder.fft(reconstructed_data, true);
+
+        Ok(to_byte_array(&reconstructed_poly, max_input_size))
+    }
 }
 
 /// RetrievalClient can retrieve blobs from the DA nodes.
@@ -150,8 +482,9 @@ impl<E: RetrievalEthClient, C: RetrievalChainStateProvider, V: RetrievalVerifier
         quorum_id: u8,
     ) -> Result<Vec<u8>, EigenClientError> {
         self.verifier
-            .verify_commit_equivalence_batch(blob_commitments.clone())
-            .await?;
+            .verify_commit_equivalence_batch(vec![blob_commitments.clone()])
+            .await
+            .map_err(RetrievalClientError::VerifierError)?;
 
         let operator_state = self
             .chain_state
@@ -199,8 +532,11 @@ impl<E: RetrievalEthClient, C: RetrievalChainStateProvider, V: RetrievalVerifier
                     &assignment_indices,
                     blob_commitments.clone(),
                     encoding_params.clone(),
+                    KZG::new(),                  // TODO: IMPLEMENT
+                    SRS::new("", 0, 0).unwrap(), // TODO: IMPLEMENT
                 )
-                .await?;
+                .await
+                .map_err(RetrievalClientError::VerifierError)?;
 
             chunks.extend(reply.chunks);
             indices.extend(assignment_indices);
@@ -218,7 +554,7 @@ impl<E: RetrievalEthClient, C: RetrievalChainStateProvider, V: RetrievalVerifier
                 blob_commitments.length as usize * BYTES_PER_SYMBOL,
             )
             .await
-            .map_err(EigenClientError::RetrievalClient)
+            .map_err(|e| EigenClientError::RetrievalClient(e.into()))
     }
 
     pub async fn get_chunks_from_operator(
@@ -282,8 +618,8 @@ fn get_encoding_params(
     let length = get_chunk_length(length, blob_param)?;
 
     Ok(EncodingParams {
-        _num_chunks: blob_param.num_chunks as u64,
-        _chunk_len: length as u64,
+        num_chunks: blob_param.num_chunks as u64,
+        chunk_len: length as u64,
     })
 }
 

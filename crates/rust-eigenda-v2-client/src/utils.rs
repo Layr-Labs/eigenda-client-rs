@@ -1,9 +1,16 @@
-use crate::{errors::ConversionError, generated::common::G1Commitment};
+use crate::{
+    errors::{AbiEncodeError, ConversionError},
+    generated::common::G1Commitment,
+};
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ff::{fields::PrimeField, AdditiveGroup, BigInteger, Fp, Fp2};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::CanonicalSerialize;
+use ethabi::Token;
+use ethereum_types::U256;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
+use secrecy::{ExposeSecret, Secret};
+use url::Url;
 
 const COMPRESSED_SMALLEST: u8 = 0b10 << 6;
 const COMPRESSED_LARGEST: u8 = 0b11 << 6;
@@ -144,8 +151,63 @@ pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionErr
     Ok(bytes)
 }
 
+#[derive(Debug, Clone)]
+/// A URL stored securely using the `Secret` type from the secrecy crate
+pub struct SecretUrl {
+    // We keep the URL as a String because Secret<T> enforces T: DefaultIsZeroes
+    // which is not the case for the type Url
+    inner: Secret<String>,
+}
+
+impl SecretUrl {
+    /// Create a new `SecretUrl` from a `Url`
+    pub fn new(url: Url) -> Self {
+        Self {
+            inner: Secret::new(url.to_string()),
+        }
+    }
+}
+
+impl From<SecretUrl> for Url {
+    fn from(secret_url: SecretUrl) -> Self {
+        Url::parse(secret_url.inner.expose_secret()).unwrap() // Safe to unwrap, as the `new` fn ensures the URL is valid
+    }
+}
+
+impl PartialEq for SecretUrl {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.expose_secret().eq(other.inner.expose_secret())
+    }
+}
+
+pub fn u32_from_token(token: &Token) -> Result<u32, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => match *value > U256::from(u32::MAX) {
+            true => {
+                Err(ConversionError::U32Conversion("Value exceeds u32::MAX".to_string()).into())
+            }
+            false => Ok(value.as_u32()), // Safe cast as the value is guaranteed to be within the range of u32
+        },
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}
+
+pub fn u16_from_token(token: &Token) -> Result<u16, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => match *value > U256::from(u16::MAX) {
+            true => {
+                Err(ConversionError::U16Conversion("Value exceeds u16::MAX".to_string()).into())
+            }
+            false => Ok(value.as_u32() as u16), // Safe cast as the value is guaranteed to be within the range of u32
+        },
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::u16;
+
     use ark_bn254::Fq;
     use ark_ff::UniformRand;
 
@@ -307,5 +369,31 @@ mod tests {
         fn fuzz_g2_point_conversion(g2_point in g2_affine_strategy()) {
             test_g2_point_conversion(g2_point);
         }
+    }
+
+    #[test]
+    fn test_u16_from_token() {
+        let token = Token::Uint(U256::from(u16::MAX));
+        let result = u16_from_token(&token).unwrap();
+        assert_eq!(result, u16::MAX);
+    }
+
+    #[test]
+    fn test_u16_from_token_overflow() {
+        let token = Token::Uint(U256::from(u16::MAX as u32 + 1));
+        assert!(u16_from_token(&token).is_err());
+    }
+
+    #[test]
+    fn test_u32_from_token() {
+        let token = Token::Uint(U256::from(u32::MAX));
+        let result = u32_from_token(&token).unwrap();
+        assert_eq!(result, u32::MAX);
+    }
+
+    #[test]
+    fn test_u32_from_token_overflow() {
+        let token = Token::Uint(U256::from(u32::MAX as u64 + 1));
+        assert!(u32_from_token(&token).is_err());
     }
 }
