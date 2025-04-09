@@ -47,8 +47,40 @@ pub type ChunkNumber = usize;
 
 #[derive(Clone)]
 pub struct EncodingParams {
-    num_chunks: u64, // number of total chunks that are padded to power of 2
-    _chunk_len: u64, // number of Fr symbol stored inside a chunk
+    pub(crate) num_chunks: u64, // number of total chunks that are padded to power of 2
+    pub(crate) chunk_len: u64,  // number of Fr symbol stored inside a chunk
+}
+
+#[derive(Clone)]
+pub struct Encoder {
+    pub(crate) num_chunks: u64, // number of total chunks that are padded to power of 2
+    pub(crate) chunk_len: u64,  // number of Fr symbol stored inside a chunk
+}
+
+impl Encoder {
+    pub(crate) fn from_params(params: EncodingParams) -> Self {
+        Self {
+            num_chunks: params.num_chunks,
+            chunk_len: params.chunk_len,
+        }
+    }
+
+    pub(crate) fn num_evaluations(&self) -> u64 {
+        unimplemented!()
+    }
+
+    // https://github.com/Layr-Labs/eigenda/blob/57a7b3b20907dfe0f46dc534a0d2673203e69267/encoding/rs/interpolation.go#L19
+    pub(crate) fn get_interpolation_poly_eval(&self, interpolation_poly: &[Fr], j: usize) -> Vec<Fr> {
+        unimplemented!()
+    }
+
+    pub(crate) fn recover_poly_from_samples(&self, samples: Vec<Fr>) -> Vec<Fr> {
+        unimplemented!()
+    }
+
+    pub(crate) fn fft(&self, data: Vec<Fr>) -> Vec<Fr> {
+        unimplemented!()
+    }
 }
 
 pub struct BlobVersionParameters {
@@ -96,7 +128,7 @@ pub trait RetrievalVerifier: Sync + Send + std::fmt::Debug {
         commitments: BlobCommitment,
         params: EncodingParams,
         kzg: KZG,
-        srs: SRS
+        srs: SRS,
     ) -> Result<(), VerifierError>;
 
     async fn verify_commit_equivalence_batch(
@@ -121,7 +153,7 @@ fn to_byte_array(data_fr: &[Fr], max_data_size: usize) -> Vec<u8> {
 
     for &element in data_fr.iter() {
         let mut bytes = element.into_bigint().to_bytes_be(); // Get big-endian byte representation
-        // Ensure the byte array is exactly `bytes_per_symbol` in length
+                                                             // Ensure the byte array is exactly `bytes_per_symbol` in length
         if bytes.len() < bytes_per_symbol {
             let padding = vec![0u8; bytes_per_symbol - bytes.len()];
             bytes = [padding, bytes].concat();
@@ -201,7 +233,9 @@ impl RetrievalVerifier for EthClient {
 
             // [interpolation_polynomial(s)]_1
             let srs_g1 = srs.g1[0..frame.coeffs.len()].to_vec();
-            let is1 = G1Projective::msm(&srs_g1, &frame.coeffs).unwrap().into_affine();
+            let is1 = G1Projective::msm(&srs_g1, &frame.coeffs)
+                .unwrap()
+                .into_affine();
 
             // [commitment - interpolation_polynomial(s)]_1 = [commit]_1 - [interpolation_polynomial(s)]_1
             let commit_minus_interpolation = (commitment - is1).into_affine();
@@ -213,7 +247,12 @@ impl RetrievalVerifier for EthClient {
             // e([commitment - interpolation_polynomial]^(-1), [1]) * e([proof],  [s^n - x^n]) = 1_T
             //
             let kzg_gen_g2 = G2Affine::new_unchecked(G2_GENERATOR_X, G2_GENERATOR_Y);
-            if !pairings_verify(commit_minus_interpolation, kzg_gen_g2, frame.proof, xn_minus_yn) {
+            if !pairings_verify(
+                commit_minus_interpolation,
+                kzg_gen_g2,
+                frame.proof,
+                xn_minus_yn,
+            ) {
                 return Err(VerifierError::FailedToVerifyCommitEquivalenceBatch);
             };
         }
@@ -261,37 +300,52 @@ impl RetrievalVerifier for EthClient {
         params: EncodingParams,
         max_input_size: usize,
     ) -> Result<Vec<u8>, VerifierError> {
+        let encoder = Encoder::from_params(params);
         let mut frames = Vec::new();
         for chunk in chunks {
             frames.push(chunk.coeffs);
         }
 
-    	let num_sys = 0; // TODO: encoding.GetNumSys(maxInputSize, g.ChunkLength)
+        let chunk_len = encoder.chunk_len as usize;
+        let data_len = (max_input_size + chunk_len - 1) / chunk_len;
+        let num_sys = data_len / chunk_len;
         if frames.len() < num_sys {
             panic!("number of frame must be sufficient")
         }
 
-        let mut samples: Vec<Fr> = vec![Fr::default(); 3]; // TODO: size is g.NumEvaluations()
-       	// copy evals based on frame coeffs into samples
+        let mut samples: Vec<Fr> = vec![Fr::default(); encoder.num_evaluations() as usize];
+        // copy evals based on frame coeffs into samples
         for (i, chunk_number) in indices.iter().enumerate() {
             let frame = frames[i].clone();
-            let e = 0; // TODO: GetLeadingCosetIndex(chunk_number, g.NumChunks)
+            let e = match *chunk_number < encoder.num_chunks as usize {
+                true => {
+                    let value = *chunk_number;
+                    let bit_index = if encoder.num_chunks == 0 {
+                        0
+                    } else {
+                        32 - (encoder.num_chunks - 1).leading_zeros()
+                    };
+                    let unused_bit_len = 32 - bit_index;
+                    value.reverse_bits() >> unused_bit_len
+                }
+                false => panic!("cannot create number of frame higher than possible"),
+            };
 
-            let evals: Vec<Fr> = Vec::new(); // TODO: g.GetInterpolationPolyEval(f, uint32(e))
+            let evals = encoder.get_interpolation_poly_eval(&frame, e);
 
             // Some pattern i butterfly swap. Find the leading coset, then increment by number of coset
-            for j in 0..1234 { // TODO: ..g.ChunkLength
-                let p = 0; // TODO: j*g.NumChunks + uint64(e)
+            for j in 0..chunk_len {
+                let p = j * encoder.num_chunks as usize + e;
                 samples.insert(p, evals[j]);
             }
-        };
+        }
 
         let reconstructed_data = match samples.iter().any(|sample| *sample == Fr::default()) {
-            true => unimplemented!(), // TODO: g.Fs.RecoverPolyFromSamples(samples, g.Fs.ZeroPolyViaMultiplication)
-            false => samples.clone()
+            true => encoder.recover_poly_from_samples(samples),
+            false => samples.clone(),
         };
 
-        let reconstructed_poly: Vec<Fr> = Vec::new(); // TODO: g.Fs.FFT(reconstructedData, true)
+        let reconstructed_poly = encoder.fft(reconstructed_data);
 
         Ok(to_byte_array(&reconstructed_poly, max_input_size))
     }
@@ -396,8 +450,8 @@ impl<E: RetrievalEthClient, C: RetrievalChainStateProvider, V: RetrievalVerifier
                     &assignment_indices,
                     blob_commitments.clone(),
                     encoding_params.clone(),
-                    KZG::new(), // TODO: IMPLEMENT
-                    SRS::new("", 0, 0).unwrap() // TODO: IMPLEMENT
+                    KZG::new(),                  // TODO: IMPLEMENT
+                    SRS::new("", 0, 0).unwrap(), // TODO: IMPLEMENT
                 )
                 .await
                 .map_err(RetrievalClientError::VerifierError)?;
@@ -483,7 +537,7 @@ fn get_encoding_params(
 
     Ok(EncodingParams {
         num_chunks: blob_param.num_chunks as u64,
-        _chunk_len: length as u64,
+        chunk_len: length as u64,
     })
 }
 
