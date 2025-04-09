@@ -1,10 +1,10 @@
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
+pub mod relay_client;
 pub mod retrieval_client;
 pub mod utils;
 pub mod verifier;
-pub mod relay_client;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {
@@ -36,5 +36,9 @@ pub(crate) mod generated {
 
     pub mod validator {
         include!("generated/validator.rs");
+    }
+
+    pub mod relay {
+        include!("generated/relay.rs");
     }
 }
