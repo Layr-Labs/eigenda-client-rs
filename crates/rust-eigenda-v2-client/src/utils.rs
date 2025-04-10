@@ -1,5 +1,3 @@
-use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
-
 use crate::{errors::ConversionError, generated::common::G1Commitment};
 use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ff::{fields::PrimeField, AdditiveGroup, BigInteger, Fp, Fp2};
@@ -175,11 +173,6 @@ pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionErr
 
     bytes[0] |= mask;
     Ok(bytes)
-}
-
-pub(crate) fn get_timestamp() -> Result<u64, SystemTimeError> {
-    let now = SystemTime::now();
-    Ok(now.duration_since(UNIX_EPOCH)?.as_nanos() as u64)
 }
 
 #[cfg(test)]

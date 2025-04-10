@@ -10,31 +10,17 @@ use crate::{
     errors::{EthClientError, RelayClientError},
     eth_client::EthClient,
     generated::relay::{
-        chunk_request,
         relay_client::{self, RelayClient as RpcRelayClient},
-        ChunkRequest, ChunkRequestByIndex as RpcChunkRequestByIndex,
-        ChunkRequestByRange as RpcChunkRequestByRange, GetBlobRequest, GetChunksRequest,
+        GetBlobRequest,
     },
-    utils::get_timestamp,
 };
 
 pub type RelayKey = u32;
 
-pub struct ChunkRequestByRange {
-    pub(crate) blob_key: BlobKey,
-    pub(crate) start: u32,
-    pub(crate) end: u32,
-}
-
-pub struct ChunkRequestByIndex {
-    pub(crate) blob_key: BlobKey,
-    pub(crate) indices: Vec<u32>,
-}
-
 pub struct RelayClientConfig {
     pub(crate) max_grpc_message_size: usize,
-    pub(crate) operator_id: u32,
-    pub(crate) operator_signature: Vec<u8>,
+    pub(crate) _operator_id: u32,
+    pub(crate) _operator_signature: Vec<u8>,
     pub(crate) relay_clients_keys: Vec<u32>,
     pub(crate) relay_registry_address: Address,
 }
@@ -66,7 +52,7 @@ async fn get_url_from_relay_key(
     let tokens = ethabi::decode(&output_type, &response_bytes).map_err(EthClientError::EthAbi)?;
 
     // Safe unwrap because decode guarantees type correctness and non-empty output
-    let url_token = tokens.iter().next().unwrap();
+    let url_token = tokens.first().unwrap();
     let url = format!("https://{}", url_token.clone().into_string().unwrap()); // TODO: forcing https schema on local stack will fail
 
     Ok(url)
@@ -76,7 +62,7 @@ async fn get_url_from_relay_key(
 //
 // It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
 pub struct RelayClient {
-    config: RelayClientConfig,
+    _config: RelayClientConfig,
     rpc_clients: HashMap<RelayKey, RpcRelayClient<tonic::transport::Channel>>,
 }
 
@@ -105,7 +91,7 @@ impl RelayClient {
         }
 
         Ok(Self {
-            config,
+            _config: config,
             rpc_clients,
         })
     }
@@ -129,87 +115,6 @@ impl RelayClient {
 
         Ok(res.blob)
     }
-
-    // get_chunks_by_range retrieves blob chunks from a relay by chunk index range
-    // The returned slice has the same length and ordering as the input slice, and the i-th element is the bundle for the i-th request.
-    // Each bundle is a sequence of frames in raw form (i.e., serialized core.Bundle bytearray).
-    pub async fn get_chunks_by_range(
-        &mut self,
-        relay_key: RelayKey,
-        requests: Vec<ChunkRequestByRange>,
-    ) -> Result<Vec<Vec<u8>>, RelayClientError> {
-        if requests.is_empty() {
-            return Err(RelayClientError::EmptyRequest);
-        }
-
-        let mut grpc_requests = Vec::new();
-        for request in requests {
-            grpc_requests.push(ChunkRequest {
-                request: Some(chunk_request::Request::ByRange(RpcChunkRequestByRange {
-                    blob_key: request.blob_key.to_vec(),
-                    start_index: request.start,
-                    end_index: request.end,
-                })),
-            })
-        }
-
-        let request = GetChunksRequest {
-            chunk_requests: grpc_requests,
-            operator_id: self.config.operator_id.to_be_bytes().to_vec(),
-            timestamp: get_timestamp()
-                .map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)?
-                as u32,
-            operator_signature: self.config.operator_signature.clone(),
-        };
-
-        let relay_client = self
-            .rpc_clients
-            .get_mut(&relay_key)
-            .ok_or(RelayClientError::InvalidRelayKey(relay_key))?;
-        let res = relay_client.get_chunks(request).await?.into_inner();
-
-        Ok(res.data)
-    }
-
-    // get_chunks_by_index retrieves blob chunks from a relay by index
-    // The returned slice has the same length and ordering as the input slice, and the i-th element is the bundle for the i-th request.
-    // Each bundle is a sequence of frames in raw form (i.e., serialized core.Bundle bytearray).
-    pub async fn get_chunks_by_index(
-        &mut self,
-        relay_key: RelayKey,
-        requests: Vec<ChunkRequestByIndex>,
-    ) -> Result<Vec<Vec<u8>>, RelayClientError> {
-        if requests.is_empty() {
-            return Err(RelayClientError::EmptyRequest);
-        }
-
-        let mut grpc_requests = Vec::new();
-        for request in requests {
-            grpc_requests.push(ChunkRequest {
-                request: Some(chunk_request::Request::ByIndex(RpcChunkRequestByIndex {
-                    blob_key: request.blob_key.to_vec(),
-                    chunk_indices: request.indices,
-                })),
-            });
-        }
-
-        let request = GetChunksRequest {
-            chunk_requests: grpc_requests,
-            operator_id: self.config.operator_id.to_be_bytes().to_vec(),
-            timestamp: get_timestamp()
-                .map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)?
-                as u32,
-            operator_signature: self.config.operator_signature.clone(),
-        };
-
-        let relay_client = self
-            .rpc_clients
-            .get_mut(&relay_key)
-            .ok_or(RelayClientError::InvalidRelayKey(relay_key))?;
-        let res = relay_client.get_chunks(request).await?.into_inner();
-
-        Ok(res.data)
-    }
 }
 
 #[cfg(test)]
@@ -224,8 +129,8 @@ mod tests {
     fn test_config() -> RelayClientConfig {
         RelayClientConfig {
             max_grpc_message_size: 9999999,
-            operator_id: 1,
-            operator_signature: vec![],
+            _operator_id: 1,
+            _operator_signature: vec![],
             relay_clients_keys: vec![1, 2],
             relay_registry_address: H160::from_str("0xaC8C6C7Ee7572975454E2f0b5c720f9E74989254")
                 .unwrap(),
