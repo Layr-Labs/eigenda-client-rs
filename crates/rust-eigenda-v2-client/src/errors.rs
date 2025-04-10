@@ -76,6 +76,8 @@ pub enum RelayClientError {
     FailedToFetchCurrentTimestamp,
     #[error("Invalid disperser URI: {0}")]
     InvalidURI(String),
+    #[error(transparent)]
+    EthClient(#[from] EthClientError),
 }
 
 /// Errors for the EthClient

@@ -7,7 +7,7 @@ use tonic::transport::Channel;
 
 use crate::{
     core::eigenda_cert::BlobKey,
-    errors::RelayClientError,
+    errors::{EthClientError, RelayClientError},
     eth_client::EthClient,
     generated::relay::{
         chunk_request,
@@ -43,7 +43,7 @@ async fn get_url_from_relay_key(
     eth_client: Arc<Mutex<EthClient>>,
     relay_registry_address: Address,
     relay_key: RelayKey,
-) -> String {
+) -> Result<String, EthClientError> {
     // Solidity: function relayKeyToUrl() view returns(string)
     let func_selector = ethabi::short_signature("relayKeyToUrl", &[ParamType::Uint(32)]);
     let mut data = func_selector.to_vec();
@@ -59,18 +59,17 @@ async fn get_url_from_relay_key(
             bytes::Bytes::copy_from_slice(&data),
             None,
         )
-        .await
-        .unwrap();
+        .await?;
 
     let output_type = [ParamType::String];
 
-    let tokens = ethabi::decode(&output_type, &response_bytes).unwrap(); // .map_err(EthClientError::EthAbi)?;
+    let tokens = ethabi::decode(&output_type, &response_bytes).map_err(EthClientError::EthAbi)?;
 
     // Safe unwrap because decode guarantees type correctness and non-empty output
     let url_token = tokens.iter().next().unwrap();
     let url = format!("https://{}", url_token.clone().into_string().unwrap()); // TODO: forcing https schema on local stack will fail
 
-    url
+    Ok(url)
 }
 
 // RelayClient is a client for the entire relay subsystem.
@@ -97,7 +96,7 @@ impl RelayClient {
                 config.relay_registry_address,
                 *relay_key,
             )
-            .await;
+            .await?;
             let endpoint =
                 Channel::from_shared(url.clone()).map_err(|_| RelayClientError::InvalidURI(url))?;
             let channel = endpoint.connect().await?;
