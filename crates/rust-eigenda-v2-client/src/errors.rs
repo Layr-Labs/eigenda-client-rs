@@ -77,3 +77,20 @@ pub enum RelayClientError {
     #[error("Invalid disperser URI: {0}")]
     InvalidURI(String),
 }
+
+/// Errors for the EthClient
+#[derive(Debug, thiserror::Error)]
+pub enum EthClientError {
+    #[error(transparent)]
+    HTTPClient(#[from] reqwest::Error),
+    #[error(transparent)]
+    SerdeJSON(#[from] serde_json::Error),
+    #[error(transparent)]
+    HexEncoding(#[from] hex::FromHexError),
+    #[error(transparent)]
+    EthAbi(#[from] ethabi::Error),
+    #[error("RPC: {0}")]
+    Rpc(crate::eth_client::RpcErrorResponse),
+    #[error("Invalid response: {0}")]
+    InvalidResponse(String),
+}

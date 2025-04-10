@@ -6,11 +6,42 @@ use ark_ff::{fields::PrimeField, AdditiveGroup, BigInteger, Fp, Fp2};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
+use secrecy::{ExposeSecret, Secret};
+use url::Url;
 
 const COMPRESSED_SMALLEST: u8 = 0b10 << 6;
 const COMPRESSED_LARGEST: u8 = 0b11 << 6;
 const COMPRESSED_INFINITY: u8 = 0b01 << 6;
 const G2_COMPRESSED_SIZE: usize = 64;
+
+#[derive(Debug, Clone)]
+/// A URL stored securely using the `Secret` type from the secrecy crate
+pub struct SecretUrl {
+    // We keep the URL as a String because Secret<T> enforces T: DefaultIsZeroes
+    // which is not the case for the type Url
+    inner: Secret<String>,
+}
+
+impl SecretUrl {
+    /// Create a new `SecretUrl` from a `Url`
+    pub fn new(url: Url) -> Self {
+        Self {
+            inner: Secret::new(url.to_string()),
+        }
+    }
+}
+
+impl From<SecretUrl> for Url {
+    fn from(secret_url: SecretUrl) -> Self {
+        Url::parse(secret_url.inner.expose_secret()).unwrap() // Safe to unwrap, as the `new` fn ensures the URL is valid
+    }
+}
+
+impl PartialEq for SecretUrl {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.expose_secret().eq(other.inner.expose_secret())
+    }
+}
 
 /// Converts an eval_poly to a coeff_poly, using the IFFT operation
 ///
