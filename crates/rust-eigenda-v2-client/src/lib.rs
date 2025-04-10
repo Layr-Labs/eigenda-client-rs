@@ -6,6 +6,9 @@ pub mod prover;
 pub mod retrieval_client;
 pub mod utils;
 pub mod verifier;
+pub mod payload_disperser;
+pub mod cert_verifier;
+pub mod contracts_bindings;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {

@@ -8,6 +8,8 @@ pub enum EigenClientError {
     Conversion(#[from] ConversionError),
     #[error(transparent)]
     Blob(#[from] BlobError),
+    #[error(transparent)]
+    PayloadDisperser(#[from] PayloadDisperserError),
 }
 
 /// Errors specific to conversion
@@ -39,6 +41,8 @@ pub enum ConversionError {
     U256Conversion(String),
     #[error(transparent)]
     ArkSerializationError(#[from] ark_serialize::SerializationError),
+    #[error("Failed to parse signed batch: {0}")]
+    SignedBatch(String)
 }
 
 /// Errors specific to the Blob type
@@ -111,4 +115,28 @@ pub enum SignerError {
     Secp(#[from] secp256k1::Error),
     #[error(transparent)]
     Conversion(#[from] ConversionError),
+}
+
+/// Errors specific to the PayloadDisperser
+#[derive(Debug, thiserror::Error)]
+pub enum PayloadDisperserError {
+    #[error(transparent)]
+    Disperser(#[from] DisperseError),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Blob status is unknown or failed")]
+    BlobStatus,
+    #[error(transparent)]
+    Decode(#[from] DecodeError),
+    #[error(transparent)]
+    CertVerifier(#[from] CertVerifierError),
+}
+
+/// Errors specific to the CertVerifier
+#[derive(Debug, thiserror::Error)]
+pub enum CertVerifierError {
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error(transparent)]
+    Alloy(#[from] alloy_contract::Error),
 }

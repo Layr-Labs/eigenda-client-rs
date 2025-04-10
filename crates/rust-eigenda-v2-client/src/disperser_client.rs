@@ -22,9 +22,9 @@ const BYTES_PER_SYMBOL: usize = 32;
 
 #[derive(Debug)]
 pub struct DisperserClientConfig {
-    disperser_rpc: String,
-    private_key: String,
-    use_secure_grpc_flag: bool,
+    pub disperser_rpc: String,
+    pub private_key: String,
+    pub use_secure_grpc_flag: bool,
 }
 
 impl DisperserClientConfig {
@@ -180,7 +180,7 @@ impl DisperserClient {
     /// Returns the status of a blob with the given blob key.
     pub async fn blob_status(
         &mut self,
-        blob_key: BlobKey,
+        blob_key: &BlobKey,
     ) -> Result<BlobStatusReply, DisperseError> {
         let request = BlobStatusRequest {
             blob_key: blob_key.to_bytes().to_vec(),
@@ -246,7 +246,7 @@ mod tests {
             env::var("SIGNER_PRIVATE_KEY").expect("SIGNER_PRIVATE_KEY must be set");
 
         let config = DisperserClientConfig {
-            disperser_rpc: "https://disperser-preprod-holesky.eigenda.xyz".to_string(),
+            disperser_rpc: "https://disperser-testnet-holesky.eigenda.xyz".to_string(),
             private_key,
             use_secure_grpc_flag: false,
         };

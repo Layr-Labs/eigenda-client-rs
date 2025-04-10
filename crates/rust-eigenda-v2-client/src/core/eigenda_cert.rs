@@ -183,6 +183,11 @@ impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
     }
 }
 
+pub(crate) struct SignedBatch {
+    pub(crate) header: BatchHeaderV2,
+    pub(crate) attestation: Vec<u8>,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BatchHeaderV2 {
     batch_root: [u8; 32],
@@ -217,14 +222,14 @@ impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NonSignerStakesAndSignature {
-    non_signer_quorum_bitmap_indices: Vec<u32>,
-    non_signer_pubkeys: Vec<G1Affine>,
-    quorum_apks: Vec<G1Affine>,
-    apk_g2: G2Affine,
-    sigma: G1Affine,
-    quorum_apk_indices: Vec<u32>,
-    total_stake_indices: Vec<u32>,
-    non_signer_stake_indices: Vec<Vec<u32>>,
+    pub non_signer_quorum_bitmap_indices: Vec<u32>,
+    pub non_signer_pubkeys: Vec<G1Affine>,
+    pub quorum_apks: Vec<G1Affine>,
+    pub apk_g2: G2Affine,
+    pub sigma: G1Affine,
+    pub quorum_apk_indices: Vec<u32>,
+    pub total_stake_indices: Vec<u32>,
+    pub non_signer_stake_indices: Vec<Vec<u32>>,
 }
 
 // EigenDACert contains all data necessary to retrieve and validate a blob
