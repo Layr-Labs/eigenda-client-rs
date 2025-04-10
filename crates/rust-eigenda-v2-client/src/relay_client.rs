@@ -1,9 +1,12 @@
+use tonic::transport::Channel;
+
 use crate::{
     core::eigenda_cert::BlobKey,
     errors::RelayClientError,
     generated::relay::{
-        chunk_request, relay_client::RelayClient as RpcRelayClient, ChunkRequest,
-        ChunkRequestByIndex as RpcChunkRequestByIndex,
+        chunk_request,
+        relay_client::{self, RelayClient as RpcRelayClient},
+        ChunkRequest, ChunkRequestByIndex as RpcChunkRequestByIndex,
         ChunkRequestByRange as RpcChunkRequestByRange, GetBlobRequest, GetChunksRequest,
     },
     utils::get_timestamp,
@@ -26,6 +29,7 @@ pub struct RelayClientConfig {
     pub(crate) max_grpc_message_size: usize,
     pub(crate) operator_id: u32,
     pub(crate) operator_signature: Vec<u8>,
+    pub(crate) relay_clients_rpcs: Vec<String>,
 }
 
 // RelayClient is a client for the entire relay subsystem.
@@ -37,15 +41,19 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
-    pub fn new(
-        config: RelayClientConfig,
-        rpc_clients: Vec<RpcRelayClient<tonic::transport::Channel>>,
-    ) -> Result<Self, RelayClientError> {
+    pub async fn new(config: RelayClientConfig) -> Result<Self, RelayClientError> {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
 
-        // TODO: create rpc_clients here?
+        let mut rpc_clients = Vec::new();
+        for relay_client_rpc in config.relay_clients_rpcs.iter() {
+            let endpoint = Channel::from_shared(relay_client_rpc.clone())
+                .map_err(|_| RelayClientError::InvalidURI(relay_client_rpc.clone()))?;
+            let channel = endpoint.connect().await?;
+            let rpc_client = relay_client::RelayClient::new(channel);
+            rpc_clients.push(rpc_client);
+        }
 
         Ok(Self {
             config,
@@ -99,7 +107,9 @@ impl RelayClient {
         let request = GetChunksRequest {
             chunk_requests: grpc_requests,
             operator_id: self.config.operator_id.to_be_bytes().to_vec(),
-            timestamp: get_timestamp().map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)? as u32,
+            timestamp: get_timestamp()
+                .map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)?
+                as u32,
             operator_signature: self.config.operator_signature.clone(),
         };
 
@@ -136,7 +146,9 @@ impl RelayClient {
         let request = GetChunksRequest {
             chunk_requests: grpc_requests,
             operator_id: self.config.operator_id.to_be_bytes().to_vec(),
-            timestamp: get_timestamp().map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)? as u32,
+            timestamp: get_timestamp()
+                .map_err(|_| RelayClientError::FailedToFetchCurrentTimestamp)?
+                as u32,
             operator_signature: self.config.operator_signature.clone(),
         };
 

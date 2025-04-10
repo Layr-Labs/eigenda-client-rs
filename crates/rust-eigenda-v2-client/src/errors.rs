@@ -66,10 +66,14 @@ pub enum RelayClientError {
     InvalidMaxGrpcMessageSize,
     #[error("Failed RPC call: {0}")]
     FailedRPC(#[from] tonic::Status),
+    #[error("Failed connection call")]
+    FailedConnection(#[from] tonic::transport::Error),
     #[error("Invalid relay key {0}")]
     InvalidRelayKey(RelayKey),
     #[error("Request cannot be empty")]
     EmptyRequest,
     #[error("Failed to fetch current timestamp")]
     FailedToFetchCurrentTimestamp,
+    #[error("Invalid disperser URI: {0}")]
+    InvalidURI(String),
 }
