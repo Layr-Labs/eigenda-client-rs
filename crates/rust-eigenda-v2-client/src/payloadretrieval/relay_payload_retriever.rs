@@ -230,7 +230,6 @@ mod tests {
 
         let eigenda_cert = get_test_eigenda_cert();
         let res = client.get_payload(eigenda_cert).await;
-        println!("res: {:?}", res);
         assert!(res.is_ok())
     }
 }

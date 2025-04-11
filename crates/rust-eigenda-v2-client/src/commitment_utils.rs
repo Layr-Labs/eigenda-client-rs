@@ -14,7 +14,7 @@ const G2_COMPRESSED_SIZE: usize = 64;
 fn generate_blob_commitment(g1_srs: Vec<G1Affine>, blob_bytes: &[u8]) -> Result<G1Affine, String> {
     let input_fr = fr_array_from_bytes(blob_bytes)?;
 
-    if g1_srs.len() != input_fr.len() {
+    if g1_srs.len() < input_fr.len() {
         return Err(format!(
             "insufficient SRS in memory: have {}, need {}",
             g1_srs.len(),
