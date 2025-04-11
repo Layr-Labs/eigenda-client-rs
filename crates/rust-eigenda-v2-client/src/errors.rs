@@ -1,3 +1,6 @@
+use hex::FromHexError;
+use prost::DecodeError;
+
 /// Errors returned by this crate
 #[derive(Debug, thiserror::Error)]
 pub enum EigenClientError {
@@ -55,4 +58,57 @@ pub enum BlobError {
     InvalidQuorumNumber(u32),
     #[error("Missing field: {0}")]
     MissingField(String),
+}
+
+/// Errors specific to the Accountant
+#[derive(Debug, thiserror::Error)]
+pub enum AccountantError {
+    #[error("Neither reservation nor on-demand payment is available")]
+    PaymentNotAvailable,
+    #[error("Payment reply is not complete")]
+    PaymentReply,
+}
+
+/// Errors specific to the Disperser Client
+#[derive(Debug, thiserror::Error)]
+pub enum DisperseError {
+    #[error(transparent)]
+    Accountant(AccountantError),
+    #[error("Failed to initialize disperser config: {0}")]
+    ConfigInitialization(String),
+    #[error(transparent)]
+    Tonic(#[from] tonic::transport::Error),
+    #[error("Failed to parse URL: {0}")]
+    InvalidURI(String),
+    #[error("Empty quorums must be provided")]
+    EmptyQuorums,
+    #[error("Blob commitment is empty")]
+    EmptyBlobCommitment,
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Blob commitment length {0} does not match symbol length {1}")]
+    CommitmentLengthMismatch(u32, usize),
+    #[error("Invalid Account id")]
+    AccountID,
+    #[error("Failed RPC call: {0}")]
+    FailedRPC(#[from] tonic::Status),
+    #[error("Calculated and disperser blob key mismatch")]
+    BlobKeyMismatch,
+    #[error(transparent)]
+    Decode(#[from] DecodeError),
+    #[error("Failed to get current time")]
+    SystemTime(#[from] std::time::SystemTimeError),
+    #[error(transparent)]
+    Signer(#[from] SignerError),
+}
+
+/// Errors specific to the Signer
+#[derive(Debug, thiserror::Error)]
+pub enum SignerError {
+    #[error("Failed to parse private key: {0}")]
+    PrivateKey(#[from] FromHexError),
+    #[error(transparent)]
+    Secp(#[from] secp256k1::Error),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
 }

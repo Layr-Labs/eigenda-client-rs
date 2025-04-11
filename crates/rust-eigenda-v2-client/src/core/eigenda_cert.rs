@@ -18,6 +18,8 @@ use crate::generated::{
 };
 use crate::utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
 
+use super::BlobKey;
+
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct PaymentHeader {
     pub(crate) account_id: String,
@@ -57,10 +59,10 @@ impl PaymentHeader {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobCommitment {
-    commitment: G1Affine,
-    length_commitment: G2Affine,
-    length_proof: G2Affine,
-    length: u32,
+    pub(crate) commitment: G1Affine,
+    pub(crate) length_commitment: G2Affine,
+    pub(crate) length_proof: G2Affine,
+    pub(crate) length: u32,
 }
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
@@ -82,11 +84,22 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobHeader {
-    version: u16,
-    quorum_numbers: Vec<u8>,
-    commitment: BlobCommitment,
-    payment_header_hash: [u8; 32],
+pub struct BlobHeader {
+    pub(crate) version: u16,
+    pub(crate) quorum_numbers: Vec<u8>,
+    pub(crate) commitment: BlobCommitment,
+    pub(crate) payment_header_hash: [u8; 32],
+}
+
+impl BlobHeader {
+    pub fn blob_key(&self) -> Result<BlobKey, ConversionError> {
+        BlobKey::compute_blob_key(
+            self.version,
+            self.commitment.clone(),
+            self.quorum_numbers.clone(),
+            self.payment_header_hash,
+        )
+    }
 }
 
 impl TryFrom<ProtoBlobHeader> for BlobHeader {
@@ -276,141 +289,98 @@ impl EigenDACert {
 
         let blob_commitments = blob_header.commitment;
 
-        let blob_key_bytes = compute_blob_key_bytes(
+        BlobKey::compute_blob_key(
             blob_header.version,
             blob_commitments,
             blob_header.quorum_numbers,
             blob_header.payment_header_hash,
-        )?;
-
-        let blob_key: BlobKey = match blob_key_bytes.try_into() {
-            Ok(key) => key,
-            Err(_) => {
-                return Err(ConversionError::BlobKey(
-                    "Failed to parse blob key".to_string(),
-                ))
-            }
-        };
-        Ok(blob_key)
+        )
     }
 }
 
-// BlobKey is the unique identifier for a blob dispersal.
-//
-// It is computed as the Keccak256 hash of some serialization of the blob header
-// where the PaymentHeader has been replaced with Hash(PaymentHeader), in order
-// to be easily verifiable onchain.
-//
-// It can be used to retrieve a blob from relays.
-//
-// Note that two blobs can have the same content but different headers,
-// so they are allowed to both exist in the system.
-pub(crate) type BlobKey = [u8; 32];
+#[cfg(test)]
+mod test {
+    use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
+    use ark_ff::PrimeField;
 
-fn compute_blob_key_bytes(
-    blob_version: u16,
-    blob_commitments: BlobCommitment,
-    quorum_numbers: Vec<u8>,
-    payment_metadata_hash: [u8; 32],
-) -> Result<Vec<u8>, ConversionError> {
-    let mut sorted_quorums = quorum_numbers;
-    sorted_quorums.sort();
+    use crate::core::eigenda_cert::{BlobCommitment, BlobHeader, PaymentHeader};
 
-    let packed_bytes = ethabi::encode(&[
-        Token::Uint(blob_version.into()), // BlobVersion
-        Token::Bytes(
-            sorted_quorums
-                .iter()
-                .flat_map(|q| q.to_be_bytes())
-                .collect(),
-        ), // SortedQuorums
-        Token::Tuple(vec![
-            // AbiBlobCommitments
-            // Commitment
-            Token::Tuple(vec![
-                Token::Uint(
-                    U256::from_dec_str(&blob_commitments.commitment.x.to_string())
-                        .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                ), // commitment X
-                Token::Uint(
-                    U256::from_dec_str(&blob_commitments.commitment.y.to_string())
-                        .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                ), // commitment Y
-            ]),
-            // Most cryptography library serializes a G2 point by having
-            // A0 followed by A1 for both X, Y field of G2. However, ethereum
-            // precompile assumes an ordering of A1, A0. We choose
-            // to conform with Ethereum order when serializing a blobHeaderV2
-            // for instance, gnark, https://github.com/Consensys/gnark-crypto/blob/de0d77f2b4d520350bc54c612828b19ce2146eee/ecc/bn254/marshal.go#L1078
-            // Ethereum, https://eips.ethereum.org/EIPS/eip-197#definition-of-the-groups
-            // LengthCommitment
-            Token::Tuple(vec![
-                // X
-                Token::FixedArray(vec![
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_commitment.x.c1.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_commitment.x.c0.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                ]),
-                // Y
-                Token::FixedArray(vec![
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_commitment.y.c1.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_commitment.y.c0.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                ]),
-            ]),
-            // Same as above
-            // LengthProof
-            Token::Tuple(vec![
-                Token::FixedArray(vec![
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_proof.x.c1.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_proof.x.c0.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                ]),
-                Token::FixedArray(vec![
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_proof.y.c1.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                    Token::Uint(
-                        U256::from_dec_str(&blob_commitments.length_proof.y.c0.to_string())
-                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
-                    ),
-                ]),
-            ]),
-            Token::Uint(blob_commitments.length.into()), // DataLength
-        ]),
-    ]);
+    #[test]
+    fn test_blob_key() {
+        let commitment_x = Fq::from_be_bytes_mod_order(&[
+            47, 227, 202, 245, 187, 25, 196, 187, 223, 98, 97, 40, 194, 244, 32, 4, 86, 33, 187, 1,
+            12, 189, 12, 90, 30, 142, 112, 147, 146, 88, 249, 104,
+        ]);
+        let commitment_y = Fq::from_be_bytes_mod_order(&[
+            20, 91, 31, 26, 187, 114, 156, 101, 50, 219, 233, 184, 99, 191, 205, 182, 6, 159, 229,
+            182, 109, 197, 9, 213, 141, 125, 13, 219, 52, 178, 139, 146,
+        ]);
 
-    let mut keccak = Keccak::v256();
-    keccak.update(&packed_bytes);
-    let mut header_hash = [0u8; 32];
-    keccak.finalize(&mut header_hash);
+        let length_commitment_x0 = Fq::from_be_bytes_mod_order(&[
+            8, 65, 223, 70, 245, 141, 117, 195, 15, 108, 165, 232, 225, 16, 48, 241, 231, 234, 102,
+            199, 125, 117, 21, 163, 169, 94, 92, 250, 30, 145, 48, 171,
+        ]);
+        let length_commitment_x1 = Fq::from_be_bytes_mod_order(&[
+            39, 3, 247, 81, 154, 56, 239, 185, 210, 149, 195, 180, 108, 221, 16, 192, 77, 138, 32,
+            157, 171, 219, 234, 248, 239, 93, 143, 126, 56, 204, 132, 102,
+        ]);
 
-    let s2 = vec![
-        Token::FixedBytes(header_hash.to_vec()),
-        Token::FixedBytes(payment_metadata_hash.to_vec()),
-    ];
+        let length_commitment_y0 = Fq::from_be_bytes_mod_order(&[
+            14, 234, 250, 97, 56, 209, 123, 188, 191, 0, 109, 187, 173, 92, 82, 77, 236, 38, 75,
+            145, 102, 0, 177, 111, 42, 228, 130, 88, 227, 21, 3, 90,
+        ]);
+        let length_commitment_y1 = Fq::from_be_bytes_mod_order(&[
+            13, 18, 145, 28, 229, 160, 11, 188, 145, 68, 148, 75, 22, 196, 32, 197, 2, 113, 249,
+            176, 226, 81, 16, 168, 135, 74, 84, 143, 61, 183, 164, 42,
+        ]);
 
-    let packed_bytes = ethabi::encode(&s2);
+        let length_proof_x0 = Fq::from_be_bytes_mod_order(&[
+            4, 58, 192, 64, 99, 97, 56, 104, 197, 61, 137, 206, 145, 118, 143, 216, 15, 40, 191,
+            251, 238, 37, 248, 97, 241, 136, 54, 180, 15, 235, 174, 42,
+        ]);
+        let length_proof_x1 = Fq::from_be_bytes_mod_order(&[
+            35, 146, 74, 104, 5, 13, 42, 164, 44, 141, 107, 115, 154, 6, 65, 146, 27, 136, 169,
+            149, 78, 27, 120, 242, 27, 172, 53, 196, 199, 133, 149, 205,
+        ]);
 
-    let mut keccak = Keccak::v256();
-    keccak.update(&packed_bytes);
-    let mut blob_key = [0u8; 32];
-    keccak.finalize(&mut blob_key);
-    Ok(blob_key.into())
+        let length_proof_y0 = Fq::from_be_bytes_mod_order(&[
+            14, 180, 121, 174, 188, 158, 3, 195, 182, 93, 117, 123, 138, 52, 168, 68, 157, 43, 93,
+            68, 112, 237, 17, 72, 183, 227, 111, 102, 189, 137, 223, 43,
+        ]);
+        let length_proof_y1 = Fq::from_be_bytes_mod_order(&[
+            31, 226, 236, 78, 97, 43, 93, 185, 199, 205, 181, 172, 68, 53, 100, 1, 200, 41, 56,
+            150, 142, 207, 252, 194, 255, 160, 210, 92, 132, 123, 146, 191,
+        ]);
+
+        let commitments = BlobCommitment {
+            commitment: G1Affine::new(commitment_x, commitment_y),
+            length_commitment: G2Affine::new(
+                Fq2::new(length_commitment_x0, length_commitment_x1),
+                Fq2::new(length_commitment_y0, length_commitment_y1),
+            ),
+            length_proof: G2Affine::new(
+                Fq2::new(length_proof_x0, length_proof_x1),
+                Fq2::new(length_proof_y0, length_proof_y1),
+            ),
+            length: 64,
+        };
+        let payment_header = PaymentHeader {
+            account_id: "0x0000000000000000000000000000000000000123".to_string(),
+            timestamp: 5,
+            cumulative_payment: num_bigint::BigInt::from(100).to_signed_bytes_be(),
+        };
+        let blob_header = BlobHeader {
+            version: 0,
+            quorum_numbers: vec![0, 1],
+            commitment: commitments,
+            payment_header_hash: payment_header.hash().unwrap(),
+        };
+
+        let blob_key = blob_header.blob_key().unwrap();
+        // e2fc52cb6213041838c20164eac05a7660b741518d5c14060e47c89ed3dd175b has verified in solidity  with chisel
+        assert_eq!(
+            hex::encode(blob_key.to_bytes()),
+            "e2fc52cb6213041838c20164eac05a7660b741518d5c14060e47c89ed3dd175b"
+        );
+    }
 }

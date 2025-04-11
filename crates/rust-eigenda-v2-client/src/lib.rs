@@ -1,6 +1,8 @@
+pub mod accountant;
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
+pub mod prover;
 pub mod retrieval_client;
 pub mod utils;
 pub mod verifier;
