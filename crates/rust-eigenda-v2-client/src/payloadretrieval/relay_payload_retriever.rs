@@ -135,3 +135,51 @@ impl RelayPayloadRetriever {
         Ok(blob)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{str::FromStr, sync::Arc};
+
+    use tokio::sync::Mutex;
+    use url::Url;
+
+    use crate::{
+        eth_client::EthClient,
+        utils::{relay_client_test_config, SecretUrl},
+    };
+
+    use super::*;
+
+    fn get_relay_payload_retriever_test_config() -> RelayPayloadRetrieverConfig {
+        RelayPayloadRetrieverConfig {
+            srs: SRS::new("../../resources/g1.point", 42, 42).unwrap(),
+            payload_form: PayloadForm::Coeff,
+        }
+    }
+
+    async fn get_test_relay_client() -> RelayClient {
+        let eth_client = EthClient::new(SecretUrl::new(
+            Url::from_str("https://ethereum-holesky-rpc.publicnode.com").unwrap(),
+        ));
+        let eth_client = Arc::new(Mutex::new(eth_client));
+
+        RelayClient::new(relay_client_test_config(), eth_client)
+            .await
+            .unwrap()
+    }
+
+    fn get_test_eigenda_cert() -> EigenDACert {
+        unimplemented!()
+    }
+
+    #[tokio::test]
+    async fn get_payload_from_relay() {
+        let config = get_relay_payload_retriever_test_config();
+        let relay_client = get_test_relay_client().await;
+        let mut client = RelayPayloadRetriever::new(config, relay_client);
+
+        let eigenda_cert = get_test_eigenda_cert();
+        let res = client.get_payload(eigenda_cert).await;
+        assert!(res.is_ok())
+    }
+}
