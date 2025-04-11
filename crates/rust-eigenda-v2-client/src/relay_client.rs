@@ -19,8 +19,6 @@ pub type RelayKey = u32;
 
 pub struct RelayClientConfig {
     pub(crate) max_grpc_message_size: usize,
-    pub(crate) _operator_id: u32,
-    pub(crate) _operator_signature: Vec<u8>,
     pub(crate) relay_clients_keys: Vec<u32>,
     pub(crate) relay_registry_address: Address,
 }
@@ -62,7 +60,6 @@ async fn get_url_from_relay_key(
 //
 // It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
 pub struct RelayClient {
-    _config: RelayClientConfig,
     rpc_clients: HashMap<RelayKey, RpcRelayClient<tonic::transport::Channel>>,
 }
 
@@ -90,10 +87,7 @@ impl RelayClient {
             rpc_clients.insert(*relay_key, rpc_client);
         }
 
-        Ok(Self {
-            _config: config,
-            rpc_clients,
-        })
+        Ok(Self { rpc_clients })
     }
 
     // get_blob retrieves a blob from a relay.
@@ -129,8 +123,6 @@ mod tests {
     fn test_config() -> RelayClientConfig {
         RelayClientConfig {
             max_grpc_message_size: 9999999,
-            _operator_id: 1,
-            _operator_signature: vec![],
             relay_clients_keys: vec![1, 2],
             relay_registry_address: H160::from_str("0xaC8C6C7Ee7572975454E2f0b5c720f9E74989254")
                 .unwrap(),
