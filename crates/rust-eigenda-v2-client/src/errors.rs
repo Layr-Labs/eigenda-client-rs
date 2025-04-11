@@ -59,6 +59,21 @@ pub enum BlobError {
     MissingField(String),
 }
 
+/// Errors specific to the Relay Payload Retriever
+#[derive(Debug, thiserror::Error)]
+pub enum RelayPayloadRetrieverError {
+    #[error(transparent)]
+    RelayClient(#[from] RelayClientError),
+    #[error(transparent)]
+    Blob(#[from] BlobError),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Unable to retrieve payload")]
+    UnableToRetrievePayload,
+    #[error("Invalid certificate: {0}")]
+    InvalidCertificate(String),
+}
+
 /// Errors specific to the Relay Client
 #[derive(Debug, thiserror::Error)]
 pub enum RelayClientError {
