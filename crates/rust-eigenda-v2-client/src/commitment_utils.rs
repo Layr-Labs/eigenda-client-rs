@@ -1,6 +1,6 @@
 use ark_bn254::{G1Affine, G1Projective, G2Affine};
 use ark_ec::{CurveGroup, VariableBaseMSM};
-use ark_ff::{AdditiveGroup, BigInteger, Fp, Fp2, PrimeField};
+use ark_ff::{AdditiveGroup, BigInteger, Fp, Fp2, PrimeField, Zero};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
 
@@ -107,7 +107,11 @@ pub fn g2_commitment_from_bytes(bytes: &[u8]) -> Result<G2Affine, ConversionErro
     )?;
 
     // Ensure Y has the correct lexicographic property
-    if (msb_mask == COMPRESSED_LARGEST) != lexicographically_largest(&point.y.c0) {
+    let mut lex_largest = lexicographically_largest(&point.y.c1);
+    if !lex_largest && point.y.c1.is_zero() {
+        lex_largest = lexicographically_largest(&point.y.c0);
+    }
+    if (msb_mask == COMPRESSED_LARGEST) != lex_largest {
         point.y.neg_in_place();
     }
 
@@ -130,16 +134,19 @@ fn switch_endianess(bytes: &mut Vec<u8>) {
 
 pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![0u8; 64];
-
     if point.to_flags().is_infinity() {
         bytes[0] |= COMPRESSED_INFINITY;
         return Ok(bytes);
     }
-
     point.serialize_compressed(&mut bytes)?;
     switch_endianess(&mut bytes);
 
-    let mask = match lexicographically_largest(&point.y.c0) {
+    let mut lex_largest = lexicographically_largest(&point.y.c1);
+    if !lex_largest && point.y.c1.is_zero() {
+        lex_largest = lexicographically_largest(&point.y.c0);
+    }
+
+    let mask = match lex_largest {
         true => COMPRESSED_LARGEST,
         false => COMPRESSED_SMALLEST,
     };
