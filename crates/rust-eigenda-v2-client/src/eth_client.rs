@@ -66,14 +66,14 @@ pub(crate) struct RpcRequest {
 
 /// Client for interacting with an Ethereum node
 #[derive(Debug, Clone)]
-pub(crate) struct EthClient {
+pub struct EthClient {
     client: reqwest::Client,
     pub(crate) url: SecretUrl,
 }
 
 impl EthClient {
     /// Creates a new EthClient
-    pub(crate) fn new(url: SecretUrl) -> Self {
+    pub fn new(url: SecretUrl) -> Self {
         Self {
             client: reqwest::Client::new(),
             url,
@@ -95,7 +95,7 @@ impl EthClient {
     }
 
     /// Gets the latest block number
-    pub(crate) async fn get_block_number(&self) -> Result<U256, EthClientError> {
+    pub async fn get_block_number(&self) -> Result<U256, EthClientError> {
         let request = RpcRequest {
             id: RpcRequestId::Number(1),
             jsonrpc: "2.0".to_string(),
