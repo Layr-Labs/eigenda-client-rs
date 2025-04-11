@@ -1,12 +1,13 @@
+pub mod commitment_utils;
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
 pub mod eth_client;
+pub mod payloadretrieval;
 pub mod relay_client;
 pub mod retrieval_client;
 pub mod utils;
 pub mod verifier;
-pub mod payloadretrieval;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {

@@ -6,6 +6,7 @@ use tiny_keccak::{Hasher, Keccak};
 use crate::errors::{BlobError, ConversionError, EigenClientError};
 use crate::generated::disperser::v2::BlobStatusReply;
 
+use crate::commitment_utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
 use crate::generated::{
     common::{
         v2::{
@@ -16,7 +17,6 @@ use crate::generated::{
     },
     disperser::v2::BlobInclusionInfo as ProtoBlobInclusionInfo,
 };
-use crate::utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct PaymentHeader {
@@ -57,10 +57,10 @@ impl PaymentHeader {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobCommitment {
-    commitment: G1Affine,
-    length_commitment: G2Affine,
-    length_proof: G2Affine,
-    length: u32,
+    pub(crate) commitment: G1Affine,
+    pub(crate) length_commitment: G2Affine,
+    pub(crate) length_proof: G2Affine,
+    pub(crate) length: u32,
 }
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
@@ -83,10 +83,10 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobHeader {
-    version: u16,
-    quorum_numbers: Vec<u8>,
-    commitment: BlobCommitment,
-    payment_header_hash: [u8; 32],
+    pub(crate) version: u16,
+    pub(crate) quorum_numbers: Vec<u8>,
+    pub(crate) commitment: BlobCommitment,
+    pub(crate) payment_header_hash: [u8; 32],
 }
 
 impl TryFrom<ProtoBlobHeader> for BlobHeader {
@@ -130,9 +130,9 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobCertificate {
-    blob_header: BlobHeader,
-    signature: Vec<u8>,
-    relay_keys: Vec<u32>,
+    pub(crate) blob_header: BlobHeader,
+    pub(crate) signature: Vec<u8>,
+    pub(crate) relay_keys: Vec<u32>,
 }
 
 impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
@@ -151,9 +151,9 @@ impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct BlobInclusionInfo {
-    blob_certificate: BlobCertificate,
-    blob_index: u32,
-    inclusion_proof: Vec<u8>,
+    pub(crate) blob_certificate: BlobCertificate,
+    pub(crate) blob_index: u32,
+    pub(crate) inclusion_proof: Vec<u8>,
 }
 
 impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
@@ -219,10 +219,10 @@ pub struct NonSignerStakesAndSignature {
 // This struct represents the composition of a eigenDA blob certificate, as it would exist in a rollup inbox.
 #[derive(Debug, PartialEq, Clone)]
 pub struct EigenDACert {
-    blob_inclusion_info: BlobInclusionInfo,
-    batch_header: BatchHeaderV2,
-    non_signer_stakes_and_signature: NonSignerStakesAndSignature,
-    signed_quorum_numbers: Vec<u8>,
+    pub(crate) blob_inclusion_info: BlobInclusionInfo,
+    pub(crate) batch_header: BatchHeaderV2,
+    pub(crate) non_signer_stakes_and_signature: NonSignerStakesAndSignature,
+    pub(crate) signed_quorum_numbers: Vec<u8>,
 }
 
 impl EigenDACert {
