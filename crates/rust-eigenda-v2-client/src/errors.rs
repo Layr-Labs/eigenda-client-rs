@@ -72,6 +72,8 @@ pub enum RelayPayloadRetrieverError {
     UnableToRetrievePayload,
     #[error("Invalid certificate: {0}")]
     InvalidCertificate(String),
+    #[error("Retrieval request to relay timed out")]
+    RetrievalTimeout,
 }
 
 /// Errors specific to the Relay Client

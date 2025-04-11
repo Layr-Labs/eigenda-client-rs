@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use rand::seq::SliceRandom;
 use rust_kzg_bn254_prover::srs::SRS;
+use tokio::time::timeout;
 
 use crate::{
     commitment_utils::generate_and_compare_blob_commitment,
@@ -14,6 +17,7 @@ use crate::{
 pub struct RelayPayloadRetrieverConfig {
     pub(crate) srs: SRS,
     pub(crate) payload_form: PayloadForm,
+    pub(crate) retrieval_timeout_secs: Duration,
 }
 
 // RelayPayloadRetriever provides the ability to get payloads from the relay subsystem.
@@ -129,8 +133,13 @@ impl RelayPayloadRetriever {
         blob_key: BlobKey,
         blob_length_symbols: u32,
     ) -> Result<Blob, RelayPayloadRetrieverError> {
-        // TODO: add timeout logic here
-        let blob_bytes = self.relay_client.get_blob(relay_key, blob_key).await?;
+        let blob_bytes = timeout(
+            self.config.retrieval_timeout_secs,
+            self.relay_client.get_blob(relay_key, blob_key),
+        )
+        .await
+        .map_err(|_| RelayPayloadRetrieverError::RetrievalTimeout)??;
+
         let blob = Blob::deserialize_blob(blob_bytes, blob_length_symbols as usize)?;
         Ok(blob)
     }
@@ -159,6 +168,7 @@ mod tests {
         RelayPayloadRetrieverConfig {
             srs: SRS::new("../../resources/g1.point", 42, 42).unwrap(),
             payload_form: PayloadForm::Coeff,
+            retrieval_timeout_secs: Duration::from_secs(10),
         }
     }
 
