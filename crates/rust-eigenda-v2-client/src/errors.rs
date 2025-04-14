@@ -1,4 +1,5 @@
 use ark_bn254::{Fr, G1Affine};
+use rust_kzg_bn254_primitives::errors::KzgError;
 
 use crate::relay_client::RelayKey;
 
@@ -72,6 +73,8 @@ pub enum RelayPayloadRetrieverError {
     Blob(#[from] BlobError),
     #[error(transparent)]
     Conversion(#[from] ConversionError),
+    #[error(transparent)]
+    Kzg(#[from] KzgError),
     #[error("Unable to retrieve payload")]
     UnableToRetrievePayload,
     #[error("Invalid certificate: {0}")]

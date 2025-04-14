@@ -37,18 +37,18 @@ impl RelayPayloadRetriever {
         config: RelayPayloadRetrieverConfig,
         srs_config: SRSConfig,
         relay_client: RelayClient,
-    ) -> Self {
+    ) -> Result<Self, RelayPayloadRetrieverError> {
         let srs = SRS::new(
             &srs_config.source_path,
             srs_config.order,
             srs_config.points_to_load,
-        )
-        .unwrap();
-        RelayPayloadRetriever {
+        )?;
+
+        Ok(RelayPayloadRetriever {
             srs,
             config,
             relay_client,
-        }
+        })
     }
 
     // get_payload iteratively attempts to fetch a given blob with key blobKey from relays that have it, as claimed by the
@@ -291,7 +291,8 @@ mod tests {
         let relay_config = get_relay_payload_retriever_test_config();
         let srs_config = get_srs_test_config();
         let relay_client = get_test_relay_client().await;
-        let mut client = RelayPayloadRetriever::new(relay_config, srs_config, relay_client);
+        let mut client =
+            RelayPayloadRetriever::new(relay_config, srs_config, relay_client).unwrap();
 
         let eigenda_cert = get_test_eigenda_cert();
         let res = client.get_payload(eigenda_cert).await;
