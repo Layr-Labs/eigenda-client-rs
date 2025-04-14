@@ -1,5 +1,6 @@
 use crate::{errors::ConversionError, generated::common::G1Commitment};
 use ark_bn254::{Fr, G1Affine, G2Affine};
+use ark_ff::Zero;
 use ark_ff::{fields::PrimeField, AdditiveGroup, BigInteger, Fp, Fp2};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::CanonicalSerialize;
@@ -134,7 +135,11 @@ pub fn g2_commitment_from_bytes(bytes: &[u8]) -> Result<G2Affine, ConversionErro
     )?;
 
     // Ensure Y has the correct lexicographic property
-    if (msb_mask == COMPRESSED_LARGEST) != lexicographically_largest(&point.y.c0) {
+    let mut lex_largest = lexicographically_largest(&point.y.c1);
+    if !lex_largest && point.y.c1.is_zero() {
+        lex_largest = lexicographically_largest(&point.y.c0);
+    }
+    if (msb_mask == COMPRESSED_LARGEST) != lex_largest {
         point.y.neg_in_place();
     }
 
@@ -166,7 +171,12 @@ pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionErr
     point.serialize_compressed(&mut bytes)?;
     switch_endianess(&mut bytes);
 
-    let mask = match lexicographically_largest(&point.y.c0) {
+    let mut lex_largest = lexicographically_largest(&point.y.c1);
+    if !lex_largest && point.y.c1.is_zero() {
+        lex_largest = lexicographically_largest(&point.y.c0);
+    }
+
+    let mask = match lex_largest {
         true => COMPRESSED_LARGEST,
         false => COMPRESSED_SMALLEST,
     };
