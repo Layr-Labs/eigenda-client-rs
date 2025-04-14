@@ -66,10 +66,33 @@ pub enum RelayClientError {
     InvalidMaxGrpcMessageSize,
     #[error("Failed RPC call: {0}")]
     FailedRPC(#[from] tonic::Status),
+    #[error("Failed connection call")]
+    FailedConnection(#[from] tonic::transport::Error),
     #[error("Invalid relay key {0}")]
     InvalidRelayKey(RelayKey),
     #[error("Request cannot be empty")]
     EmptyRequest,
     #[error("Failed to fetch current timestamp")]
     FailedToFetchCurrentTimestamp,
+    #[error("Invalid disperser URI: {0}")]
+    InvalidURI(String),
+    #[error(transparent)]
+    EthClient(#[from] EthClientError),
+}
+
+/// Errors for the EthClient
+#[derive(Debug, thiserror::Error)]
+pub enum EthClientError {
+    #[error(transparent)]
+    HTTPClient(#[from] reqwest::Error),
+    #[error(transparent)]
+    SerdeJSON(#[from] serde_json::Error),
+    #[error(transparent)]
+    HexEncoding(#[from] hex::FromHexError),
+    #[error(transparent)]
+    EthAbi(#[from] ethabi::Error),
+    #[error("RPC: {0}")]
+    Rpc(crate::eth_client::RpcErrorResponse),
+    #[error("Invalid response: {0}")]
+    InvalidResponse(String),
 }
