@@ -18,13 +18,6 @@ mod tests {
     use crate::blob_info::BlobInfo;
 
     impl EigenClient {
-        pub(crate) async fn get_blob(
-            &self,
-            blob_id: BlobInfo,
-        ) -> Result<Option<Vec<u8>>, EigenClientError> {
-            self.client.get_blob(blob_id).await
-        }
-
         pub(crate) async fn get_commitment(
             &self,
             blob_id: &str,
@@ -101,7 +94,7 @@ mod tests {
         assert!(actual_inclusion_data
             .windows(expected_inclusion_data.len())
             .any(|window| window == expected_inclusion_data)); // Checks that the verification proof is included in the inclusion data
-        let retrieved_data = client.get_blob(blob_info).await.unwrap();
+        let retrieved_data = client.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.blob_verification_proof.batch_medatada.batch_header_hash).await.unwrap();
         assert_eq!(retrieved_data.unwrap(), data);
     }
 
@@ -131,7 +124,7 @@ mod tests {
         assert!(actual_inclusion_data
             .windows(expected_inclusion_data.len())
             .any(|window| window == expected_inclusion_data)); // Checks that the verification proof is included in the inclusion data
-        let retrieved_data = client.get_blob(blob_info).await.unwrap();
+        let retrieved_data = client.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.blob_verification_proof.batch_medatada.batch_header_hash).await.unwrap();
         assert_eq!(retrieved_data.unwrap(), data);
     }
 
@@ -162,7 +155,7 @@ mod tests {
         assert!(actual_inclusion_data
             .windows(expected_inclusion_data.len())
             .any(|window| window == expected_inclusion_data)); // Checks that the verification proof is included in the inclusion data
-        let retrieved_data = client.get_blob(blob_info).await.unwrap();
+        let retrieved_data = client.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.blob_verification_proof.batch_medatada.batch_header_hash).await.unwrap();
         assert_eq!(retrieved_data.unwrap(), data);
     }
 
@@ -192,7 +185,7 @@ mod tests {
         assert!(actual_inclusion_data
             .windows(expected_inclusion_data.len())
             .any(|window| window == expected_inclusion_data)); // Checks that the verification proof is included in the inclusion data
-        let retrieved_data = client.get_blob(blob_info).await.unwrap();
+        let retrieved_data = client.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.blob_verification_proof.batch_medatada.batch_header_hash).await.unwrap();
         assert_eq!(retrieved_data.unwrap(), data);
     }
 
@@ -223,7 +216,7 @@ mod tests {
         assert!(actual_inclusion_data
             .windows(expected_inclusion_data.len())
             .any(|window| window == expected_inclusion_data)); // Checks that the verification proof is included in the inclusion data
-        let retrieved_data = client.get_blob(blob_info).await.unwrap();
+        let retrieved_data = client.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.blob_verification_proof.batch_medatada.batch_header_hash).await.unwrap();
         assert_eq!(retrieved_data.unwrap(), data);
     }
 
@@ -253,7 +246,7 @@ mod tests {
         assert!(actual_inclusion_data
             .windows(expected_inclusion_data.len())
             .any(|window| window == expected_inclusion_data)); // Checks that the verification proof is included in the inclusion data
-        let retrieved_data = client.get_blob(blob_info).await.unwrap();
+        let retrieved_data = client.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.blob_verification_proof.batch_medatada.batch_header_hash).await.unwrap();
         assert_eq!(retrieved_data.unwrap(), data);
     }
 }

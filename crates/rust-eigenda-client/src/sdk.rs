@@ -40,7 +40,7 @@ pub(crate) struct RawEigenClient {
 pub(crate) const FIELD_ELEMENT_SIZE_BYTES: usize = 32;
 
 impl RawEigenClient {
-    const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 2; // 2 MB
+    const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 16; // 16 MB
     /// Creates a new RawEigenClient
     pub(crate) async fn new(
         private_key: SecretKey,
@@ -182,7 +182,7 @@ impl RawEigenClient {
             return Ok(None);
         };
         let blob_info = blob_info::BlobInfo::try_from(blob_info)?;
-        let Some(data) = self.get_blob(blob_info.clone()).await? else {
+        let Some(data) = self.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.clone().blob_verification_proof.batch_medatada.batch_header_hash).await? else {
             return Err(CommunicationError::FailedToGetBlob)?;
         };
 
@@ -369,13 +369,9 @@ impl RawEigenClient {
     /// Returns the blob data
     pub(crate) async fn get_blob(
         &self,
-        blob_info: BlobInfo,
+        blob_index: u32,
+        batch_header_hash: Vec<u8>,
     ) -> Result<Option<Vec<u8>>, EigenClientError> {
-        let blob_index = blob_info.blob_verification_proof.blob_index;
-        let batch_header_hash = blob_info
-            .blob_verification_proof
-            .batch_medatada
-            .batch_header_hash;
         let get_response = self
             .client
             .lock()
