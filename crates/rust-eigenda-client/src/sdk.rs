@@ -182,7 +182,17 @@ impl RawEigenClient {
             return Ok(None);
         };
         let blob_info = blob_info::BlobInfo::try_from(blob_info)?;
-        let Some(data) = self.get_blob(blob_info.blob_verification_proof.blob_index,blob_info.clone().blob_verification_proof.batch_medatada.batch_header_hash).await? else {
+        let Some(data) = self
+            .get_blob(
+                blob_info.blob_verification_proof.blob_index,
+                blob_info
+                    .clone()
+                    .blob_verification_proof
+                    .batch_medatada
+                    .batch_header_hash,
+            )
+            .await?
+        else {
             return Err(CommunicationError::FailedToGetBlob)?;
         };
 

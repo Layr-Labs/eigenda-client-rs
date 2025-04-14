@@ -66,11 +66,12 @@ impl EigenClient {
         Some(RawEigenClient::blob_size_limit())
     }
 
+    /// Returns the blob
     pub async fn get_blob(
         &self,
         blob_index: u32,
         batch_header_hash: Vec<u8>,
     ) -> Result<Option<Vec<u8>>, EigenClientError> {
-        self.client.get_blob(blob_index,batch_header_hash).await
+        self.client.get_blob(blob_index, batch_header_hash).await
     }
 }
