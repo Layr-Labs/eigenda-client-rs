@@ -4,7 +4,7 @@ use tiny_keccak::{Hasher, Keccak};
 
 use crate::errors::ConversionError;
 
-use super::eigenda_cert::BlobCommitment;
+use super::eigenda_cert::BlobHeader;
 
 // BlobKey is the unique identifier for a blob dispersal.
 //
@@ -20,28 +20,48 @@ use super::eigenda_cert::BlobCommitment;
 pub struct BlobKey([u8; 32]);
 
 impl BlobKey {
-    pub(crate) fn compute_blob_key(
-        blob_version: u16,
-        blob_commitments: BlobCommitment,
-        quorum_numbers: Vec<u8>,
-        payment_metadata_hash: [u8; 32],
-    ) -> Result<BlobKey, ConversionError> {
-        let mut sorted_quorums = quorum_numbers;
+    /// Creates a new [`BlobKey`] from a slice of bytes.
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        BlobKey(bytes)
+    }
+
+    /// Returns the bytes of the [`BlobKey`].
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+
+    /// Creates a new [`BlobKey`] from a hex string.
+    ///
+    /// Note: The hex string should not include the 0x prefix.
+    pub fn from_hex(hex: &str) -> Result<Self, ConversionError> {
+        let bytes = hex::decode(hex)
+            .map_err(|_| ConversionError::BlobKey("Invalid hex string".to_string()))?;
+        if bytes.len() != 32 {
+            return Err(ConversionError::BlobKey(
+                "Invalid hex string length".to_string(),
+            ));
+        }
+        Ok(BlobKey(bytes.try_into().unwrap()))
+    }
+
+    /// Computes a new [`BlobKey`] from the given [`BlobHeader`].
+    pub(crate) fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
+        let mut sorted_quorums = blob_header.quorum_numbers.clone();
         sorted_quorums.sort();
 
         let packed_bytes = ethabi::encode(&[
-            Token::Uint(blob_version.into()),     // BlobVersion
-            Token::Bytes(sorted_quorums.clone()), // SortedQuorums
+            Token::Uint(blob_header.version.into()), // BlobVersion
+            Token::Bytes(sorted_quorums.clone()),    // SortedQuorums
             Token::Tuple(vec![
                 // AbiBlobCommitments
                 // Commitment
                 Token::Tuple(vec![
                     Token::Uint(
-                        U256::from_dec_str(&blob_commitments.commitment.x.to_string())
+                        U256::from_dec_str(&blob_header.commitment.commitment.x.to_string())
                             .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                     ), // commitment X
                     Token::Uint(
-                        U256::from_dec_str(&blob_commitments.commitment.y.to_string())
+                        U256::from_dec_str(&blob_header.commitment.commitment.y.to_string())
                             .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                     ), // commitment Y
                 ]),
@@ -57,13 +77,13 @@ impl BlobKey {
                     Token::FixedArray(vec![
                         Token::Uint(
                             U256::from_dec_str(
-                                &blob_commitments.length_commitment.x.c1.to_string(),
+                                &blob_header.commitment.length_commitment.x.c1.to_string(),
                             )
                             .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
                         Token::Uint(
                             U256::from_dec_str(
-                                &blob_commitments.length_commitment.x.c0.to_string(),
+                                &blob_header.commitment.length_commitment.x.c0.to_string(),
                             )
                             .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
@@ -72,13 +92,13 @@ impl BlobKey {
                     Token::FixedArray(vec![
                         Token::Uint(
                             U256::from_dec_str(
-                                &blob_commitments.length_commitment.y.c1.to_string(),
+                                &blob_header.commitment.length_commitment.y.c1.to_string(),
                             )
                             .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
                         Token::Uint(
                             U256::from_dec_str(
-                                &blob_commitments.length_commitment.y.c0.to_string(),
+                                &blob_header.commitment.length_commitment.y.c0.to_string(),
                             )
                             .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
@@ -89,26 +109,34 @@ impl BlobKey {
                 Token::Tuple(vec![
                     Token::FixedArray(vec![
                         Token::Uint(
-                            U256::from_dec_str(&blob_commitments.length_proof.x.c1.to_string())
-                                .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
+                            U256::from_dec_str(
+                                &blob_header.commitment.length_proof.x.c1.to_string(),
+                            )
+                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
                         Token::Uint(
-                            U256::from_dec_str(&blob_commitments.length_proof.x.c0.to_string())
-                                .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
+                            U256::from_dec_str(
+                                &blob_header.commitment.length_proof.x.c0.to_string(),
+                            )
+                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
                     ]),
                     Token::FixedArray(vec![
                         Token::Uint(
-                            U256::from_dec_str(&blob_commitments.length_proof.y.c1.to_string())
-                                .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
+                            U256::from_dec_str(
+                                &blob_header.commitment.length_proof.y.c1.to_string(),
+                            )
+                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
                         Token::Uint(
-                            U256::from_dec_str(&blob_commitments.length_proof.y.c0.to_string())
-                                .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
+                            U256::from_dec_str(
+                                &blob_header.commitment.length_proof.y.c0.to_string(),
+                            )
+                            .map_err(|e| ConversionError::U256Conversion(e.to_string()))?,
                         ),
                     ]),
                 ]),
-                Token::Uint(blob_commitments.length.into()), // DataLength
+                Token::Uint(blob_header.commitment.length.into()), // DataLength
             ]),
         ]);
 
@@ -119,7 +147,7 @@ impl BlobKey {
 
         let s2 = vec![
             Token::FixedBytes(header_hash.to_vec()),
-            Token::FixedBytes(payment_metadata_hash.to_vec()),
+            Token::FixedBytes(blob_header.payment_header_hash.to_vec()),
         ];
 
         let packed_bytes = ethabi::encode(&s2);
@@ -129,9 +157,5 @@ impl BlobKey {
         let mut blob_key = [0u8; 32];
         keccak.finalize(&mut blob_key);
         Ok(BlobKey(blob_key))
-    }
-
-    pub(crate) fn to_bytes(&self) -> [u8; 32] {
-        self.0
     }
 }

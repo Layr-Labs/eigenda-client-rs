@@ -256,9 +256,7 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await;
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
         assert!(result.is_ok());
     }
 
@@ -281,9 +279,7 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await;
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
         assert!(result.is_ok());
     }
 
@@ -306,13 +302,9 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await;
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
         assert!(result.is_ok());
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await;
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
         assert!(result.is_ok());
     }
 }
