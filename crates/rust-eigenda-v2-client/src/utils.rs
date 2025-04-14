@@ -76,7 +76,7 @@ pub(crate) fn pad_to_bytes_per_symbol(input_bytes: &[u8]) -> Vec<u8> {
 }
 
 /// fr_array_from_bytes accept a byte array as an input, and converts it to an array of field elements
-pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Result<Vec<Fr>, String> {
+pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Vec<Fr> {
     let bytes = pad_to_bytes_per_symbol(input_data);
 
     let element_count = bytes.len() / BYTES_PER_SYMBOL;
@@ -88,7 +88,7 @@ pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Result<Vec<Fr>, String> 
         output_elements.push(Fr::from_be_bytes_mod_order(&bytes[start_idx..end_idx]))
     }
 
-    Ok(output_elements)
+    output_elements
 }
 
 #[cfg(test)]

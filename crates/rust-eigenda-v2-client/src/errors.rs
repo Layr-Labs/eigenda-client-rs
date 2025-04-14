@@ -1,3 +1,5 @@
+use ark_bn254::{Fr, G1Affine};
+
 use crate::relay_client::RelayKey;
 
 /// Errors returned by this crate
@@ -57,6 +59,8 @@ pub enum BlobError {
     InvalidQuorumNumber(u32),
     #[error("Missing field: {0}")]
     MissingField(String),
+    #[error(transparent)]
+    Bn254(#[from] Bn254Error),
 }
 
 /// Errors specific to the Relay Payload Retriever
@@ -112,4 +116,13 @@ pub enum EthClientError {
     Rpc(crate::eth_client::RpcErrorResponse),
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
+}
+
+/// Errors related to the BN254 and its points
+#[derive(Debug, thiserror::Error)]
+pub enum Bn254Error {
+    #[error("Insufficient SRS in memory: have {0}, need {1}")]
+    InsufficientSrsInMemory(usize, usize),
+    #[error("Failed calculating multi scalar multiplication on base {:?} with scalars {:?}", .0, .1)]
+    FailedComputingMSM(Vec<G1Affine>, Vec<Fr>),
 }

@@ -14,21 +14,38 @@ use crate::{
     relay_client::{RelayClient, RelayKey},
 };
 
+pub struct SRSConfig {
+    source_path: String,
+    order: u32,
+    points_to_load: u32,
+}
+
 pub struct RelayPayloadRetrieverConfig {
-    pub(crate) srs: SRS,
     pub(crate) payload_form: PayloadForm,
     pub(crate) retrieval_timeout_secs: Duration,
 }
 
 // RelayPayloadRetriever provides the ability to get payloads from the relay subsystem.
 pub struct RelayPayloadRetriever {
+    srs: SRS,
     config: RelayPayloadRetrieverConfig,
     relay_client: RelayClient,
 }
 
 impl RelayPayloadRetriever {
-    pub fn new(config: RelayPayloadRetrieverConfig, relay_client: RelayClient) -> Self {
+    pub fn new(
+        config: RelayPayloadRetrieverConfig,
+        srs_config: SRSConfig,
+        relay_client: RelayClient,
+    ) -> Self {
+        let srs = SRS::new(
+            &srs_config.source_path,
+            srs_config.order,
+            srs_config.points_to_load,
+        )
+        .unwrap();
         RelayPayloadRetriever {
+            srs,
             config,
             relay_client,
         }
@@ -95,9 +112,8 @@ impl RelayPayloadRetriever {
 
             // TODO (litt3): eventually, we should make generate_and_compare_blob_commitment accept a blob, instead of the
             //  serialization of a blob. Commitment generation operates on field elements, which is how a blob is stored
-            //  under the hood, so it's actually duplicating work to serialize the blob here. I'm declining to make this
-            //  change now, to limit the size of the refactor PR.
-            let g1_srs = self.config.srs.g1.clone();
+            //  under the hood, so it's actually duplicating work to serialize the blob here.
+            let g1_srs = self.srs.g1.clone();
             let valid = generate_and_compare_blob_commitment(
                 g1_srs,
                 blob.serialize(),
@@ -166,9 +182,16 @@ mod tests {
 
     fn get_relay_payload_retriever_test_config() -> RelayPayloadRetrieverConfig {
         RelayPayloadRetrieverConfig {
-            srs: SRS::new("../../resources/g1.point", 42, 42).unwrap(),
             payload_form: PayloadForm::Coeff,
             retrieval_timeout_secs: Duration::from_secs(10),
+        }
+    }
+
+    fn get_srs_test_config() -> SRSConfig {
+        SRSConfig {
+            source_path: "../../resources/g1.point".to_string(),
+            order: 42,
+            points_to_load: 42,
         }
     }
 
@@ -265,12 +288,17 @@ mod tests {
 
     #[tokio::test]
     async fn get_payload_from_relay() {
-        let config = get_relay_payload_retriever_test_config();
+        let relay_config = get_relay_payload_retriever_test_config();
+        let srs_config = get_srs_test_config();
         let relay_client = get_test_relay_client().await;
-        let mut client = RelayPayloadRetriever::new(config, relay_client);
+        let mut client = RelayPayloadRetriever::new(relay_config, srs_config, relay_client);
 
         let eigenda_cert = get_test_eigenda_cert();
         let res = client.get_payload(eigenda_cert).await;
-        assert!(res.is_ok())
+        assert!(res.is_ok());
+
+        let expected_payload = vec![1, 2, 3, 4, 5];
+        let actual_payload = res.unwrap().serialize();
+        assert_eq!(expected_payload, actual_payload)
     }
 }
