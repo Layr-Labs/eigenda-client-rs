@@ -7,14 +7,14 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub(crate) struct PayloadDisperserConfig {
+pub struct PayloadDisperserConfig {
     polynomial_form: PayloadForm,
     blob_version: u16,
     cert_verifier_address: String,
     eth_rpc_url: String,
 }
 
-pub(crate) struct PayloadDisperser {
+pub struct PayloadDisperser {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient,
     cert_verifier: CertVerifier,
@@ -84,7 +84,12 @@ impl PayloadDisperser {
             BlobStatus::Encoded | BlobStatus::GatheringSignatures | BlobStatus::Queued => Ok(None),
             BlobStatus::Complete => {
                 let eigenda_cert = self.build_eigenda_cert(status).await?;
-                self.cert_verifier.verify_cert_v2(&eigenda_cert).await.map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e)))?;
+                self.cert_verifier
+                    .verify_cert_v2(&eigenda_cert)
+                    .await
+                    .map_err(|e| {
+                        EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                    })?;
                 Ok(Some(eigenda_cert))
             }
         }

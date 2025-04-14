@@ -48,7 +48,7 @@ pub fn g1_commitment_to_proto(point: &G1Affine) -> G1Commitment {
     G1Commitment { x, y }
 }
 
-/// Serialize a G1Affine point following applying necessary flags.
+/// Serialize a G1Affine point applying necessary flags.
 /// https://github.com/Consensys/gnark-crypto/blob/5fd6610ac2a1d1b10fae06c5e552550bf43f4d44/ecc/bn254/marshal.go#L790-L801
 pub fn g1_commitment_to_bytes(point: &G1Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![0u8; 32];
@@ -115,20 +115,7 @@ pub fn g2_commitment_from_bytes(bytes: &[u8]) -> Result<G2Affine, ConversionErro
     Ok(point)
 }
 
-/// Convert bytes from little-endian to big-endian and vice versa.
-fn switch_endianess(bytes: &mut Vec<u8>) {
-    // Remove leading zeroes
-    let mut filtered_bytes: Vec<u8> = bytes.iter().copied().skip_while(|&x| x == 0).collect();
-
-    filtered_bytes.reverse();
-
-    while filtered_bytes.len() != G2_COMPRESSED_SIZE {
-        filtered_bytes.push(0);
-    }
-
-    *bytes = filtered_bytes;
-}
-
+/// Serialize a G2Affine point applying necessary flags.
 pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![0u8; 64];
 
@@ -152,6 +139,20 @@ pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionErr
 
     bytes[0] |= mask;
     Ok(bytes)
+}
+
+/// Convert bytes from little-endian to big-endian and vice versa.
+fn switch_endianess(bytes: &mut Vec<u8>) {
+    // Remove leading zeroes
+    let mut filtered_bytes: Vec<u8> = bytes.iter().copied().skip_while(|&x| x == 0).collect();
+
+    filtered_bytes.reverse();
+
+    while filtered_bytes.len() != G2_COMPRESSED_SIZE {
+        filtered_bytes.push(0);
+    }
+
+    *bytes = filtered_bytes;
 }
 
 #[cfg(test)]

@@ -1,10 +1,22 @@
-use ark_bn254::{G1Affine, G2Affine};
+use alloy_primitives::Uint;
+use ark_bn254::{Fq, G1Affine, G2Affine};
+use ark_ff::{BigInteger, Fp2, PrimeField};
 use ethabi::Token;
 use ethereum_types::U256;
 use tiny_keccak::{Hasher, Keccak};
 
+use crate::contracts_bindings::IEigenDACertVerifier::{
+    Attestation as AttestationContract, BatchHeaderV2 as BatchHeaderV2Contract,
+    BlobCertificate as BlobCertificateContract, BlobCommitment as BlobCommitmentContract,
+    BlobHeaderV2 as BlobHeaderV2Contract, BlobInclusionInfo as BlobInclusionInfoContract,
+    NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
+    SignedBatch as SignedBatchContract,
+};
+use crate::contracts_bindings::BN254::{G1Point as G1PointContract, G2Point as G2PointContract};
 use crate::errors::{BlobError, ConversionError, EigenClientError};
-use crate::generated::disperser::v2::BlobStatusReply;
+use crate::generated::disperser::v2::{
+    Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
+};
 
 use crate::generated::{
     common::{
@@ -21,10 +33,10 @@ use crate::utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
 use super::BlobKey;
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct PaymentHeader {
-    pub(crate) account_id: String,
-    pub(crate) timestamp: i64,
-    pub(crate) cumulative_payment: Vec<u8>,
+pub struct PaymentHeader {
+    pub account_id: String,
+    pub timestamp: i64,
+    pub cumulative_payment: Vec<u8>,
 }
 
 impl From<ProtoPaymentHeader> for PaymentHeader {
@@ -58,11 +70,22 @@ impl PaymentHeader {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobCommitment {
-    pub(crate) commitment: G1Affine,
-    pub(crate) length_commitment: G2Affine,
-    pub(crate) length_proof: G2Affine,
-    pub(crate) length: u32,
+pub struct BlobCommitment {
+    pub commitment: G1Affine,
+    pub length_commitment: G2Affine,
+    pub length_proof: G2Affine,
+    pub length: u32,
+}
+
+impl From<BlobCommitment> for BlobCommitmentContract {
+    fn from(value: BlobCommitment) -> Self {
+        Self {
+            lengthCommitment: g2_contract_point_from_g2_affine(&value.length_commitment),
+            lengthProof: g2_contract_point_from_g2_affine(&value.length_proof),
+            length: value.length,
+            commitment: g1_contract_point_from_g1_affine(&value.commitment),
+        }
+    }
 }
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
@@ -85,10 +108,10 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlobHeader {
-    pub(crate) version: u16,
-    pub(crate) quorum_numbers: Vec<u8>,
-    pub(crate) commitment: BlobCommitment,
-    pub(crate) payment_header_hash: [u8; 32],
+    pub version: u16,
+    pub quorum_numbers: Vec<u8>,
+    pub commitment: BlobCommitment,
+    pub payment_header_hash: [u8; 32],
 }
 
 impl BlobHeader {
@@ -99,6 +122,17 @@ impl BlobHeader {
             self.quorum_numbers.clone(),
             self.payment_header_hash,
         )
+    }
+}
+
+impl From<BlobHeader> for BlobHeaderV2Contract {
+    fn from(value: BlobHeader) -> Self {
+        Self {
+            version: value.version,
+            quorumNumbers: value.quorum_numbers.clone().into(),
+            commitment: value.commitment.clone().into(),
+            paymentHeaderHash: value.payment_header_hash.into(),
+        }
     }
 }
 
@@ -142,10 +176,20 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobCertificate {
-    pub(crate) blob_header: BlobHeader,
-    pub(crate) signature: Vec<u8>,
-    pub(crate) relay_keys: Vec<u32>,
+pub struct BlobCertificate {
+    pub blob_header: BlobHeader,
+    pub signature: Vec<u8>,
+    pub relay_keys: Vec<u32>,
+}
+
+impl From<BlobCertificate> for BlobCertificateContract {
+    fn from(value: BlobCertificate) -> Self {
+        Self {
+            blobHeader: value.blob_header.into(),
+            signature: value.signature.into(),
+            relayKeys: value.relay_keys,
+        }
+    }
 }
 
 impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
@@ -163,10 +207,20 @@ impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobInclusionInfo {
-    pub(crate) blob_certificate: BlobCertificate,
-    pub(crate) blob_index: u32,
-    pub(crate) inclusion_proof: Vec<u8>,
+pub struct BlobInclusionInfo {
+    pub blob_certificate: BlobCertificate,
+    pub blob_index: u32,
+    pub inclusion_proof: Vec<u8>,
+}
+
+impl From<BlobInclusionInfo> for BlobInclusionInfoContract {
+    fn from(value: BlobInclusionInfo) -> Self {
+        BlobInclusionInfoContract {
+            blobCertificate: value.blob_certificate.into(),
+            blobIndex: value.blob_index,
+            inclusionProof: value.inclusion_proof.clone().into(),
+        }
+    }
 }
 
 impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
@@ -183,15 +237,67 @@ impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
     }
 }
 
-pub(crate) struct SignedBatch {
-    pub(crate) header: BatchHeaderV2,
-    pub(crate) attestation: Vec<u8>,
+pub struct SignedBatch {
+    pub header: BatchHeaderV2,
+    pub attestation: Attestation,
+}
+
+impl From<SignedBatch> for SignedBatchContract {
+    fn from(value: SignedBatch) -> Self {
+        Self {
+            batchHeader: value.header.into(),
+            attestation: value.attestation.into(),
+        }
+    }
+}
+
+impl TryFrom<SignedBatchProto> for SignedBatch {
+    type Error = ConversionError;
+
+    fn try_from(value: SignedBatchProto) -> Result<Self, Self::Error> {
+        let header = match value.header {
+            Some(header) => BatchHeaderV2 {
+                batch_root: header.batch_root.try_into().map_err(|_| {
+                    ConversionError::SignedBatch("Failed parsing batch root".to_string())
+                })?,
+                reference_block_number: header.reference_block_number.try_into().map_err(|_| {
+                    ConversionError::SignedBatch(
+                        "Failed parsing reference block number".to_string(),
+                    )
+                })?,
+            },
+            None => return Err(ConversionError::SignedBatch("Header is None".to_string())),
+        };
+
+        let attestation = match value.attestation {
+            Some(value) => value.try_into()?,
+            None => {
+                return Err(ConversionError::SignedBatch(
+                    "Attestation is None".to_string(),
+                ))
+            }
+        };
+
+        Ok(Self {
+            header,
+            attestation,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BatchHeaderV2 {
-    pub(crate) batch_root: [u8; 32],
-    pub(crate) reference_block_number: u32,
+pub struct BatchHeaderV2 {
+    pub batch_root: [u8; 32],
+    pub reference_block_number: u32,
+}
+
+impl From<BatchHeaderV2> for BatchHeaderV2Contract {
+    fn from(value: BatchHeaderV2) -> Self {
+        Self {
+            batchRoot: alloy_primitives::FixedBytes(value.batch_root),
+            referenceBlockNumber: value.reference_block_number,
+        }
+    }
 }
 
 impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
@@ -230,6 +336,103 @@ pub struct NonSignerStakesAndSignature {
     pub quorum_apk_indices: Vec<u32>,
     pub total_stake_indices: Vec<u32>,
     pub non_signer_stake_indices: Vec<Vec<u32>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Attestation {
+    pub non_signer_pubkeys: Vec<G1Affine>,
+    pub quorum_apks: Vec<G1Affine>,
+    pub sigma: G1Affine,
+    pub apk_g2: G2Affine,
+    pub quorum_numbers: Vec<u32>,
+}
+
+impl From<Attestation> for AttestationContract {
+    fn from(value: Attestation) -> Self {
+        Self {
+            nonSignerPubkeys: value
+                .non_signer_pubkeys
+                .iter()
+                .map(g1_contract_point_from_g1_affine)
+                .collect::<Vec<_>>(),
+            quorumApks: value
+                .quorum_apks
+                .iter()
+                .map(g1_contract_point_from_g1_affine)
+                .collect::<Vec<_>>(),
+            sigma: g1_contract_point_from_g1_affine(&value.sigma),
+            apkG2: g2_contract_point_from_g2_affine(&value.apk_g2),
+            quorumNumbers: value.quorum_numbers,
+        }
+    }
+}
+
+impl TryFrom<ProtoAttestation> for Attestation {
+    type Error = ConversionError;
+
+    fn try_from(value: ProtoAttestation) -> Result<Self, Self::Error> {
+        Ok(Self {
+            non_signer_pubkeys: value
+                .non_signer_pubkeys
+                .iter()
+                .map(|p| g1_commitment_from_bytes(p))
+                .collect::<Result<Vec<_>, _>>()?,
+            quorum_apks: value
+                .quorum_apks
+                .iter()
+                .map(|p| g1_commitment_from_bytes(p))
+                .collect::<Result<Vec<_>, _>>()?,
+            sigma: g1_commitment_from_bytes(&value.sigma)?,
+            apk_g2: g2_commitment_from_bytes(&value.apk_g2)?,
+            quorum_numbers: value.quorum_numbers,
+        })
+    }
+}
+
+impl From<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
+    fn from(value: NonSignerStakesAndSignatureContract) -> Self {
+        Self {
+            non_signer_quorum_bitmap_indices: value.nonSignerQuorumBitmapIndices,
+            non_signer_pubkeys: value
+                .nonSignerPubkeys
+                .iter()
+                .map(g1_affine_from_g1_contract_point)
+                .collect(),
+            quorum_apks: value
+                .quorumApks
+                .iter()
+                .map(g1_affine_from_g1_contract_point)
+                .collect(),
+            apk_g2: g2_affine_from_g2_contract_point(&value.apkG2),
+            sigma: g1_affine_from_g1_contract_point(&value.sigma),
+            quorum_apk_indices: value.quorumApkIndices,
+            total_stake_indices: value.totalStakeIndices,
+            non_signer_stake_indices: value.nonSignerStakeIndices,
+        }
+    }
+}
+
+impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
+    fn from(value: NonSignerStakesAndSignature) -> Self {
+        Self {
+            nonSignerQuorumBitmapIndices: value.non_signer_quorum_bitmap_indices.clone(),
+            nonSignerPubkeys: value
+                .non_signer_pubkeys
+                .iter()
+                .map(g1_contract_point_from_g1_affine)
+                .collect(),
+            quorumApks: value
+                .quorum_apks
+                .iter()
+                .map(g1_contract_point_from_g1_affine)
+                .collect(),
+            apkG2: g2_contract_point_from_g2_affine(&value.apk_g2),
+            sigma: g1_contract_point_from_g1_affine(&value.sigma),
+            quorumApkIndices: value.quorum_apk_indices.clone(),
+            totalStakeIndices: value.total_stake_indices.clone(),
+            nonSignerStakeIndices: value.non_signer_stake_indices.clone(),
+        }
+    }
 }
 
 // EigenDACert contains all data necessary to retrieve and validate a blob
@@ -301,6 +504,50 @@ impl EigenDACert {
             blob_header.payment_header_hash,
         )
     }
+}
+
+fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
+    let x = g2_affine.x;
+    let y = g2_affine.y;
+    // Safe unwrapping as we now this types are equivalent
+    G2PointContract {
+        X: [
+            Uint::from_be_bytes::<32>(x.c0.into_bigint().to_bytes_be().try_into().unwrap()),
+            Uint::from_be_bytes::<32>(x.c1.into_bigint().to_bytes_be().try_into().unwrap()),
+        ],
+        Y: [
+            Uint::from_be_bytes::<32>(y.c0.into_bigint().to_bytes_be().try_into().unwrap()),
+            Uint::from_be_bytes::<32>(y.c1.into_bigint().to_bytes_be().try_into().unwrap()),
+        ],
+    }
+}
+
+fn g1_contract_point_from_g1_affine(g1_affine: &G1Affine) -> G1PointContract {
+    let x = g1_affine.x;
+    let y = g1_affine.y;
+    // Safe unwrapping as we now this types are equivalent
+    G1PointContract {
+        X: Uint::from_be_bytes::<32>(x.into_bigint().to_bytes_be().try_into().unwrap()),
+        Y: Uint::from_be_bytes::<32>(y.into_bigint().to_bytes_be().try_into().unwrap()),
+    }
+}
+
+fn g1_affine_from_g1_contract_point(g1_point: &G1PointContract) -> G1Affine {
+    let x = Fq::from_be_bytes_mod_order(&g1_point.X.to_be_bytes::<32>());
+    let y = Fq::from_be_bytes_mod_order(&g1_point.Y.to_be_bytes::<32>());
+    G1Affine::new(x, y)
+}
+
+fn g2_affine_from_g2_contract_point(g2_point: &G2PointContract) -> G2Affine {
+    let x = Fp2::new(
+        Fq::from_be_bytes_mod_order(&g2_point.X[0].to_be_bytes::<32>()),
+        Fq::from_be_bytes_mod_order(&g2_point.X[1].to_be_bytes::<32>()),
+    );
+    let y = Fp2::new(
+        Fq::from_be_bytes_mod_order(&g2_point.Y[0].to_be_bytes::<32>()),
+        Fq::from_be_bytes_mod_order(&g2_point.Y[1].to_be_bytes::<32>()),
+    );
+    G2Affine::new(x, y)
 }
 
 #[cfg(test)]
