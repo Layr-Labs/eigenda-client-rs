@@ -121,7 +121,6 @@ impl DisperserClient {
         }
         let account_id: String = payment.account_id.encode_hex();
 
-        //todo?: remove alloy and implement to checksum manually
         let account_id: String = alloy_primitives::Address::from_str(&account_id)
             .map_err(|_| DisperseError::AccountID)?
             .to_checksum(None);
@@ -235,9 +234,12 @@ mod tests {
     use super::DisperserClientConfig;
 
     use dotenv::dotenv;
+    use serial_test::serial;
     use std::env;
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
+    #[serial]
     async fn test_disperse_non_secure() {
         dotenv().ok();
 
@@ -254,15 +256,14 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await
-            .unwrap();
-        println!("Disperse result: {:?}", result.0);
-        println!("Blob key: {}", hex::encode(result.1.to_bytes()));
+
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
+        assert!(result.is_ok());
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
+    #[serial]
     async fn test_disperse_secure() {
         dotenv().ok();
 
@@ -279,15 +280,13 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await
-            .unwrap();
-        println!("Disperse result: {:?}", result.0);
-        println!("Blob key: {}", hex::encode(result.1.to_bytes()));
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
+        assert!(result.is_ok());
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
+    #[serial]
     async fn test_double_disperse_secure() {
         dotenv().ok();
 
@@ -304,17 +303,10 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await
-            .unwrap();
-        println!("Disperse result: {:?}", result.0);
-        println!("Blob key: {}", hex::encode(result.1.to_bytes()));
-        let result = client
-            .disperse_blob(&data, blob_version, &quorums)
-            .await
-            .unwrap();
-        println!("Disperse result: {:?}", result.0);
-        println!("Blob key: {}", hex::encode(result.1.to_bytes()));
+
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
+        assert!(result.is_ok());
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
+        assert!(result.is_ok());
     }
 }

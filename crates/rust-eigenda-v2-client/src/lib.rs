@@ -6,6 +6,8 @@ pub mod disperser_client;
 pub mod errors;
 pub mod payload_disperser;
 pub mod prover;
+pub mod eth_client;
+pub mod relay_client;
 pub mod retrieval_client;
 pub mod utils;
 pub mod verifier;
@@ -40,5 +42,9 @@ pub(crate) mod generated {
 
     pub mod validator {
         include!("generated/validator.rs");
+    }
+
+    pub mod relay {
+        include!("generated/relay.rs");
     }
 }

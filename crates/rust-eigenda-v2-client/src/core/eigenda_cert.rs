@@ -108,20 +108,15 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlobHeader {
-    pub version: u16,
-    pub quorum_numbers: Vec<u8>,
-    pub commitment: BlobCommitment,
-    pub payment_header_hash: [u8; 32],
+    pub(crate) version: u16,
+    pub(crate) quorum_numbers: Vec<u8>,
+    pub(crate) commitment: BlobCommitment,
+    pub(crate) payment_header_hash: [u8; 32],
 }
 
 impl BlobHeader {
     pub fn blob_key(&self) -> Result<BlobKey, ConversionError> {
-        BlobKey::compute_blob_key(
-            self.version,
-            self.commitment.clone(),
-            self.quorum_numbers.clone(),
-            self.payment_header_hash,
-        )
+        BlobKey::compute_blob_key(self)
     }
 }
 
@@ -495,14 +490,7 @@ impl EigenDACert {
             .blob_header
             .clone();
 
-        let blob_commitments = blob_header.commitment;
-
-        BlobKey::compute_blob_key(
-            blob_header.version,
-            blob_commitments,
-            blob_header.quorum_numbers,
-            blob_header.payment_header_hash,
-        )
+        BlobKey::compute_blob_key(&blob_header)
     }
 }
 

@@ -50,5 +50,7 @@ alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-contract = {workspace = true}
 alloy = {workspace = true}
+
 [dev-dependencies]
 dotenv = { workspace = true }
+serial_test = { workspace = true }
