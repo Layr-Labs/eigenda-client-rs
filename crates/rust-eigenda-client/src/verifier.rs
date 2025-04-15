@@ -285,7 +285,7 @@ impl<T: SvcManagerClient> Verifier<T> {
         blob: Vec<u8>,
     ) -> Result<(), VerificationError> {
         let actual_commitment = self.commit(blob)?;
-        let expected_commitment = G1Affine::new_unchecked(
+        let expected_commitment = G1Affine::new(
             Fq::from(num_bigint::BigUint::from_bytes_be(&expected_commitment.x)),
             Fq::from(num_bigint::BigUint::from_bytes_be(&expected_commitment.y)),
         );

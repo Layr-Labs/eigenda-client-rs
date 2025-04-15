@@ -333,26 +333,28 @@ pub struct NonSignerStakesAndSignature {
     pub non_signer_stake_indices: Vec<Vec<u32>>,
 }
 
-impl From<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
-    fn from(value: NonSignerStakesAndSignatureContract) -> Self {
-        Self {
+impl TryFrom<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
+    type Error = ConversionError;
+
+    fn try_from(value: NonSignerStakesAndSignatureContract) -> Result<Self, Self::Error> {
+        Ok(Self {
             non_signer_quorum_bitmap_indices: value.nonSignerQuorumBitmapIndices,
             non_signer_pubkeys: value
                 .nonSignerPubkeys
                 .iter()
                 .map(g1_affine_from_g1_contract_point)
-                .collect(),
+                .collect::<Result<Vec<_>, _>>()?,
             quorum_apks: value
                 .quorumApks
                 .iter()
                 .map(g1_affine_from_g1_contract_point)
-                .collect(),
-            apk_g2: g2_affine_from_g2_contract_point(&value.apkG2),
-            sigma: g1_affine_from_g1_contract_point(&value.sigma),
+                .collect::<Result<Vec<_>, _>>()?,
+            apk_g2: g2_affine_from_g2_contract_point(&value.apkG2)?,
+            sigma: g1_affine_from_g1_contract_point(&value.sigma)?,
             quorum_apk_indices: value.quorumApkIndices,
             total_stake_indices: value.totalStakeIndices,
             non_signer_stake_indices: value.nonSignerStakeIndices,
-        }
+        })
     }
 }
 
@@ -520,13 +522,28 @@ fn g1_contract_point_from_g1_affine(g1_affine: &G1Affine) -> G1PointContract {
     }
 }
 
-fn g1_affine_from_g1_contract_point(g1_point: &G1PointContract) -> G1Affine {
+fn g1_affine_from_g1_contract_point(
+    g1_point: &G1PointContract,
+) -> Result<G1Affine, ConversionError> {
     let x = Fq::from_be_bytes_mod_order(&g1_point.X.to_be_bytes::<32>());
     let y = Fq::from_be_bytes_mod_order(&g1_point.Y.to_be_bytes::<32>());
-    G1Affine::new(x, y)
+    let point = G1Affine::new_unchecked(x, y);
+    if !point.is_on_curve() {
+        return Err(ConversionError::G1Point(
+            "Point is not on curve".to_string(),
+        ));
+    }
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(ConversionError::G1Point(
+            "Point is not on correct subgroup".to_string(),
+        ));
+    }
+    Ok(point)
 }
 
-fn g2_affine_from_g2_contract_point(g2_point: &G2PointContract) -> G2Affine {
+fn g2_affine_from_g2_contract_point(
+    g2_point: &G2PointContract,
+) -> Result<G2Affine, ConversionError> {
     let x = Fp2::new(
         Fq::from_be_bytes_mod_order(&g2_point.X[1].to_be_bytes::<32>()),
         Fq::from_be_bytes_mod_order(&g2_point.X[0].to_be_bytes::<32>()),
@@ -535,7 +552,19 @@ fn g2_affine_from_g2_contract_point(g2_point: &G2PointContract) -> G2Affine {
         Fq::from_be_bytes_mod_order(&g2_point.Y[1].to_be_bytes::<32>()),
         Fq::from_be_bytes_mod_order(&g2_point.Y[0].to_be_bytes::<32>()),
     );
-    G2Affine::new(x, y)
+    let point = G2Affine::new_unchecked(x, y);
+    if !point.is_on_curve() {
+        return Err(ConversionError::G2Point(
+            "Point is not on curve".to_string(),
+        ));
+    }
+    if !point.is_in_correct_subgroup_assuming_on_curve() {
+        return Err(ConversionError::G2Point(
+            "Point is not on correct subgroup".to_string(),
+        ));
+    }
+
+    Ok(point)
 }
 
 #[cfg(test)]

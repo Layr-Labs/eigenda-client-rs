@@ -42,7 +42,7 @@ impl CertVerifier {
             .call()
             .await?;
 
-        Ok(non_signer_stakes_and_signature.into())
+        Ok(non_signer_stakes_and_signature.try_into()?)
     }
 
     pub async fn quorum_numbers_required(&self) -> Result<Vec<u8>, CertVerifierError> {
