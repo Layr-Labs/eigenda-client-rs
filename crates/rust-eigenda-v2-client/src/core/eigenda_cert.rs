@@ -338,6 +338,52 @@ pub struct NonSignerStakesAndSignature {
     pub non_signer_stake_indices: Vec<Vec<u32>>,
 }
 
+impl From<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
+    fn from(value: NonSignerStakesAndSignatureContract) -> Self {
+        Self {
+            non_signer_quorum_bitmap_indices: value.nonSignerQuorumBitmapIndices,
+            non_signer_pubkeys: value
+                .nonSignerPubkeys
+                .iter()
+                .map(g1_affine_from_g1_contract_point)
+                .collect(),
+            quorum_apks: value
+                .quorumApks
+                .iter()
+                .map(g1_affine_from_g1_contract_point)
+                .collect(),
+            apk_g2: g2_affine_from_g2_contract_point(&value.apkG2),
+            sigma: g1_affine_from_g1_contract_point(&value.sigma),
+            quorum_apk_indices: value.quorumApkIndices,
+            total_stake_indices: value.totalStakeIndices,
+            non_signer_stake_indices: value.nonSignerStakeIndices,
+        }
+    }
+}
+
+impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
+    fn from(value: NonSignerStakesAndSignature) -> Self {
+        Self {
+            nonSignerQuorumBitmapIndices: value.non_signer_quorum_bitmap_indices.clone(),
+            nonSignerPubkeys: value
+                .non_signer_pubkeys
+                .iter()
+                .map(g1_contract_point_from_g1_affine)
+                .collect(),
+            quorumApks: value
+                .quorum_apks
+                .iter()
+                .map(g1_contract_point_from_g1_affine)
+                .collect(),
+            apkG2: g2_contract_point_from_g2_affine(&value.apk_g2),
+            sigma: g1_contract_point_from_g1_affine(&value.sigma),
+            quorumApkIndices: value.quorum_apk_indices.clone(),
+            totalStakeIndices: value.total_stake_indices.clone(),
+            nonSignerStakeIndices: value.non_signer_stake_indices.clone(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Attestation {
     pub non_signer_pubkeys: Vec<G1Affine>,
@@ -386,52 +432,6 @@ impl TryFrom<ProtoAttestation> for Attestation {
             apk_g2: g2_commitment_from_bytes(&value.apk_g2)?,
             quorum_numbers: value.quorum_numbers,
         })
-    }
-}
-
-impl From<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
-    fn from(value: NonSignerStakesAndSignatureContract) -> Self {
-        Self {
-            non_signer_quorum_bitmap_indices: value.nonSignerQuorumBitmapIndices,
-            non_signer_pubkeys: value
-                .nonSignerPubkeys
-                .iter()
-                .map(g1_affine_from_g1_contract_point)
-                .collect(),
-            quorum_apks: value
-                .quorumApks
-                .iter()
-                .map(g1_affine_from_g1_contract_point)
-                .collect(),
-            apk_g2: g2_affine_from_g2_contract_point(&value.apkG2),
-            sigma: g1_affine_from_g1_contract_point(&value.sigma),
-            quorum_apk_indices: value.quorumApkIndices,
-            total_stake_indices: value.totalStakeIndices,
-            non_signer_stake_indices: value.nonSignerStakeIndices,
-        }
-    }
-}
-
-impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
-    fn from(value: NonSignerStakesAndSignature) -> Self {
-        Self {
-            nonSignerQuorumBitmapIndices: value.non_signer_quorum_bitmap_indices.clone(),
-            nonSignerPubkeys: value
-                .non_signer_pubkeys
-                .iter()
-                .map(g1_contract_point_from_g1_affine)
-                .collect(),
-            quorumApks: value
-                .quorum_apks
-                .iter()
-                .map(g1_contract_point_from_g1_affine)
-                .collect(),
-            apkG2: g2_contract_point_from_g2_affine(&value.apk_g2),
-            sigma: g1_contract_point_from_g1_affine(&value.sigma),
-            quorumApkIndices: value.quorum_apk_indices.clone(),
-            totalStakeIndices: value.total_stake_indices.clone(),
-            nonSignerStakeIndices: value.non_signer_stake_indices.clone(),
-        }
     }
 }
 
@@ -512,12 +512,12 @@ fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
     // Safe unwrapping as we now this types are equivalent
     G2PointContract {
         X: [
-            Uint::from_be_bytes::<32>(x.c0.into_bigint().to_bytes_be().try_into().unwrap()),
             Uint::from_be_bytes::<32>(x.c1.into_bigint().to_bytes_be().try_into().unwrap()),
+            Uint::from_be_bytes::<32>(x.c0.into_bigint().to_bytes_be().try_into().unwrap()),
         ],
         Y: [
-            Uint::from_be_bytes::<32>(y.c0.into_bigint().to_bytes_be().try_into().unwrap()),
             Uint::from_be_bytes::<32>(y.c1.into_bigint().to_bytes_be().try_into().unwrap()),
+            Uint::from_be_bytes::<32>(y.c0.into_bigint().to_bytes_be().try_into().unwrap()),
         ],
     }
 }
@@ -540,22 +540,424 @@ fn g1_affine_from_g1_contract_point(g1_point: &G1PointContract) -> G1Affine {
 
 fn g2_affine_from_g2_contract_point(g2_point: &G2PointContract) -> G2Affine {
     let x = Fp2::new(
-        Fq::from_be_bytes_mod_order(&g2_point.X[0].to_be_bytes::<32>()),
         Fq::from_be_bytes_mod_order(&g2_point.X[1].to_be_bytes::<32>()),
+        Fq::from_be_bytes_mod_order(&g2_point.X[0].to_be_bytes::<32>()),
     );
     let y = Fp2::new(
-        Fq::from_be_bytes_mod_order(&g2_point.Y[0].to_be_bytes::<32>()),
         Fq::from_be_bytes_mod_order(&g2_point.Y[1].to_be_bytes::<32>()),
+        Fq::from_be_bytes_mod_order(&g2_point.Y[0].to_be_bytes::<32>()),
     );
     G2Affine::new(x, y)
 }
 
 #[cfg(test)]
 mod test {
-    use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
-    use ark_ff::PrimeField;
+    use std::str::FromStr;
 
-    use crate::core::eigenda_cert::{BlobCommitment, BlobHeader, PaymentHeader};
+    use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
+    use ark_ff::{BigInt, Fp2, PrimeField};
+
+    use crate::{
+        cert_verifier::CertVerifier,
+        core::eigenda_cert::{
+            BatchHeaderV2, BlobCertificate, BlobCommitment, BlobHeader, BlobInclusionInfo,
+            PaymentHeader,
+        },
+        generated::{
+            common::{
+                v2::{
+                    BatchHeader as BatchHeaderProto, BlobCertificate as BlobCertificateProto,
+                    BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
+                },
+                BlobCommitment as BlobCommitmentProto,
+            },
+            disperser::v2::{
+                Attestation, BlobInclusionInfo as BlobInclusionInfoProto, SignedBatch,
+            },
+        },
+    };
+
+    use super::{BlobStatusReply, EigenDACert, NonSignerStakesAndSignature};
+
+    fn get_test_reply() -> (BlobStatusReply, NonSignerStakesAndSignature) {
+        let blob_status_reply = BlobStatusReply {
+            signed_batch: Some(SignedBatch {
+                header: Some(BatchHeaderProto {
+                    batch_root: vec![
+                        233, 19, 14, 15, 65, 33, 120, 11, 158, 216, 117, 11, 227, 47, 29, 155, 79,
+                        182, 24, 94, 146, 218, 107, 168, 123, 102, 91, 170, 206, 53, 139, 120,
+                    ],
+                    reference_block_number: 3677228,
+                }),
+                attestation: Some(Attestation {
+                    non_signer_pubkeys: vec![vec![
+                        149, 116, 165, 233, 216, 150, 77, 230, 96, 225, 164, 64, 31, 105, 148, 81,
+                        196, 61, 51, 216, 252, 183, 63, 121, 78, 173, 12, 22, 161, 96, 62, 209,
+                    ]],
+                    apk_g2: vec![
+                        128, 240, 67, 205, 245, 139, 18, 92, 198, 206, 71, 79, 179, 90, 69, 162,
+                        218, 199, 207, 74, 138, 102, 16, 185, 204, 246, 154, 154, 124, 148, 53,
+                        211, 33, 22, 115, 242, 239, 223, 221, 73, 130, 66, 206, 2, 238, 161, 128,
+                        140, 150, 135, 255, 137, 141, 213, 108, 114, 206, 30, 72, 81, 211, 242, 5,
+                        81,
+                    ],
+                    sigma: vec![
+                        204, 195, 219, 236, 124, 241, 73, 77, 182, 143, 252, 46, 168, 213, 195,
+                        205, 174, 113, 109, 29, 5, 215, 39, 52, 229, 160, 163, 122, 233, 136, 5,
+                        43,
+                    ],
+                    quorum_numbers: vec![0, 1],
+                    quorum_signed_percentages: vec![80, 100],
+                    quorum_apks: vec![
+                        vec![
+                            213, 80, 149, 82, 54, 82, 201, 67, 137, 35, 54, 247, 77, 10, 85, 54,
+                            216, 249, 216, 213, 4, 27, 185, 120, 200, 109, 119, 219, 5, 38, 27, 0,
+                        ],
+                        vec![
+                            149, 180, 60, 155, 181, 219, 189, 21, 124, 76, 206, 221, 182, 31, 35,
+                            178, 11, 104, 1, 197, 178, 20, 16, 206, 61, 243, 11, 96, 200, 242, 2,
+                            216,
+                        ],
+                    ],
+                }),
+            }),
+            blob_inclusion_info: Some(BlobInclusionInfoProto {
+                blob_certificate: Some(BlobCertificateProto {
+                    blob_header: Some(BlobHeaderProto {
+                        version: 0,
+                        quorum_numbers: vec![0, 1],
+                        commitment: Some(BlobCommitmentProto {
+                            commitment: vec![
+                                232, 2, 196, 90, 47, 44, 136, 140, 220, 190, 143, 211, 205, 225,
+                                191, 16, 207, 168, 84, 185, 10, 94, 237, 61, 43, 217, 173, 222, 51,
+                                240, 232, 208,
+                            ],
+                            length_commitment: vec![
+                                148, 250, 45, 9, 249, 227, 179, 68, 60, 236, 203, 111, 184, 253,
+                                98, 119, 216, 93, 227, 68, 79, 24, 237, 232, 114, 174, 94, 55, 57,
+                                219, 223, 236, 19, 162, 109, 209, 5, 251, 122, 189, 110, 148, 207,
+                                115, 135, 46, 187, 183, 224, 106, 195, 173, 71, 19, 64, 204, 222,
+                                121, 46, 26, 9, 5, 207, 103,
+                            ],
+                            length_proof: vec![
+                                164, 242, 183, 79, 135, 39, 163, 7, 205, 3, 117, 112, 14, 51, 32,
+                                109, 225, 106, 139, 95, 30, 170, 141, 223, 234, 166, 196, 135, 89,
+                                209, 191, 105, 39, 10, 17, 9, 148, 157, 81, 31, 16, 65, 3, 153,
+                                149, 103, 207, 2, 243, 32, 46, 164, 209, 123, 18, 90, 216, 219,
+                                115, 179, 28, 217, 65, 167,
+                            ],
+                            length: 64,
+                        }),
+                        payment_header: Some(PaymentHeaderProto {
+                            account_id: "0xD9309b3CF1B7DBF59f53461c2a66e2783dD1766f".to_string(),
+                            timestamp: 1744727058739877000,
+                            cumulative_payment: vec![],
+                        }),
+                    }),
+                    signature: vec![
+                        168, 15, 169, 88, 137, 74, 179, 18, 3, 126, 94, 63, 143, 103, 188, 210, 49,
+                        46, 135, 26, 105, 222, 214, 37, 128, 4, 228, 62, 188, 96, 144, 186, 119,
+                        225, 173, 54, 9, 235, 152, 171, 108, 56, 209, 37, 220, 184, 124, 220, 79,
+                        32, 8, 168, 171, 53, 1, 116, 168, 63, 109, 43, 34, 59, 66, 115, 0,
+                    ],
+                    relay_keys: vec![1, 2],
+                }),
+                blob_index: 0,
+                inclusion_proof: vec![],
+            }),
+            status: 4,
+        };
+
+        let non_signer_pubkeys = vec![G1Affine::new(
+            BigInt::from_str(
+                "9704669172386967228841698723444408761927945332160049913630816478196003782353",
+            )
+            .unwrap()
+            .into(),
+            BigInt::from_str(
+                "3015390035914263831218138863592333251373169306354028727332933629302878348905",
+            )
+            .unwrap()
+            .into(),
+        )];
+
+        let quorum_apks = vec![
+            G1Affine::new(
+                BigInt::from_str(
+                    "9640948162073083414565750363679859421843464655523632220274628669727733848832",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "19643370125309743269553422865066622968340763429691280615064085723043238518365",
+                )
+                .unwrap()
+                .into(),
+            ),
+            G1Affine::new(
+                BigInt::from_str(
+                    "9817020594633164190020731292959226780976321240116097510692294534725289247448",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "6543934278976149913385688504460018919257753414424306454948368312689483583934",
+                )
+                .unwrap()
+                .into(),
+            ),
+        ];
+
+        let apk_g2 = G2Affine::new(
+            Fp2::new(
+                BigInt::from_str(
+                    "14965994889071619819446937262508283023425732847803582775082308126897001858385",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "424511265199836222171189838201654012504607225718840732994210815543791072723",
+                )
+                .unwrap()
+                .into(),
+            ),
+            Fp2::new(
+                BigInt::from_str(
+                    "10334432992602034872979025009842481721144509800260495829990482515621755075795",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "9841818323264649074514261459775280044000073958159617760595021082785845935923",
+                )
+                .unwrap()
+                .into(),
+            ),
+        );
+
+        let sigma = G1Affine::new(
+            BigInt::from_str(
+                "5773807218786325796539249080007257311780942381488879944227700219398473647403",
+            )
+            .unwrap()
+            .into(),
+            BigInt::from_str(
+                "18640028175250638736778274290057138634148717423467124530433456101853729482956",
+            )
+            .unwrap()
+            .into(),
+        );
+
+        let non_signer_stakes_and_signature = NonSignerStakesAndSignature {
+            non_signer_quorum_bitmap_indices: vec![20],
+            non_signer_pubkeys,
+            quorum_apks,
+            apk_g2,
+            sigma,
+            quorum_apk_indices: vec![1746, 2176],
+            total_stake_indices: vec![2310, 2442],
+            non_signer_stake_indices: vec![vec![28], vec![]],
+        };
+
+        (blob_status_reply, non_signer_stakes_and_signature)
+    }
+
+    fn get_test_eigenda_cert() -> EigenDACert {
+        let commitment = G1Affine::new(
+            BigInt::from_str(
+                "18097402811107380983985671453467841691840893735219410444705609758165039114448",
+            )
+            .unwrap()
+            .into(),
+            BigInt::from_str(
+                "16999158799766630235672780371511628484587074466180058883339027662416423479934",
+            )
+            .unwrap()
+            .into(),
+        );
+
+        let length_commitment = G2Affine::new(
+            Fp2::new(
+                BigInt::from_str(
+                    "8880931273186827351261965262476328318208931614937724042685885477123587952487",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "9488279585401480508933934734292808714637816354493020600238094832843399880684",
+                )
+                .unwrap()
+                .into(),
+            ),
+            Fp2::new(
+                BigInt::from_str(
+                    "9351449145134164501355679055588713512002655821146694096751192274844423102179",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "5865560055521561571799675834708494429719140059224985519677590504619849199063",
+                )
+                .unwrap()
+                .into(),
+            ),
+        );
+
+        let length_proof = G2Affine::new(
+            Fp2::new(
+                BigInt::from_str(
+                    "17657987153373524011587225477415793193070321684460829118659094242192581542311",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "16712104702324673391829417082915453826023854019199011233132756277153391296361",
+                )
+                .unwrap()
+                .into(),
+            ),
+            Fp2::new(
+                BigInt::from_str(
+                    "20551952027861764477813347143115786861997666834655173209349588364117435832818",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "6669181637093186586935873308827307102680507380028905776710748175870382273671",
+                )
+                .unwrap()
+                .into(),
+            ),
+        );
+
+        let non_signer_pubkeys = vec![G1Affine::new(
+            BigInt::from_str(
+                "9704669172386967228841698723444408761927945332160049913630816478196003782353",
+            )
+            .unwrap()
+            .into(),
+            BigInt::from_str(
+                "3015390035914263831218138863592333251373169306354028727332933629302878348905",
+            )
+            .unwrap()
+            .into(),
+        )];
+
+        let quorum_apks = vec![
+            G1Affine::new(
+                BigInt::from_str(
+                    "9640948162073083414565750363679859421843464655523632220274628669727733848832",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "19643370125309743269553422865066622968340763429691280615064085723043238518365",
+                )
+                .unwrap()
+                .into(),
+            ),
+            G1Affine::new(
+                BigInt::from_str(
+                    "9817020594633164190020731292959226780976321240116097510692294534725289247448",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "6543934278976149913385688504460018919257753414424306454948368312689483583934",
+                )
+                .unwrap()
+                .into(),
+            ),
+        ];
+
+        let apk_g2 = G2Affine::new(
+            Fp2::new(
+                BigInt::from_str(
+                    "14965994889071619819446937262508283023425732847803582775082308126897001858385",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "424511265199836222171189838201654012504607225718840732994210815543791072723",
+                )
+                .unwrap()
+                .into(),
+            ),
+            Fp2::new(
+                BigInt::from_str(
+                    "10334432992602034872979025009842481721144509800260495829990482515621755075795",
+                )
+                .unwrap()
+                .into(),
+                BigInt::from_str(
+                    "9841818323264649074514261459775280044000073958159617760595021082785845935923",
+                )
+                .unwrap()
+                .into(),
+            ),
+        );
+
+        let sigma = G1Affine::new(
+            BigInt::from_str(
+                "5773807218786325796539249080007257311780942381488879944227700219398473647403",
+            )
+            .unwrap()
+            .into(),
+            BigInt::from_str(
+                "18640028175250638736778274290057138634148717423467124530433456101853729482956",
+            )
+            .unwrap()
+            .into(),
+        );
+
+        EigenDACert {
+            blob_inclusion_info: BlobInclusionInfo {
+                blob_certificate: BlobCertificate {
+                    blob_header: BlobHeader {
+                        version: 0,
+                        quorum_numbers: vec![0, 1],
+                        commitment: BlobCommitment {
+                            commitment,
+                            length_commitment,
+                            length_proof,
+                            length: 64,
+                        },
+                        payment_header_hash: [
+                            99, 114, 16, 1, 243, 70, 66, 44, 180, 153, 204, 46, 153, 207, 150, 9,
+                            74, 52, 71, 46, 38, 218, 196, 247, 84, 79, 185, 121, 213, 80, 162, 149,
+                        ],
+                    },
+                    signature: vec![
+                        168, 15, 169, 88, 137, 74, 179, 18, 3, 126, 94, 63, 143, 103, 188, 210, 49,
+                        46, 135, 26, 105, 222, 214, 37, 128, 4, 228, 62, 188, 96, 144, 186, 119,
+                        225, 173, 54, 9, 235, 152, 171, 108, 56, 209, 37, 220, 184, 124, 220, 79,
+                        32, 8, 168, 171, 53, 1, 116, 168, 63, 109, 43, 34, 59, 66, 115, 0,
+                    ],
+                    relay_keys: vec![1, 2],
+                },
+                blob_index: 0,
+                inclusion_proof: vec![],
+            },
+            batch_header: BatchHeaderV2 {
+                batch_root: [
+                    233, 19, 14, 15, 65, 33, 120, 11, 158, 216, 117, 11, 227, 47, 29, 155, 79, 182,
+                    24, 94, 146, 218, 107, 168, 123, 102, 91, 170, 206, 53, 139, 120,
+                ],
+                reference_block_number: 3677228,
+            },
+            non_signer_stakes_and_signature: NonSignerStakesAndSignature {
+                non_signer_quorum_bitmap_indices: vec![20],
+                non_signer_pubkeys,
+                quorum_apks,
+                apk_g2,
+                sigma,
+                quorum_apk_indices: vec![1746, 2176],
+                total_stake_indices: vec![2310, 2442],
+                non_signer_stake_indices: vec![vec![28], vec![]],
+            },
+            signed_quorum_numbers: vec![0, 1],
+        }
+    }
 
     #[test]
     fn test_blob_key() {
@@ -634,5 +1036,21 @@ mod test {
             hex::encode(blob_key.to_bytes()),
             "e2fc52cb6213041838c20164eac05a7660b741518d5c14060e47c89ed3dd175b"
         );
+    }
+
+    #[tokio::test]
+    async fn test_build_eigenda_cert() {
+        let (blob_status_reply, non_signer_stakes_and_signature) = get_test_reply();
+        let eigenda_cert =
+            EigenDACert::new(blob_status_reply, non_signer_stakes_and_signature).unwrap();
+
+        let expected_eigenda_cert = get_test_eigenda_cert();
+        assert_eq!(expected_eigenda_cert, eigenda_cert);
+
+        let address = "0xFe52fE1940858DCb6e12153E2104aD0fDFbE1162".to_string();
+        let rpc_url = "https://ethereum-holesky-rpc.publicnode.com".to_string();
+        let cert_verifier = CertVerifier::new(address, rpc_url);
+        let res = cert_verifier.verify_cert_v2(&eigenda_cert).await;
+        assert!(res.is_ok())
     }
 }
