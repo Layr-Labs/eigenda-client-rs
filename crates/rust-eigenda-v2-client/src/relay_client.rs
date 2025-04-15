@@ -138,7 +138,9 @@ mod tests {
 
         let mut client = RelayClient::new(test_config(), eth_client).await.unwrap();
 
-        let blob_key = BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4").unwrap();
+        let blob_key =
+            BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
+                .unwrap();
         let relay_key = 2;
         let result = client.get_blob(relay_key, blob_key).await;
         assert!(result.is_ok());

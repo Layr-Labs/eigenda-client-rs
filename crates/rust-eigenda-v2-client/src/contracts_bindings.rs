@@ -9,5 +9,5 @@ use alloy_sol_types::sol;
 // See https://docs.rs/alloy-sol-macro/latest/alloy_sol_macro/macro.sol.html#solidity for more details.
 sol! {
     #[sol(rpc)]
-    IEigenDACertVerifier, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abis/IEigenDACertVerifier.json"),
+    IEigenDACertVerifier, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifier.json"),
 }
