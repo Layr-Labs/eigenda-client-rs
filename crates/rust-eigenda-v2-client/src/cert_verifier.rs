@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use alloy::{network::Ethereum, providers::RootProvider};
+use ethereum_types::H160;
 
 use crate::{
     contracts_bindings::IEigenDACertVerifier::{self},
@@ -19,11 +20,12 @@ pub struct CertVerifier {
 
 impl CertVerifier {
     /// Creates a new instance of CertVerifier receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: String, rpc_url: String) -> Self {
+    pub fn new(address: H160, rpc_url: String) -> Self {
         let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url).unwrap();
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
-        let cert_verifier_address = alloy::primitives::Address::from_str(&address).unwrap();
+        let cert_verifier_address =
+            alloy::primitives::Address::from_str(&hex::encode(address)).unwrap();
         let cert_verifier_contract: IEigenDACertVerifier::IEigenDACertVerifierInstance<
             RootProvider,
         > = IEigenDACertVerifier::new(cert_verifier_address, provider);
@@ -93,6 +95,7 @@ mod tests {
             BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
             EigenDACert, NonSignerStakesAndSignature,
         },
+        tests::{CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
     };
 
     fn get_test_eigenda_cert() -> EigenDACert {
@@ -282,9 +285,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_cert() {
-        let address = "0xFe52fE1940858DCb6e12153E2104aD0fDFbE1162".to_string();
-        let rpc_url = "https://ethereum-holesky-rpc.publicnode.com".to_string();
-        let cert_verifier = CertVerifier::new(address, rpc_url);
+        let cert_verifier =
+            CertVerifier::new(CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL.to_string());
         let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;
         assert!(res.is_ok())
     }

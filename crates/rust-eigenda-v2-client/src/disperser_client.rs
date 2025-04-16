@@ -229,27 +229,22 @@ impl DisperserClient {
 #[cfg(test)]
 mod tests {
 
-    use crate::disperser_client::DisperserClient;
+    use crate::{
+        disperser_client::DisperserClient,
+        tests::{get_test_private_key, HOLESKY_DISPERSER_RPC_URL},
+    };
 
     use super::DisperserClientConfig;
 
-    use dotenv::dotenv;
     use serial_test::serial;
-    use std::env;
 
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     #[serial]
     async fn test_disperse_non_secure() {
-        dotenv().ok();
-
-        // Set your private key in .env file
-        let private_key: String =
-            env::var("SIGNER_PRIVATE_KEY").expect("SIGNER_PRIVATE_KEY must be set");
-
         let config = DisperserClientConfig {
-            disperser_rpc: "https://disperser-testnet-holesky.eigenda.xyz".to_string(),
-            private_key,
+            disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+            private_key: get_test_private_key(),
             use_secure_grpc_flag: false,
         };
         let mut client = DisperserClient::new(config).await.unwrap();
@@ -265,15 +260,9 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn test_disperse_secure() {
-        dotenv().ok();
-
-        // Set your private key in .env file
-        let private_key: String =
-            env::var("SIGNER_PRIVATE_KEY").expect("SIGNER_PRIVATE_KEY must be set");
-
         let config = DisperserClientConfig {
-            disperser_rpc: "https://disperser-preprod-holesky.eigenda.xyz".to_string(),
-            private_key,
+            disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+            private_key: get_test_private_key(),
             use_secure_grpc_flag: true,
         };
         let mut client = DisperserClient::new(config).await.unwrap();
@@ -288,15 +277,9 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn test_double_disperse_secure() {
-        dotenv().ok();
-
-        // Set your private key in .env file
-        let private_key: String =
-            env::var("SIGNER_PRIVATE_KEY").expect("SIGNER_PRIVATE_KEY must be set");
-
         let config = DisperserClientConfig {
-            disperser_rpc: "https://disperser-preprod-holesky.eigenda.xyz".to_string(),
-            private_key,
+            disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+            private_key: get_test_private_key(),
             use_secure_grpc_flag: true,
         };
         let mut client = DisperserClient::new(config).await.unwrap();
