@@ -1,3 +1,5 @@
+use ethereum_types::H160;
+
 use crate::{
     cert_verifier::CertVerifier,
     core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
@@ -8,10 +10,10 @@ use crate::{
 
 #[derive(Clone)]
 pub struct PayloadDisperserConfig {
-    polynomial_form: PayloadForm,
-    blob_version: u16,
-    cert_verifier_address: String,
-    eth_rpc_url: String,
+    pub polynomial_form: PayloadForm,
+    pub blob_version: u16,
+    pub cert_verifier_address: H160,
+    pub eth_rpc_url: String,
 }
 
 /// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
@@ -30,7 +32,7 @@ impl PayloadDisperser {
     ) -> Result<Self, PayloadDisperserError> {
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
-            payload_config.cert_verifier_address.clone(),
+            payload_config.cert_verifier_address,
             payload_config.eth_rpc_url.clone(),
         );
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
@@ -135,33 +137,28 @@ mod tests {
         core::{Payload, PayloadForm},
         disperser_client::DisperserClientConfig,
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
+        tests::{
+            get_test_private_key, CERT_VERIFIER_ADDRESS, HOLESKY_DISPERSER_RPC_URL,
+            HOLESKY_ETH_RPC_URL,
+        },
     };
-
-    use dotenv::dotenv;
-    use std::env;
 
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_disperse_payload() {
-        dotenv().ok();
-
         let timeout = tokio::time::Duration::from_secs(180);
 
-        // Set your private key in .env file
-        let private_key: String =
-            env::var("SIGNER_PRIVATE_KEY").expect("SIGNER_PRIVATE_KEY must be set");
-
         let disperser_config = DisperserClientConfig {
-            disperser_rpc: "https://disperser-testnet-holesky.eigenda.xyz".to_string(),
-            private_key,
+            disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+            private_key: get_test_private_key(),
             use_secure_grpc_flag: false,
         };
 
         let payload_config = PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: "0xFe52fE1940858DCb6e12153E2104aD0fDFbE1162".to_string(),
-            eth_rpc_url: "https://ethereum-holesky-rpc.publicnode.com".to_string(),
+            cert_verifier_address: CERT_VERIFIER_ADDRESS,
+            eth_rpc_url: HOLESKY_ETH_RPC_URL.to_string(),
         };
 
         let mut payload_disperser = PayloadDisperser::new(disperser_config, payload_config)

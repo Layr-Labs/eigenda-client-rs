@@ -88,17 +88,3 @@ pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Vec<Fr> {
     }
     output_elements
 }
-
-#[cfg(test)]
-pub fn relay_client_test_config() -> crate::relay_client::RelayClientConfig {
-    use std::str::FromStr;
-
-    crate::relay_client::RelayClientConfig {
-        max_grpc_message_size: 9999999,
-        relay_clients_keys: vec![1, 2],
-        relay_registry_address: ethereum_types::H160::from_str(
-            "0xaC8C6C7Ee7572975454E2f0b5c720f9E74989254",
-        )
-        .unwrap(),
-    }
-}

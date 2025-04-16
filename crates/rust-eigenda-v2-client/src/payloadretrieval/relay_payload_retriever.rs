@@ -6,23 +6,20 @@ use tokio::time::timeout;
 
 use crate::{
     commitment_utils::generate_and_compare_blob_commitment,
-    core::{
-        eigenda_cert::{BlobKey, EigenDACert},
-        Blob, Payload, PayloadForm,
-    },
+    core::{eigenda_cert::EigenDACert, Blob, BlobKey, Payload, PayloadForm},
     errors::RelayPayloadRetrieverError,
     relay_client::{RelayClient, RelayKey},
 };
 
 pub struct SRSConfig {
-    source_path: String,
-    order: u32,
-    points_to_load: u32,
+    pub source_path: String,
+    pub order: u32,
+    pub points_to_load: u32,
 }
 
 pub struct RelayPayloadRetrieverConfig {
-    pub(crate) payload_form: PayloadForm,
-    pub(crate) retrieval_timeout_secs: Duration,
+    pub payload_form: PayloadForm,
+    pub retrieval_timeout_secs: Duration,
 }
 
 // RelayPayloadRetriever provides the ability to get payloads from the relay subsystem.
@@ -102,7 +99,7 @@ impl RelayPayloadRetriever {
 
             // if get_blob returned and error, try calling a different relay
             let blob = match self
-                .retrieve_blob_with_timeout(relay_key, blob_key, blob_length_symbols)
+                .retrieve_blob_with_timeout(relay_key, &blob_key, blob_length_symbols)
                 .await
             {
                 Ok(blob) => blob,
@@ -146,7 +143,7 @@ impl RelayPayloadRetriever {
     async fn retrieve_blob_with_timeout(
         &mut self,
         relay_key: RelayKey,
-        blob_key: BlobKey,
+        blob_key: &BlobKey,
         blob_length_symbols: u32,
     ) -> Result<Blob, RelayPayloadRetrieverError> {
         let blob_bytes = timeout(
@@ -163,48 +160,18 @@ impl RelayPayloadRetriever {
 
 #[cfg(test)]
 mod tests {
-    use std::{str::FromStr, sync::Arc};
-
-    use tokio::sync::Mutex;
-    use url::Url;
-
     use crate::{
         commitment_utils::{g1_commitment_from_bytes, g2_commitment_from_bytes},
         core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitment, BlobHeader, BlobInclusionInfo,
+            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
             NonSignerStakesAndSignature,
         },
-        eth_client::EthClient,
-        utils::{relay_client_test_config, SecretUrl},
+        tests::{
+            get_relay_payload_retriever_test_config, get_srs_test_config, get_test_relay_client,
+        },
     };
 
     use super::*;
-
-    fn get_relay_payload_retriever_test_config() -> RelayPayloadRetrieverConfig {
-        RelayPayloadRetrieverConfig {
-            payload_form: PayloadForm::Coeff,
-            retrieval_timeout_secs: Duration::from_secs(10),
-        }
-    }
-
-    fn get_srs_test_config() -> SRSConfig {
-        SRSConfig {
-            source_path: "../../resources/g1.point".to_string(),
-            order: 42,
-            points_to_load: 42,
-        }
-    }
-
-    async fn get_test_relay_client() -> RelayClient {
-        let eth_client = EthClient::new(SecretUrl::new(
-            Url::from_str("https://ethereum-holesky-rpc.publicnode.com").unwrap(),
-        ));
-        let eth_client = Arc::new(Mutex::new(eth_client));
-
-        RelayClient::new(relay_client_test_config(), eth_client)
-            .await
-            .unwrap()
-    }
 
     // Certificate of a known, dispersed blob in holesky chain.
     fn get_test_eigenda_cert() -> EigenDACert {
@@ -233,7 +200,7 @@ mod tests {
                     blob_header: BlobHeader {
                         version: 0,
                         quorum_numbers: vec![0, 1],
-                        commitment: BlobCommitment {
+                        commitment: BlobCommitments {
                             commitment: g1_commitment_from_bytes(&commitment_bytes).unwrap(),
                             length_commitment: g2_commitment_from_bytes(&length_commitment_bytes)
                                 .unwrap(),
