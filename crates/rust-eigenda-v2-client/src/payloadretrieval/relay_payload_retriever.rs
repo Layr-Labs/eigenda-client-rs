@@ -112,9 +112,6 @@ impl RelayPayloadRetriever {
                 }
             };
 
-            // TODO (litt3): eventually, we should make generate_and_compare_blob_commitment accept a blob, instead of the
-            //  serialization of a blob. Commitment generation operates on field elements, which is how a blob is stored
-            //  under the hood, so it's actually duplicating work to serialize the blob here.
             let g1_srs = self.srs.g1.clone();
             let valid = generate_and_compare_blob_commitment(
                 g1_srs,
