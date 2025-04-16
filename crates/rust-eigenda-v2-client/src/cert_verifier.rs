@@ -12,11 +12,13 @@ use crate::{
 pub type CertVerifierContract =
     IEigenDACertVerifier::IEigenDACertVerifierInstance<RootProvider<Ethereum>>;
 
+/// CertVerifier is a struct that provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier {
     cert_verifier_contract: CertVerifierContract,
 }
 
 impl CertVerifier {
+    /// Creates a new instance of CertVerifier receiving the address of the contract and the ETH RPC url.
     pub fn new(address: String, rpc_url: String) -> Self {
         let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url).unwrap();
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
@@ -30,6 +32,8 @@ impl CertVerifier {
         }
     }
 
+    /// Calls the getNonSignerStakesAndSignature view function on the EigenDACertVerifier
+    /// contract, and returns the resulting NonSignerStakesAndSignature object.
     pub async fn get_non_signer_stakes_and_signature(
         &self,
         signed_batch: SignedBatchProto,
@@ -45,6 +49,8 @@ impl CertVerifier {
         Ok(non_signer_stakes_and_signature.try_into()?)
     }
 
+    /// Queries the cert verifier contract for the configured set of quorum numbers that must
+    /// be set in the BlobHeader, and verified in VerifyDACertV2 and verifyDACertV2FromSignedBatch
     pub async fn quorum_numbers_required(&self) -> Result<Vec<u8>, CertVerifierError> {
         let quorums = self
             .cert_verifier_contract
@@ -54,6 +60,9 @@ impl CertVerifier {
         Ok(quorums.to_vec())
     }
 
+    /// Calls the VerifyCertV2 view function on the EigenDACertVerifier contract.
+    ///
+    /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a CertVerifierError.
     pub async fn verify_cert_v2(
         &self,
         eigenda_cert: &EigenDACert,
@@ -81,7 +90,7 @@ mod tests {
     use crate::{
         cert_verifier::CertVerifier,
         core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitment, BlobHeader, BlobInclusionInfo,
+            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
             EigenDACert, NonSignerStakesAndSignature,
         },
     };
@@ -227,7 +236,7 @@ mod tests {
                     blob_header: BlobHeader {
                         version: 0,
                         quorum_numbers: vec![0, 1], // breaks when changes
-                        commitment: BlobCommitment {
+                        commitment: BlobCommitments {
                             commitment,
                             length_commitment,
                             length_proof,

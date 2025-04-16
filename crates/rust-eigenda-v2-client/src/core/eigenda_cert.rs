@@ -33,9 +33,13 @@ use crate::utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
 use super::BlobKey;
 
 #[derive(Debug, PartialEq, Clone)]
+/// PaymentHeader represents the header information for a blob
 pub struct PaymentHeader {
+    /// account_id is the ETH account address for the payer
     pub account_id: String,
+    /// Timestamp represents the nanosecond of the dispersal request creation
     pub timestamp: i64,
+    /// cumulative_payment represents the total amount of payment (in wei) made by the user up to this point
     pub cumulative_payment: Vec<u8>,
 }
 
@@ -70,15 +74,16 @@ impl PaymentHeader {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct BlobCommitment {
+/// BlomCommitments contains the blob's commitment, degree proof, and the actual degree.
+pub struct BlobCommitments {
     pub commitment: G1Affine,
     pub length_commitment: G2Affine,
     pub length_proof: G2Affine,
     pub length: u32,
 }
 
-impl From<BlobCommitment> for BlobCommitmentContract {
-    fn from(value: BlobCommitment) -> Self {
+impl From<BlobCommitments> for BlobCommitmentContract {
+    fn from(value: BlobCommitments) -> Self {
         Self {
             lengthCommitment: g2_contract_point_from_g2_affine(&value.length_commitment),
             lengthProof: g2_contract_point_from_g2_affine(&value.length_proof),
@@ -88,7 +93,7 @@ impl From<BlobCommitment> for BlobCommitmentContract {
     }
 }
 
-impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
+impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
     type Error = ConversionError;
 
     fn try_from(value: ProtoBlobCommitment) -> Result<Self, Self::Error> {
@@ -110,7 +115,7 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitment {
 pub struct BlobHeader {
     pub(crate) version: u16,
     pub(crate) quorum_numbers: Vec<u8>,
-    pub(crate) commitment: BlobCommitment,
+    pub(crate) commitment: BlobCommitments,
     pub(crate) payment_header_hash: [u8; 32],
 }
 
@@ -152,7 +157,7 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
             })?);
         }
 
-        let commitment = BlobCommitment::try_from(value.commitment.ok_or(
+        let commitment = BlobCommitments::try_from(value.commitment.ok_or(
             ConversionError::BlobHeader("Missing commitment".to_string()),
         )?)?;
 
@@ -171,6 +176,10 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+/// BlobCertificate contains a full description of a blob and how it is dispersed. Part of the certificate
+/// is provided by the blob submitter (i.e. the blob header), and part is provided by the disperser (i.e. the relays).
+/// Validator nodes eventually sign the blob certificate once they are in custody of the required chunks
+/// (note that the signature is indirect; validators sign the hash of a Batch, which contains the blob certificate).
 pub struct BlobCertificate {
     pub blob_header: BlobHeader,
     pub signature: Vec<u8>,
@@ -202,6 +211,7 @@ impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+/// BlobInclusionInfo is the information needed to verify the inclusion of a blob in a batch.
 pub struct BlobInclusionInfo {
     pub blob_certificate: BlobCertificate,
     pub blob_index: u32,
@@ -232,6 +242,7 @@ impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
     }
 }
 
+/// SignedBatch is a batch of blobs with a signature.
 pub struct SignedBatch {
     pub header: BatchHeaderV2,
     pub attestation: Attestation,
@@ -446,17 +457,19 @@ pub struct EigenDACert {
 impl EigenDACert {
     /// creates a new EigenDACert from a BlobStatusReply, and NonSignerStakesAndSignature
     pub fn new(
-        blob_status_reply: BlobStatusReply,
+        blob_status_reply: &BlobStatusReply,
         non_signer_stakes_and_signature: NonSignerStakesAndSignature,
     ) -> Result<Self, EigenClientError> {
         let binding_inclusion_info = BlobInclusionInfo::try_from(
             blob_status_reply
                 .blob_inclusion_info
+                .clone()
                 .ok_or(BlobError::MissingField("blob_inclusion_info".to_string()))?,
         )?;
 
         let signed_batch = blob_status_reply
             .signed_batch
+            .clone()
             .ok_or(BlobError::MissingField("signed_batch".to_string()))?;
         let binding_batch_header = BatchHeaderV2::try_from(
             signed_batch
@@ -577,7 +590,7 @@ mod test {
     use crate::{
         cert_verifier::CertVerifier,
         core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitment, BlobHeader, BlobInclusionInfo,
+            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
             PaymentHeader,
         },
         generated::{
@@ -933,7 +946,7 @@ mod test {
                     blob_header: BlobHeader {
                         version: 0,
                         quorum_numbers: vec![0, 1],
-                        commitment: BlobCommitment {
+                        commitment: BlobCommitments {
                             commitment,
                             length_commitment,
                             length_proof,
@@ -1023,7 +1036,7 @@ mod test {
             150, 142, 207, 252, 194, 255, 160, 210, 92, 132, 123, 146, 191,
         ]);
 
-        let commitments = BlobCommitment {
+        let commitments = BlobCommitments {
             commitment: G1Affine::new(commitment_x, commitment_y),
             length_commitment: G2Affine::new(
                 Fq2::new(length_commitment_x0, length_commitment_x1),
@@ -1059,7 +1072,7 @@ mod test {
     async fn test_build_eigenda_cert() {
         let (blob_status_reply, non_signer_stakes_and_signature) = get_test_reply();
         let eigenda_cert =
-            EigenDACert::new(blob_status_reply, non_signer_stakes_and_signature).unwrap();
+            EigenDACert::new(&blob_status_reply, non_signer_stakes_and_signature).unwrap();
 
         let expected_eigenda_cert = get_test_eigenda_cert();
         assert_eq!(expected_eigenda_cert, eigenda_cert);

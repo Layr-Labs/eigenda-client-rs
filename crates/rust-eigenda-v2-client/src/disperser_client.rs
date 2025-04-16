@@ -5,7 +5,7 @@ use hex::ToHex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
-use crate::core::eigenda_cert::{BlobCommitment, BlobHeader, PaymentHeader};
+use crate::core::eigenda_cert::{BlobCommitments, BlobHeader, PaymentHeader};
 use crate::core::{
     BlobKey, BlobRequestSigner, LocalBlobRequestSigner, OnDemandPayment, ReservedPayment,
 };
@@ -109,13 +109,13 @@ impl DisperserClient {
             .map_err(DisperseError::Accountant)?;
 
         let blob_commitment_reply = self.blob_commitment(data).await?;
-        let Some(blob_commitment) = blob_commitment_reply.blob_commitment else {
+        let Some(blob_commitments) = blob_commitment_reply.blob_commitment else {
             return Err(DisperseError::EmptyBlobCommitment);
         };
-        let core_blob_commitment: BlobCommitment = blob_commitment.clone().try_into()?;
-        if core_blob_commitment.length != symbol_length as u32 {
+        let core_blob_commitments: BlobCommitments = blob_commitments.clone().try_into()?;
+        if core_blob_commitments.length != symbol_length as u32 {
             return Err(DisperseError::CommitmentLengthMismatch(
-                core_blob_commitment.length,
+                core_blob_commitments.length,
                 symbol_length,
             ));
         }
@@ -127,7 +127,7 @@ impl DisperserClient {
 
         let blob_header = BlobHeader {
             version: blob_version,
-            commitment: core_blob_commitment.clone(),
+            commitment: core_blob_commitments.clone(),
             quorum_numbers: quorums.to_vec(),
             payment_header_hash: PaymentHeader {
                 account_id: account_id.clone(),
@@ -142,7 +142,7 @@ impl DisperserClient {
             blob: data.to_vec(),
             blob_header: Some(BlobHeaderProto {
                 version: blob_header.version as u32,
-                commitment: Some(blob_commitment),
+                commitment: Some(blob_commitments),
                 quorum_numbers: quorums.to_vec().iter().map(|&x| x as u32).collect(),
                 payment_header: Some(PaymentHeaderProto {
                     account_id,

@@ -14,6 +14,7 @@ pub struct PayloadDisperserConfig {
     eth_rpc_url: String,
 }
 
+/// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
 pub struct PayloadDisperser {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient,
@@ -22,6 +23,7 @@ pub struct PayloadDisperser {
 }
 
 impl PayloadDisperser {
+    /// Creates a PayloadDisperser from the specified configs.
     pub async fn new(
         disperser_config: DisperserClientConfig,
         payload_config: PayloadDisperserConfig,
@@ -40,6 +42,7 @@ impl PayloadDisperser {
         })
     }
 
+    /// Executes the dispersal of a payload, returning the associated blob key
     pub async fn send_payload(
         &mut self,
         payload: Payload,
@@ -67,6 +70,8 @@ impl PayloadDisperser {
         Ok(blob_key)
     }
 
+    /// Retrieves the inclusion data for a given blob key
+    /// If the requested blob is still not complete, returns None
     pub async fn get_inclusion_data(
         &mut self,
         blob_key: &BlobKey,
@@ -83,7 +88,7 @@ impl PayloadDisperser {
             BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
             BlobStatus::Encoded | BlobStatus::GatheringSignatures | BlobStatus::Queued => Ok(None),
             BlobStatus::Complete => {
-                let eigenda_cert = self.build_eigenda_cert(status).await?;
+                let eigenda_cert = self.build_eigenda_cert(&status).await?;
                 self.cert_verifier
                     .verify_cert_v2(&eigenda_cert)
                     .await
@@ -95,9 +100,10 @@ impl PayloadDisperser {
         }
     }
 
+    /// Creates a new EigenDACert from a BlobStatusReply, and NonSignerStakesAndSignature
     pub async fn build_eigenda_cert(
         &self,
-        status: BlobStatusReply,
+        status: &BlobStatusReply,
     ) -> Result<EigenDACert, EigenClientError> {
         let signed_batch = match status.clone().signed_batch {
             Some(batch) => batch,
