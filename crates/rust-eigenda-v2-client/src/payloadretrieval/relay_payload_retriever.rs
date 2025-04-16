@@ -33,6 +33,8 @@ pub struct RelayPayloadRetriever {
 }
 
 impl RelayPayloadRetriever {
+    /// Assembles a RelayPayloadRetriever from specified configs and a
+    /// relay client that have already been constructed.
     pub fn new(
         config: RelayPayloadRetrieverConfig,
         srs_config: SRSConfig,
@@ -143,6 +145,7 @@ impl RelayPayloadRetriever {
         Err(RelayPayloadRetrieverError::UnableToRetrievePayload)
     }
 
+    /// Attempts to retrieve a blob from a given relay, and times out based on config.FetchTimeout
     async fn retrieve_blob_with_timeout(
         &mut self,
         relay_key: RelayKey,

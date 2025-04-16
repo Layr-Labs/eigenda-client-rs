@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 use tonic::transport::Channel;
 
 use crate::{
-    core::eigenda_cert::BlobKey,
+    core::BlobKey,
     errors::{EthClientError, RelayClientError},
     eth_client::EthClient,
     generated::relay::{
@@ -102,7 +102,7 @@ impl RelayClient {
             .ok_or(RelayClientError::InvalidRelayKey(relay_key))?;
         let res = relay_client
             .get_blob(GetBlobRequest {
-                blob_key: blob_key.to_vec(),
+                blob_key: blob_key.to_bytes().to_vec(),
             })
             .await?
             .into_inner();
@@ -116,12 +116,18 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::{
-        eth_client::EthClient,
-        relay_client::RelayClient,
-        utils::{relay_client_test_config, SecretUrl},
-    };
+    use crate::{eth_client::EthClient, relay_client::RelayClient, utils::SecretUrl};
+    use ethereum_types::H160;
     use url::Url;
+
+    fn test_config() -> RelayClientConfig {
+        RelayClientConfig {
+            max_grpc_message_size: 9999999,
+            relay_clients_keys: vec![1, 2],
+            relay_registry_address: H160::from_str("0xaC8C6C7Ee7572975454E2f0b5c720f9E74989254")
+                .unwrap(),
+        }
+    }
 
     #[tokio::test]
     async fn test_retrieve_single_blob() {
@@ -130,14 +136,10 @@ mod tests {
         ));
         let eth_client = Arc::new(Mutex::new(eth_client));
 
-        let mut client = RelayClient::new(relay_client_test_config(), eth_client)
-            .await
-            .unwrap();
+        let mut client = RelayClient::new(test_config(), eth_client).await.unwrap();
 
         let blob_key =
-            hex::decode("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
-                .unwrap()
-                .try_into()
+            BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
                 .unwrap();
         let relay_key = 2;
         let result = client.get_blob(relay_key, blob_key).await;

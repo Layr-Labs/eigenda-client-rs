@@ -35,7 +35,7 @@ fn generate_blob_commitment(
 // generate_and_compare_blob_commitment generates the kzg-bn254 commitment of the blob, and compares it with a claimed
 // commitment. An error is returned if there is a problem generating the commitment. True is returned if the commitment
 // is successfully generated, and is equal to the claimed commitment, otherwise false.
-pub(crate) fn generate_and_compare_blob_commitment(
+pub fn generate_and_compare_blob_commitment(
     g1_srs: Vec<G1Affine>,
     blob_bytes: Vec<u8>,
     claimed_commitment: G1Affine,
@@ -56,7 +56,7 @@ pub fn g1_commitment_to_proto(point: &G1Affine) -> G1Commitment {
     G1Commitment { x, y }
 }
 
-/// Serialize a G1Affine point following applying necessary flags.
+/// Serialize a G1Affine point applying necessary flags.
 /// https://github.com/Consensys/gnark-crypto/blob/5fd6610ac2a1d1b10fae06c5e552550bf43f4d44/ecc/bn254/marshal.go#L790-L801
 pub fn g1_commitment_to_bytes(point: &G1Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![0u8; 32];
@@ -137,6 +137,7 @@ fn switch_endianess(bytes: &mut Vec<u8>) {
     *bytes = filtered_bytes;
 }
 
+/// Serialize a G2Affine point applying necessary flags.
 pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![0u8; 64];
     if point.to_flags().is_infinity() {

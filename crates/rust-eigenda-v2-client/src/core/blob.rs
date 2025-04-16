@@ -21,7 +21,6 @@ pub struct Blob {
     pub blob_length_symbols: usize,
 }
 
-// todo: use real errors
 impl Blob {
     /// deserialize_blob initializes a Blob from bytes
     pub fn deserialize_blob(bytes: Vec<u8>, blob_length_symbols: usize) -> Result<Blob, BlobError> {

@@ -84,15 +84,13 @@ pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Vec<Fr> {
     for i in 0..element_count {
         let start_idx = i * BYTES_PER_SYMBOL;
         let end_idx = start_idx + BYTES_PER_SYMBOL;
-
         output_elements.push(Fr::from_be_bytes_mod_order(&bytes[start_idx..end_idx]))
     }
-
     output_elements
 }
 
 #[cfg(test)]
-pub(crate) fn relay_client_test_config() -> crate::relay_client::RelayClientConfig {
+pub fn relay_client_test_config() -> crate::relay_client::RelayClientConfig {
     use std::str::FromStr;
 
     crate::relay_client::RelayClientConfig {
