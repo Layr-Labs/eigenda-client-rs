@@ -52,7 +52,7 @@ impl DisperserClientConfig {
     }
 }
 
-pub struct DisperserClient {
+pub(crate) struct DisperserClient {
     signer: LocalBlobRequestSigner,
     rpc_client: disperser_client::DisperserClient<tonic::transport::Channel>,
     accountant: Accountant,
@@ -60,7 +60,7 @@ pub struct DisperserClient {
 
 // todo: add locks
 impl DisperserClient {
-    pub async fn new(config: DisperserClientConfig) -> Result<Self, DisperseError> {
+    pub(crate) async fn new(config: DisperserClientConfig) -> Result<Self, DisperseError> {
         let mut endpoint = Channel::from_shared(config.disperser_rpc.clone())
             .map_err(|_| DisperseError::InvalidURI(config.disperser_rpc.clone()))?;
         if config.use_secure_grpc_flag {
@@ -88,7 +88,7 @@ impl DisperserClient {
         Ok(disperser)
     }
 
-    pub async fn disperse_blob(
+    pub(crate) async fn disperse_blob(
         &mut self,
         data: &[u8],
         blob_version: u16,
@@ -177,7 +177,7 @@ impl DisperserClient {
     }
 
     /// Returns the status of a blob with the given blob key.
-    pub async fn blob_status(
+    pub(crate) async fn blob_status(
         &mut self,
         blob_key: &BlobKey,
     ) -> Result<BlobStatusReply, DisperseError> {
@@ -193,7 +193,7 @@ impl DisperserClient {
     }
 
     /// Returns the payment state of the disperser client
-    pub async fn payment_state(&mut self) -> Result<GetPaymentStateReply, DisperseError> {
+    pub(crate) async fn payment_state(&mut self) -> Result<GetPaymentStateReply, DisperseError> {
         let account_id = self.signer.account_id().encode_hex();
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let signature = self.signer.sign_payment_state_request(timestamp as u64)?;
@@ -210,7 +210,7 @@ impl DisperserClient {
             .map_err(DisperseError::FailedRPC)
     }
 
-    pub async fn blob_commitment(
+    pub(crate) async fn blob_commitment(
         &mut self,
         data: &[u8],
     ) -> Result<BlobCommitmentReply, DisperseError> {
