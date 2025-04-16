@@ -140,6 +140,7 @@ mod tests {
     use dotenv::dotenv;
     use std::env;
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_disperse_payload() {
         dotenv().ok();
