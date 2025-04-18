@@ -240,7 +240,7 @@ impl<T: SvcManagerClient> Verifier<T> {
 
     /// Returns a new Verifier
     pub(crate) async fn new(cfg: EigenConfig, eth_client: T) -> Result<Self, VerificationError> {
-        let srs_points_to_load = RawEigenClient::blob_size_limit() as u32 / Self::POINT_SIZE;
+        let srs_points_to_load = RawEigenClient::<()>::blob_size_limit() as u32 / Self::POINT_SIZE;
         let (g1_point_file, g2_point_file) = Self::get_points(&cfg).await?;
         let kzg_handle = tokio::task::spawn_blocking(move || {
             let g1_point_file_path = g1_point_file.path().to_str().ok_or(KzgError::Setup(

@@ -2,7 +2,9 @@ use ark_bn254::G1Affine;
 use tokio::sync::mpsc::error::SendError;
 use tonic::{transport::Error as TonicError, Status};
 
-use crate::{blob_info::BlobQuorumParam, eth_client::RpcErrorResponse, generated::disperser};
+use crate::{
+    blob_info::BlobQuorumParam, eth_client::RpcErrorResponse, generated::disperser,
+};
 
 /// Errors returned by this crate
 #[derive(Debug, thiserror::Error)]
@@ -28,8 +30,6 @@ pub enum ConfigError {
     #[error("ETH RPC URL not set")]
     NoEthRpcUrl,
     #[error(transparent)]
-    Secp(#[from] secp256k1::Error),
-    #[error(transparent)]
     Tonic(#[from] TonicError),
 }
 
@@ -48,7 +48,7 @@ pub enum CommunicationError {
     #[error("Error from server: {0}")]
     ErrorFromServer(String),
     #[error(transparent)]
-    Secp(#[from] secp256k1::Error),
+    Signing(Box<dyn std::error::Error + Send + Sync>),
     #[error(transparent)]
     Hex(#[from] hex::FromHexError),
     #[error(transparent)]

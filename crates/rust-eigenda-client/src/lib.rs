@@ -9,6 +9,10 @@ pub(crate) mod verifier;
 pub(crate) mod verifier_tests;
 
 pub use self::client::EigenClient;
+// So users can achieve some functionality without having to depend on the signers crate as well.
+pub use rust_eigenda_signers::{
+    secp256k1::SecretKey, signers::private_key::Signer as PrivateKeySigner, Sign,
+};
 
 #[allow(clippy::all)]
 pub(crate) mod generated {

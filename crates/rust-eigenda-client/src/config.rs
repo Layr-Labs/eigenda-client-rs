@@ -1,9 +1,8 @@
 use ethereum_types::H160;
 use secrecy::{ExposeSecret, Secret};
-use std::str::FromStr;
 use url::Url;
 
-use crate::errors::{ConfigError, EigenClientError};
+use crate::errors::ConfigError;
 
 #[derive(Debug, Clone)]
 /// A URL stored securely using the `Secret` type from the secrecy crate
@@ -87,29 +86,5 @@ impl EigenConfig {
             srs_points_source,
             custom_quorum_numbers,
         })
-    }
-}
-
-/// Contains the private key
-#[derive(Clone, Debug, PartialEq)]
-pub struct EigenSecrets {
-    pub private_key: PrivateKey,
-}
-
-/// Secretly enclosed Private Key
-#[derive(Debug, Clone)]
-pub struct PrivateKey(pub Secret<String>);
-
-impl PartialEq for PrivateKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.expose_secret().eq(other.0.expose_secret())
-    }
-}
-
-impl FromStr for PrivateKey {
-    type Err = EigenClientError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(PrivateKey(s.parse().map_err(|_| ConfigError::PrivateKey)?))
     }
 }
