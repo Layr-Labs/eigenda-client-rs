@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::{
     core::BYTES_PER_SYMBOL,
-    errors::{CertVerifierError, ConversionError, EigenClientError},
+    errors::{ConversionError, EigenClientError},
 };
 use ark_bn254::Fr;
 use ark_ff::fields::PrimeField;
@@ -32,7 +32,9 @@ impl TryFrom<SecretUrl> for alloy::transports::http::reqwest::Url {
 
     fn try_from(secret_url: SecretUrl) -> Result<Self, Self::Error> {
         let url = alloy::transports::http::reqwest::Url::from_str(secret_url.inner.expose_secret())
-            .map_err(|_| ConversionError::InvalidEthRpc(secret_url.inner.expose_secret().to_string()))?;
+            .map_err(|_| {
+                ConversionError::InvalidEthRpc(secret_url.inner.expose_secret().to_string())
+            })?;
         Ok(url)
     }
 }

@@ -291,7 +291,8 @@ mod tests {
         let cert_verifier = CertVerifier::new(
             CERT_VERIFIER_ADDRESS,
             SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
-        ).unwrap();
+        )
+        .unwrap();
         let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;
         assert!(res.is_ok())
     }

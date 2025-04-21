@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use url::Url;
 
-use crate::{errors::{EigenClientError, EthClientError}, utils::SecretUrl};
+use crate::{errors::EthClientError, utils::SecretUrl};
 
 /// Request ID for the RPC
 #[derive(Debug, Serialize, Deserialize)]
