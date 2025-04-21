@@ -9,7 +9,7 @@ use crate::{
     utils::{PrivateKey, SecretUrl},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PayloadDisperserConfig {
     pub polynomial_form: PayloadForm,
     pub blob_version: u16,
