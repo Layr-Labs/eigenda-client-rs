@@ -1,4 +1,5 @@
 use ark_bn254::{Fr, G1Affine};
+use ethereum_types::H160;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
 use crate::relay_client::RelayKey;
@@ -212,4 +213,8 @@ pub enum CertVerifierError {
     Conversion(#[from] ConversionError),
     #[error(transparent)]
     Alloy(#[from] alloy_contract::Error),
+    #[error("Invalid ETH rpc: {0}")]
+    InvalidEthRpc(String),
+    #[error("Invalid cert verifier contract address: {0}")]
+    InvalidCertVerifierAddress(H160),
 }
