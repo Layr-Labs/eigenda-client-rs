@@ -16,7 +16,7 @@ pub trait BlobRequestSigner {
     fn account_id(&self) -> Address;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LocalBlobRequestSigner {
     private_key: SecretKey,
 }

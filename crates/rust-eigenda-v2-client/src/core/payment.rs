@@ -11,7 +11,7 @@ pub struct PaymentMetadata {
 }
 
 /// Contains information about the on-chain state of a reserved payment.
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct ReservedPayment {
     /// Reserved number of symbols per second.
     pub symbols_per_second: u64,
@@ -53,7 +53,7 @@ impl From<Reservation> for ReservedPayment {
     }
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct OnDemandPayment {
     /// Total amount deposited by the user.
     pub cumulative_payment: BigInt,

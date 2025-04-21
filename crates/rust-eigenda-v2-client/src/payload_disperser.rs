@@ -24,7 +24,7 @@ pub struct PayloadDisperserSecrets {
     pub private_key: PrivateKey,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
 pub struct PayloadDisperser {
     config: PayloadDisperserConfig,

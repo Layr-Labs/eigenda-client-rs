@@ -14,7 +14,7 @@ use crate::{
 pub type CertVerifierContract =
     IEigenDACertVerifier::IEigenDACertVerifierInstance<RootProvider<Ethereum>>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// CertVerifier is a struct that provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier {
     cert_verifier_contract: CertVerifierContract,
