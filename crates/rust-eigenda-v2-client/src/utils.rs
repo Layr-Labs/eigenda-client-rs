@@ -100,5 +100,6 @@ pub fn relay_client_test_config() -> crate::relay_client::RelayClientConfig {
             "0xaC8C6C7Ee7572975454E2f0b5c720f9E74989254",
         )
         .unwrap(),
+        eth_rpc_url: "https://ethereum-holesky-rpc.publicnode.com".to_string(),
     }
 }
