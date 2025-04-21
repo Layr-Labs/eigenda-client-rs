@@ -54,6 +54,7 @@ impl DisperserClientConfig {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct DisperserClient {
     signer: LocalBlobRequestSigner,
     rpc_client: disperser_client::DisperserClient<tonic::transport::Channel>,
