@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hex::ToHex;
+use secrecy::ExposeSecret;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
@@ -17,20 +18,21 @@ use crate::generated::disperser::v2::{
     disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus, BlobStatusReply,
     BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply, GetPaymentStateRequest,
 };
+use crate::utils::PrivateKey;
 
 const BYTES_PER_SYMBOL: usize = 32;
 
 #[derive(Debug)]
 pub struct DisperserClientConfig {
     pub disperser_rpc: String,
-    pub private_key: String,
+    pub private_key: PrivateKey,
     pub use_secure_grpc_flag: bool,
 }
 
 impl DisperserClientConfig {
     pub fn new(
         disperser_rpc: String,
-        private_key: String,
+        private_key: PrivateKey,
         use_secure_grpc_flag: bool,
     ) -> Result<Self, DisperseError> {
         if disperser_rpc.is_empty() {
@@ -38,7 +40,7 @@ impl DisperserClientConfig {
                 "disperser_rpc cannot be empty".to_string(),
             ));
         }
-        if private_key.is_empty() {
+        if private_key.0.expose_secret().is_empty() {
             return Err(DisperseError::ConfigInitialization(
                 "private_key cannot be empty".to_string(),
             ));
@@ -69,7 +71,7 @@ impl DisperserClient {
         }
         let channel = endpoint.connect().await?;
         let rpc_client = disperser_client::DisperserClient::new(channel);
-        let signer = LocalBlobRequestSigner::new(&config.private_key)?;
+        let signer = LocalBlobRequestSigner::new(config.private_key)?;
         let accountant = Accountant::new(
             signer.account_id(),
             ReservedPayment::default(),

@@ -8,6 +8,7 @@ use crate::{
     core::eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch},
     errors::CertVerifierError,
     generated::disperser::v2::SignedBatch as SignedBatchProto,
+    utils::SecretUrl,
 };
 
 pub type CertVerifierContract =
@@ -20,8 +21,8 @@ pub struct CertVerifier {
 
 impl CertVerifier {
     /// Creates a new instance of CertVerifier receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: H160, rpc_url: String) -> Self {
-        let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url).unwrap();
+    pub fn new(address: H160, rpc_url: SecretUrl) -> Self {
+        let url = rpc_url.into();
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
         let cert_verifier_address =
@@ -88,6 +89,7 @@ mod tests {
 
     use ark_bn254::{G1Affine, G2Affine};
     use ark_ff::{BigInt, Fp2};
+    use url::Url;
 
     use crate::{
         cert_verifier::CertVerifier,
@@ -96,6 +98,7 @@ mod tests {
             EigenDACert, NonSignerStakesAndSignature,
         },
         tests::{CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
+        utils::SecretUrl,
     };
 
     fn get_test_eigenda_cert() -> EigenDACert {
@@ -285,8 +288,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_cert() {
-        let cert_verifier =
-            CertVerifier::new(CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL.to_string());
+        let cert_verifier = CertVerifier::new(
+            CERT_VERIFIER_ADDRESS,
+            SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
+        );
         let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;
         assert!(res.is_ok())
     }

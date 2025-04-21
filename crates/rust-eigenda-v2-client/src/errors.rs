@@ -47,6 +47,8 @@ pub enum ConversionError {
     ArkSerializationError(#[from] ark_serialize::SerializationError),
     #[error("Failed to parse signed batch: {0}")]
     SignedBatch(String),
+    #[error("Private Key Error")]
+    PrivateKey,
 }
 
 /// Errors specific to the Blob type
