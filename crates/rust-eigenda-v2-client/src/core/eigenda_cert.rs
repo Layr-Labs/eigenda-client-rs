@@ -3,6 +3,7 @@ use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, Fp2, PrimeField};
 use ethabi::Token;
 use ethereum_types::U256;
+use serde::ser::Error;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::contracts_bindings::IEigenDACertVerifier::{
@@ -95,27 +96,27 @@ struct BlobCommitmentsHelper {
     length: u32,
 }
 
-impl From<&BlobCommitments> for BlobCommitmentsHelper {
-    fn from(b: &BlobCommitments) -> Self {
-        BlobCommitmentsHelper {
-            commitment: g1_commitment_to_bytes(&b.commitment).unwrap(),
-            length_commitment: g2_commitment_to_bytes(&b.length_commitment).unwrap(),
-            length_proof: g2_commitment_to_bytes(&b.length_proof).unwrap(),
+impl TryFrom<&BlobCommitments> for BlobCommitmentsHelper {
+    type Error = ConversionError;
+
+    fn try_from(b: &BlobCommitments) -> Result<Self, Self::Error> {
+        Ok(BlobCommitmentsHelper {
+            commitment: g1_commitment_to_bytes(&b.commitment)?,
+            length_commitment: g2_commitment_to_bytes(&b.length_commitment)?,
+            length_proof: g2_commitment_to_bytes(&b.length_proof)?,
             length: b.length,
-        }
+        })
     }
 }
 
 impl TryFrom<BlobCommitmentsHelper> for BlobCommitments {
-    type Error = String;
+    type Error = ConversionError;
 
     fn try_from(helper: BlobCommitmentsHelper) -> Result<Self, Self::Error> {
         Ok(BlobCommitments {
-            commitment: g1_commitment_from_bytes(&helper.commitment).map_err(|e| e.to_string())?,
-            length_commitment: g2_commitment_from_bytes(&helper.length_commitment)
-                .map_err(|e| e.to_string())?,
-            length_proof: g2_commitment_from_bytes(&helper.length_proof)
-                .map_err(|e| e.to_string())?,
+            commitment: g1_commitment_from_bytes(&helper.commitment)?,
+            length_commitment: g2_commitment_from_bytes(&helper.length_commitment)?,
+            length_proof: g2_commitment_from_bytes(&helper.length_proof)?,
             length: helper.length,
         })
     }
@@ -126,7 +127,9 @@ impl serde::Serialize for BlobCommitments {
     where
         S: serde::Serializer,
     {
-        BlobCommitmentsHelper::from(self).serialize(serializer)
+        BlobCommitmentsHelper::try_from(self)
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .serialize(serializer)
     }
 }
 
@@ -463,31 +466,33 @@ struct NonSignerStakesAndSignatureHelper {
     non_signer_stake_indices: Vec<Vec<u32>>,
 }
 
-impl From<&NonSignerStakesAndSignature> for NonSignerStakesAndSignatureHelper {
-    fn from(n: &NonSignerStakesAndSignature) -> Self {
-        NonSignerStakesAndSignatureHelper {
+impl TryFrom<&NonSignerStakesAndSignature> for NonSignerStakesAndSignatureHelper {
+    type Error = ConversionError;
+
+    fn try_from(n: &NonSignerStakesAndSignature) -> Result<Self, Self::Error> {
+        Ok(NonSignerStakesAndSignatureHelper {
             non_signer_quorum_bitmap_indices: n.non_signer_quorum_bitmap_indices.clone(),
             non_signer_pubkeys: n
                 .non_signer_pubkeys
                 .iter()
-                .map(|pk| g1_commitment_to_bytes(pk).unwrap())
-                .collect(),
+                .map(g1_commitment_to_bytes)
+                .collect::<Result<_, _>>()?,
             quorum_apks: n
                 .quorum_apks
                 .iter()
-                .map(|apk| g1_commitment_to_bytes(apk).unwrap())
-                .collect(),
-            apk_g2: g2_commitment_to_bytes(&n.apk_g2).unwrap(),
-            sigma: g1_commitment_to_bytes(&n.sigma).unwrap(),
+                .map(g1_commitment_to_bytes)
+                .collect::<Result<_, _>>()?,
+            apk_g2: g2_commitment_to_bytes(&n.apk_g2)?,
+            sigma: g1_commitment_to_bytes(&n.sigma)?,
             quorum_apk_indices: n.quorum_apk_indices.clone(),
             total_stake_indices: n.total_stake_indices.clone(),
             non_signer_stake_indices: n.non_signer_stake_indices.clone(),
-        }
+        })
     }
 }
 
 impl TryFrom<NonSignerStakesAndSignatureHelper> for NonSignerStakesAndSignature {
-    type Error = String;
+    type Error = ConversionError;
 
     fn try_from(helper: NonSignerStakesAndSignatureHelper) -> Result<Self, Self::Error> {
         Ok(NonSignerStakesAndSignature {
@@ -495,15 +500,15 @@ impl TryFrom<NonSignerStakesAndSignatureHelper> for NonSignerStakesAndSignature 
             non_signer_pubkeys: helper
                 .non_signer_pubkeys
                 .iter()
-                .map(|b| g1_commitment_from_bytes(b).map_err(|e| e.to_string()))
+                .map(|b| g1_commitment_from_bytes(b))
                 .collect::<Result<_, _>>()?,
             quorum_apks: helper
                 .quorum_apks
                 .iter()
-                .map(|b| g1_commitment_from_bytes(b).map_err(|e| e.to_string()))
+                .map(|b| g1_commitment_from_bytes(b))
                 .collect::<Result<_, _>>()?,
-            apk_g2: g2_commitment_from_bytes(&helper.apk_g2).map_err(|e| e.to_string())?,
-            sigma: g1_commitment_from_bytes(&helper.sigma).map_err(|e| e.to_string())?,
+            apk_g2: g2_commitment_from_bytes(&helper.apk_g2)?,
+            sigma: g1_commitment_from_bytes(&helper.sigma)?,
             quorum_apk_indices: helper.quorum_apk_indices,
             total_stake_indices: helper.total_stake_indices,
             non_signer_stake_indices: helper.non_signer_stake_indices,
@@ -516,7 +521,9 @@ impl serde::Serialize for NonSignerStakesAndSignature {
     where
         S: serde::Serializer,
     {
-        NonSignerStakesAndSignatureHelper::from(self).serialize(serializer)
+        NonSignerStakesAndSignatureHelper::try_from(self)
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .serialize(serializer)
     }
 }
 
