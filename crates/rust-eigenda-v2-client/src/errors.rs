@@ -50,6 +50,8 @@ pub enum ConversionError {
     SignedBatch(String),
     #[error("Private Key Error")]
     PrivateKey,
+    #[error("Invalid ETH rpc: {0}")]
+    InvalidEthRpc(String),
 }
 
 /// Errors specific to the Blob type
@@ -213,8 +215,6 @@ pub enum CertVerifierError {
     Conversion(#[from] ConversionError),
     #[error(transparent)]
     Alloy(#[from] alloy_contract::Error),
-    #[error("Invalid ETH rpc: {0}")]
-    InvalidEthRpc(String),
     #[error("Invalid cert verifier contract address: {0}")]
     InvalidCertVerifierAddress(H160),
 }

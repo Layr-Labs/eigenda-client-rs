@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use url::Url;
 
-use crate::{errors::EthClientError, utils::SecretUrl};
+use crate::{errors::{EigenClientError, EthClientError}, utils::SecretUrl};
 
 /// Request ID for the RPC
 #[derive(Debug, Serialize, Deserialize)]
@@ -82,7 +82,7 @@ impl EthClient {
 
     /// Sends a request to the Ethereum node
     async fn send_request(&self, request: RpcRequest) -> Result<RpcResponse, EthClientError> {
-        let url: Url = self.url.clone().into();
+        let url: Url = self.url.clone().try_into().unwrap(); // this will be removed
         self.client
             .post(url)
             .header("content-type", "application/json")
