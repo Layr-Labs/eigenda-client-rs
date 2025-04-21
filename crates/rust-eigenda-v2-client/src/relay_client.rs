@@ -55,7 +55,7 @@ impl RelayClient {
     pub async fn get_blob(
         &mut self,
         relay_key: RelayKey,
-        blob_key: BlobKey,
+        blob_key: &BlobKey,
     ) -> Result<Vec<u8>, RelayClientError> {
         let relay_client = self
             .rpc_clients
@@ -74,31 +74,32 @@ impl RelayClient {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
-    use crate::relay_client::RelayClient;
-    use ethereum_types::H160;
+    use crate::{
+        relay_client::RelayClient,
+        tests::{HOLESKY_ETH_RPC_URL, HOLESKY_RELAY_REGISTRY_ADDRESS},
+    };
 
-    fn test_config() -> RelayClientConfig {
+    fn get_test_relay_client_config() -> RelayClientConfig {
         RelayClientConfig {
             max_grpc_message_size: 9999999,
             relay_clients_keys: vec![1, 2],
-            relay_registry_address: H160::from_str("0xaC8C6C7Ee7572975454E2f0b5c720f9E74989254")
-                .unwrap(),
-            eth_rpc_url: "https://ethereum-holesky-rpc.publicnode.com".to_string(),
+            relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
+            eth_rpc_url: HOLESKY_ETH_RPC_URL.to_string(),
         }
     }
 
     #[tokio::test]
     async fn test_retrieve_single_blob() {
-        let mut client = RelayClient::new(test_config()).await.unwrap();
+        let mut client = RelayClient::new(get_test_relay_client_config())
+            .await
+            .unwrap();
 
         let blob_key =
             BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
                 .unwrap();
         let relay_key = 2;
-        let result = client.get_blob(relay_key, blob_key).await;
+        let result = client.get_blob(relay_key, &blob_key).await;
         assert!(result.is_ok());
 
         let expected_blob_data = vec![1, 2, 3, 4, 5];
