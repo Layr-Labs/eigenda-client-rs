@@ -115,6 +115,8 @@ pub enum RelayClientError {
     EthClient(#[from] EthClientError),
     #[error(transparent)]
     Alloy(#[from] alloy_contract::Error),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
 }
 
 /// Errors for the EthClient

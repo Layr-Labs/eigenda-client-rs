@@ -4,8 +4,9 @@ use alloy::{network::Ethereum, providers::RootProvider};
 
 use crate::{
     contracts_bindings::IRelayRegistry::{self},
-    errors::RelayClientError,
+    errors::{ConversionError, RelayClientError},
     relay_client::RelayKey,
+    utils::SecretUrl,
 };
 
 pub type RelayRegistryContract = IRelayRegistry::IRelayRegistryInstance<RootProvider<Ethereum>>;
@@ -17,16 +18,16 @@ pub struct RelayRegistry {
 
 impl RelayRegistry {
     /// Creates a new instance of RelayRegistry receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: String, rpc_url: String) -> Self {
-        let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url).unwrap();
+    pub fn new(address: String, rpc_url: SecretUrl) -> Result<Self, ConversionError> {
+        let url = rpc_url.try_into()?;
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
         let relay_registry_address = alloy::primitives::Address::from_str(&address).unwrap();
         let relay_registry_contract: IRelayRegistry::IRelayRegistryInstance<RootProvider> =
             IRelayRegistry::new(relay_registry_address, provider);
-        RelayRegistry {
+        Ok(RelayRegistry {
             relay_registry_contract,
-        }
+        })
     }
 
     /// Calls the relayKeyToUrl view function on the EigenDARelayRegistry
