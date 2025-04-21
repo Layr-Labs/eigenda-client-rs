@@ -1,0 +1,22 @@
+[package]
+name = "rust-eigenda-signers"
+repository = "https://github.com/Layr-Labs/eigenda-client-rs"
+version = "0.1.4"
+authors.workspace = true
+description = "EigenDA Signers"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["private-key-signer"]
+private-key-signer = ["secp256k1/rand"]
+
+[dependencies]
+secp256k1 = { workspace = true, features = ["global-context"] }
+async-trait = { workspace = true }
+tiny-keccak = { workspace = true }
+rand = { workspace = true }
+ethereum-types = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

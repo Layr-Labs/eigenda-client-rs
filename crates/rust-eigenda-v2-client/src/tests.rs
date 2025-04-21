@@ -1,5 +1,6 @@
 use dotenv::dotenv;
 use ethereum_types::H160;
+use rust_eigenda_signers::signers::private_key::Signer;
 use std::{env, time::Duration};
 
 use crate::{
@@ -25,15 +26,20 @@ pub const CERT_VERIFIER_ADDRESS: H160 = H160([
     0xdf, 0xbe, 0x11, 0x62,
 ]);
 
-pub fn get_test_private_key() -> String {
+pub fn get_test_private_key_signer() -> Signer {
     dotenv().ok();
-    env::var("SIGNER_PRIVATE_KEY").expect("SIGNER_PRIVATE_KEY must be set")
+    let key = env::var("SIGNER_PRIVATE_KEY")
+        .expect("SIGNER_PRIVATE_KEY must be set")
+        .parse()
+        .expect("valid private key");
+
+    Signer::new(key)
 }
 
 fn get_test_disperser_client_config() -> DisperserClientConfig {
     DisperserClientConfig {
         disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
-        private_key: get_test_private_key(),
+        signer: get_test_private_key_signer(),
         use_secure_grpc_flag: false,
     }
 }

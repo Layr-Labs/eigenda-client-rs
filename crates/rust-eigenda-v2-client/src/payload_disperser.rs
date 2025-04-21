@@ -2,7 +2,7 @@ use ethereum_types::H160;
 
 use crate::{
     cert_verifier::CertVerifier,
-    core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
+    core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm, Sign},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply},
@@ -17,19 +17,22 @@ pub struct PayloadDisperserConfig {
 }
 
 /// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
-pub struct PayloadDisperser {
+pub struct PayloadDisperser<S = crate::core::PrivateKeySigner> {
     config: PayloadDisperserConfig,
-    disperser_client: DisperserClient,
+    disperser_client: DisperserClient<S>,
     cert_verifier: CertVerifier,
     required_quorums: Vec<u8>,
 }
 
-impl PayloadDisperser {
+impl<S> PayloadDisperser<S> {
     /// Creates a PayloadDisperser from the specified configs.
     pub async fn new(
-        disperser_config: DisperserClientConfig,
+        disperser_config: DisperserClientConfig<S>,
         payload_config: PayloadDisperserConfig,
-    ) -> Result<Self, PayloadDisperserError> {
+    ) -> Result<Self, PayloadDisperserError>
+    where
+        S: Sign,
+    {
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
             payload_config.cert_verifier_address,
@@ -45,10 +48,10 @@ impl PayloadDisperser {
     }
 
     /// Executes the dispersal of a payload, returning the associated blob key
-    pub async fn send_payload(
-        &mut self,
-        payload: Payload,
-    ) -> Result<BlobKey, PayloadDisperserError> {
+    pub async fn send_payload(&mut self, payload: Payload) -> Result<BlobKey, PayloadDisperserError>
+    where
+        S: Sign,
+    {
         let blob = payload.to_blob(self.config.polynomial_form)?;
 
         let (blob_status, blob_key) = self
@@ -138,7 +141,7 @@ mod tests {
         disperser_client::DisperserClientConfig,
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         tests::{
-            get_test_private_key, CERT_VERIFIER_ADDRESS, HOLESKY_DISPERSER_RPC_URL,
+            get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_DISPERSER_RPC_URL,
             HOLESKY_ETH_RPC_URL,
         },
     };
@@ -150,7 +153,7 @@ mod tests {
 
         let disperser_config = DisperserClientConfig {
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
-            private_key: get_test_private_key(),
+            signer: get_test_private_key_signer(),
             use_secure_grpc_flag: false,
         };
 

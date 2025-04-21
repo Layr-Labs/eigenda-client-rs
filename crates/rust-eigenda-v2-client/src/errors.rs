@@ -3,7 +3,6 @@ use ethereum_types::H160;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
 use crate::relay_client::RelayKey;
-use hex::FromHexError;
 use prost::DecodeError;
 
 /// Errors returned by this crate
@@ -176,19 +175,9 @@ pub enum DisperseError {
     #[error("Failed to get current time")]
     SystemTime(#[from] std::time::SystemTimeError),
     #[error(transparent)]
-    Signer(#[from] SignerError),
+    Signer(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Errors specific to the Signer
-#[derive(Debug, thiserror::Error)]
-pub enum SignerError {
-    #[error("Failed to parse private key: {0}")]
-    PrivateKey(#[from] FromHexError),
-    #[error(transparent)]
-    Secp(#[from] secp256k1::Error),
-    #[error(transparent)]
-    Conversion(#[from] ConversionError),
-}
 /// Errors specific to the PayloadDisperser
 #[derive(Debug, thiserror::Error)]
 pub enum PayloadDisperserError {
