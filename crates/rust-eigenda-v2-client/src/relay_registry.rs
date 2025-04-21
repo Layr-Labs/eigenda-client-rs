@@ -21,7 +21,6 @@ impl RelayRegistry {
         let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url).unwrap();
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
-        println!("Address: {:?}", address);
         let relay_registry_address = alloy::primitives::Address::from_str(&address).unwrap();
         let relay_registry_contract: IRelayRegistry::IRelayRegistryInstance<RootProvider> =
             IRelayRegistry::new(relay_registry_address, provider);
@@ -30,8 +29,8 @@ impl RelayRegistry {
         }
     }
 
-    /// Calls the getNonSignerStakesAndSignature view function on the EigenDACertVerifier
-    /// contract, and returns the resulting NonSignerStakesAndSignature object.
+    /// Calls the relayKeyToUrl view function on the EigenDARelayRegistry
+    /// contract, and returns the resulting url as a String.
     pub async fn get_url_from_relay_key(
         &self,
         relay_key: RelayKey,

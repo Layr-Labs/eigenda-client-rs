@@ -9,7 +9,8 @@ use crate::{
     generated::relay::{
         relay_client::{self, RelayClient as RpcRelayClient},
         GetBlobRequest,
-    }, relay_registry::RelayRegistry,
+    },
+    relay_registry::RelayRegistry,
 };
 
 pub type RelayKey = u32;
@@ -29,9 +30,7 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
-    pub async fn new(
-        config: RelayClientConfig,
-    ) -> Result<Self, RelayClientError> {
+    pub async fn new(config: RelayClientConfig) -> Result<Self, RelayClientError> {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
