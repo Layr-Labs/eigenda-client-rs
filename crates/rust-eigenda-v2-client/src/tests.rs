@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use ethereum_types::H160;
-use url::Url;
 use std::{env, str::FromStr, time::Duration};
+use url::Url;
 
 use crate::{
     core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
