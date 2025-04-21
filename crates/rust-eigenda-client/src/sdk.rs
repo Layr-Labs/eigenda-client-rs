@@ -300,7 +300,10 @@ impl<S> RawEigenClient<S> {
         BigEndian::write_u32(&mut buf, blob_auth_header.challenge_parameter);
         let digest = self.keccak256(&buf);
 
-        let msg = Message::from_slice(&digest).expect("digest to be 32 bytes");
+        let msg = Message::from_slice(&digest).map_err(|e| {
+            EigenClientError::Communication(CommunicationError::Signing(Box::new(e)))
+        })?;
+
         let authentication_data = self
             .signer
             .sign_digest(&msg)

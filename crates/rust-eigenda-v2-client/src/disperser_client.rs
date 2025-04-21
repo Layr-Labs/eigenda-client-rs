@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hex::ToHex;
+use rust_eigenda_signers::secp256k1::Message;
 use rust_eigenda_signers::Sign;
 use tonic::transport::{Channel, ClientTlsConfig};
 
@@ -139,12 +140,15 @@ impl<S> DisperserClient<S> {
             .hash()?,
         };
 
+        let digest = Message::from_slice(&blob_header.blob_key()?.to_bytes())
+            .map_err(|e| DisperseError::Signer(Box::new(e)))?;
         let signature = self
             .signer
-            .sign_digest(&blob_header.blob_key()?.into())
+            .sign_digest(&digest)
             .await
             .map_err(|e| DisperseError::Signer(Box::new(e)))?
             .encode_as_rsv();
+
         let disperse_request = DisperseBlobRequest {
             blob: data.to_vec(),
             blob_header: Some(BlobHeaderProto {
@@ -210,7 +214,9 @@ impl<S> DisperserClient<S> {
         let account_id = self.signer.public_key().address().encode_hex();
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let digest = PaymentStateRequest::new(timestamp as u64)
-            .prepare_for_signing_by(&self.signer.public_key().address());
+            .prepare_for_signing_by(&self.signer.public_key().address())
+            .map_err(|e| DisperseError::Signer(Box::new(e)))?;
+
         let signature = self
             .signer
             .sign_digest(&digest)

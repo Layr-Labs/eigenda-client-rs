@@ -1,3 +1,8 @@
+use std::{
+    error::Error,
+    fmt::{Display, Formatter},
+};
+
 use ethereum_types::Address;
 use num_bigint::BigInt;
 use rust_eigenda_signers::secp256k1::Message;
@@ -66,12 +71,25 @@ pub struct PaymentStateRequest {
     timestamp: u64,
 }
 
+#[derive(Debug)]
+pub struct InvalidDigest;
+impl Display for InvalidDigest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "hash digest was not 32B as expected. This is a bug, please report it."
+        )
+    }
+}
+
+impl Error for InvalidDigest {}
+
 impl PaymentStateRequest {
     pub fn new(timestamp: u64) -> Self {
         Self { timestamp }
     }
 
-    pub fn prepare_for_signing_by(&self, account_id: &Address) -> Message {
+    pub fn prepare_for_signing_by(&self, account_id: &Address) -> Result<Message, InvalidDigest> {
         let mut keccak_hash = Keccak::v256();
         keccak_hash.update(
             (account_id.as_bytes().len() as u32)
@@ -87,6 +105,6 @@ impl PaymentStateRequest {
         // Hash the account ID bytes with SHA-256
         let hash = Sha256::digest(account_id_hash);
 
-        Message::from_slice(hash.as_slice()).expect("digest is 32B")
+        Message::from_slice(hash.as_slice()).map_err(|_| InvalidDigest)
     }
 }

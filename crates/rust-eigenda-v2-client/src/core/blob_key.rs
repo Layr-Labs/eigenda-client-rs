@@ -19,13 +19,6 @@ use super::eigenda_cert::BlobHeader;
 #[derive(Debug)]
 pub struct BlobKey([u8; 32]);
 
-impl From<BlobKey> for rust_eigenda_signers::secp256k1::Message {
-    fn from(value: BlobKey) -> Self {
-        rust_eigenda_signers::secp256k1::Message::from_slice(&value.0)
-            .expect("guaranteed to have exactly 32B")
-    }
-}
-
 impl BlobKey {
     /// Creates a new [`BlobKey`] from a slice of bytes.
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
