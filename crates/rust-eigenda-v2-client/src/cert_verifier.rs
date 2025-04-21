@@ -20,18 +20,19 @@ pub struct CertVerifier {
 
 impl CertVerifier {
     /// Creates a new instance of CertVerifier receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: H160, rpc_url: String) -> Self {
-        let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url).unwrap();
+    pub fn new(address: H160, rpc_url: String) -> Result<Self, CertVerifierError> {
+        let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url)
+            .map_err(|_| CertVerifierError::InvalidEthRpc(rpc_url))?;
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
-        let cert_verifier_address =
-            alloy::primitives::Address::from_str(&hex::encode(address)).unwrap();
+        let cert_verifier_address = alloy::primitives::Address::from_str(&hex::encode(address))
+            .map_err(|_| CertVerifierError::InvalidCertVerifierAddress(address))?;
         let cert_verifier_contract: IEigenDACertVerifier::IEigenDACertVerifierInstance<
             RootProvider,
         > = IEigenDACertVerifier::new(cert_verifier_address, provider);
-        CertVerifier {
+        Ok(CertVerifier {
             cert_verifier_contract,
-        }
+        })
     }
 
     /// Calls the getNonSignerStakesAndSignature view function on the EigenDACertVerifier
@@ -286,7 +287,7 @@ mod tests {
     #[tokio::test]
     async fn test_verify_cert() {
         let cert_verifier =
-            CertVerifier::new(CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL.to_string());
+            CertVerifier::new(CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL.to_string()).unwrap();
         let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;
         assert!(res.is_ok())
     }
