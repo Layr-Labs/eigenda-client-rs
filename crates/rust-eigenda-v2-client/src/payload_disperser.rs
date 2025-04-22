@@ -25,6 +25,7 @@ pub struct PayloadDisperser {
 }
 
 impl PayloadDisperser {
+    const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 16; // 16 MB
     /// Creates a PayloadDisperser from the specified configs.
     pub async fn new(
         disperser_config: DisperserClientConfig,
@@ -125,6 +126,10 @@ impl PayloadDisperser {
         let cert = EigenDACert::new(status, non_signer_stakes_and_signature)?;
 
         Ok(cert)
+    }
+
+    pub fn blob_size_limit() -> Option<usize> {
+        Some(Self::BLOB_SIZE_LIMIT)
     }
 }
 
