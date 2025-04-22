@@ -109,7 +109,7 @@ async fn test_disperse_and_retrieve_blob() {
     let payload = Payload::new(payload_data.clone());
 
     // First we disperse a blob using a Payload Disperser
-    let mut payload_disperser =
+    let payload_disperser =
         PayloadDisperser::new(get_test_payload_disperser_config(), get_test_private_key())
             .await
             .unwrap();

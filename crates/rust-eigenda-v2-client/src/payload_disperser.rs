@@ -162,7 +162,7 @@ mod tests {
             use_secure_grpc_flag: false,
         };
 
-        let mut payload_disperser = PayloadDisperser::new(payload_config, get_test_private_key())
+        let payload_disperser = PayloadDisperser::new(payload_config, get_test_private_key())
             .await
             .unwrap();
 
