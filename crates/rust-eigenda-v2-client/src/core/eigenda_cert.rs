@@ -3,6 +3,7 @@ use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, Fp2, PrimeField};
 use ethabi::Token;
 use ethereum_types::U256;
+use serde::ser::Error;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::contracts_bindings::IEigenDACertVerifier::{
@@ -87,7 +88,7 @@ pub struct BlobCommitments {
 
 /// Helper struct for BlobCommitments,
 /// for simpler serialization, and deserialization
-#[derive(bincode::Encode, bincode::Decode)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct BlobCommitmentsHelper {
     commitment: Vec<u8>,
     length_commitment: Vec<u8>,
@@ -121,42 +122,24 @@ impl TryFrom<BlobCommitmentsHelper> for BlobCommitments {
     }
 }
 
-impl bincode::Encode for BlobCommitments {
-    fn encode<E: bincode::enc::Encoder>(
-        &self,
-        encoder: &mut E,
-    ) -> Result<(), bincode::error::EncodeError> {
+impl serde::Serialize for BlobCommitments {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         BlobCommitmentsHelper::try_from(self)
-            .map_err(|e| {
-                bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
-            })?
-            .encode(encoder)
-            .map_err(|e| {
-                bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
-            })?;
-        Ok(())
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .serialize(serializer)
     }
 }
 
-impl<Context> bincode::Decode<Context> for BlobCommitments {
-    fn decode<D: bincode::de::Decoder<Context = Context>>(
-        decoder: &mut D,
-    ) -> core::result::Result<Self, bincode::error::DecodeError> {
-        let helper = BlobCommitmentsHelper::decode(decoder)?;
-        Self::try_from(helper).map_err(|e| {
-            bincode::error::DecodeError::OtherString(format!("Conversion failed: {}", e))
-        })
-    }
-}
-
-impl<'de, Context> bincode::BorrowDecode<'de, Context> for BlobCommitments {
-    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = Context>>(
-        decoder: &mut D,
-    ) -> core::result::Result<Self, bincode::error::DecodeError> {
-        let helper = BlobCommitmentsHelper::borrow_decode(decoder)?;
-        Self::try_from(helper).map_err(|e| {
-            bincode::error::DecodeError::OtherString(format!("Conversion failed: {}", e))
-        })
+impl<'de> serde::Deserialize<'de> for BlobCommitments {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let helper = BlobCommitmentsHelper::deserialize(deserializer)?;
+        Self::try_from(helper).map_err(serde::de::Error::custom)
     }
 }
 
@@ -189,7 +172,7 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BlobHeader {
     pub(crate) version: u16,
     pub(crate) quorum_numbers: Vec<u8>,
@@ -253,7 +236,7 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 /// BlobCertificate contains a full description of a blob and how it is dispersed. Part of the certificate
 /// is provided by the blob submitter (i.e. the blob header), and part is provided by the disperser (i.e. the relays).
 /// Validator nodes eventually sign the blob certificate once they are in custody of the required chunks
@@ -288,7 +271,7 @@ impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 /// BlobInclusionInfo is the information needed to verify the inclusion of a blob in a batch.
 pub struct BlobInclusionInfo {
     pub blob_certificate: BlobCertificate,
@@ -369,7 +352,7 @@ impl TryFrom<SignedBatchProto> for SignedBatch {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BatchHeaderV2 {
     pub batch_root: [u8; 32],
     pub reference_block_number: u32,
@@ -471,7 +454,7 @@ impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
 }
 
 /// Helper struct for serialization and deserialization of NonSignerStakesAndSignature
-#[derive(bincode::Encode, bincode::Decode)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct NonSignerStakesAndSignatureHelper {
     non_signer_quorum_bitmap_indices: Vec<u32>,
     non_signer_pubkeys: Vec<Vec<u8>>,
@@ -533,42 +516,24 @@ impl TryFrom<NonSignerStakesAndSignatureHelper> for NonSignerStakesAndSignature 
     }
 }
 
-impl bincode::Encode for NonSignerStakesAndSignature {
-    fn encode<E: bincode::enc::Encoder>(
-        &self,
-        encoder: &mut E,
-    ) -> Result<(), bincode::error::EncodeError> {
+impl serde::Serialize for NonSignerStakesAndSignature {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         NonSignerStakesAndSignatureHelper::try_from(self)
-            .map_err(|e| {
-                bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
-            })?
-            .encode(encoder)
-            .map_err(|e| {
-                bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
-            })?;
-        Ok(())
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .serialize(serializer)
     }
 }
 
-impl<Context> bincode::Decode<Context> for NonSignerStakesAndSignature {
-    fn decode<D: bincode::de::Decoder<Context = Context>>(
-        decoder: &mut D,
-    ) -> core::result::Result<Self, bincode::error::DecodeError> {
-        let helper = NonSignerStakesAndSignatureHelper::decode(decoder)?;
-        Self::try_from(helper).map_err(|e| {
-            bincode::error::DecodeError::OtherString(format!("Conversion failed: {}", e))
-        })
-    }
-}
-
-impl<'de, Context> bincode::BorrowDecode<'de, Context> for NonSignerStakesAndSignature {
-    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = Context>>(
-        decoder: &mut D,
-    ) -> core::result::Result<Self, bincode::error::DecodeError> {
-        let helper = NonSignerStakesAndSignatureHelper::borrow_decode(decoder)?;
-        Self::try_from(helper).map_err(|e| {
-            bincode::error::DecodeError::OtherString(format!("Conversion failed: {}", e))
-        })
+impl<'de> serde::Deserialize<'de> for NonSignerStakesAndSignature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let helper = NonSignerStakesAndSignatureHelper::deserialize(deserializer)?;
+        Self::try_from(helper).map_err(serde::de::Error::custom)
     }
 }
 
@@ -626,7 +591,7 @@ impl TryFrom<ProtoAttestation> for Attestation {
 // EigenDACert contains all data necessary to retrieve and validate a blob
 //
 // This struct represents the composition of a eigenDA blob certificate, as it would exist in a rollup inbox.
-#[derive(Debug, PartialEq, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EigenDACert {
     pub blob_inclusion_info: BlobInclusionInfo,
     pub batch_header: BatchHeaderV2,
@@ -690,15 +655,12 @@ impl EigenDACert {
 
     /// Transforms the EigenDACert into bytes using bincode
     pub fn to_bytes(&self) -> Result<Vec<u8>, ConversionError> {
-        bincode::encode_to_vec(self, bincode::config::standard())
-            .map_err(|e| ConversionError::EigenDACert(e.to_string()))
+        bincode::serialize(self).map_err(|e| ConversionError::EigenDACert(e.to_string()))
     }
 
     /// Builds a new EigenDACert from bytes using bincode
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ConversionError> {
-        bincode::decode_from_slice(bytes, bincode::config::standard())
-            .map(|(cert, _)| cert)
-            .map_err(|e| ConversionError::EigenDACert(e.to_string()))
+        bincode::deserialize(bytes).map_err(|e| ConversionError::EigenDACert(e.to_string()))
     }
 }
 
