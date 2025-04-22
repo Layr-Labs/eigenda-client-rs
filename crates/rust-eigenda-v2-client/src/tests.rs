@@ -78,7 +78,7 @@ pub async fn get_test_relay_client() -> RelayClient {
 }
 
 async fn wait_for_blob_finalization_and_verification(
-    payload_disperser: &mut PayloadDisperser,
+    payload_disperser: &PayloadDisperser,
     blob_key: &BlobKey,
 ) -> EigenDACert {
     let timeout = tokio::time::Duration::from_secs(TEST_BLOB_FINALIZATION_TIMEOUT);
@@ -117,7 +117,7 @@ async fn test_disperse_and_retrieve_blob() {
 
     // Then we wait for the blob to be finalized and verified
     let eigenda_cert =
-        wait_for_blob_finalization_and_verification(&mut payload_disperser, &blob_key).await;
+        wait_for_blob_finalization_and_verification(&payload_disperser, &blob_key).await;
 
     // Finally we retrieve the blob using a Relay Payload Retriever
     let relay_config = get_relay_payload_retriever_test_config();
