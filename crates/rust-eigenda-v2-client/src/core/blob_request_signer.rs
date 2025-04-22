@@ -23,8 +23,8 @@ pub struct LocalBlobRequestSigner {
 
 impl LocalBlobRequestSigner {
     pub fn new(private_key: PrivateKey) -> Result<Self, SignerError> {
-        // Strip "0x" prefix if present
         let private_key = private_key.0.expose_secret();
+        // Strip "0x" prefix if present
         let clean_hex = private_key.strip_prefix("0x").unwrap_or(private_key);
 
         // Convert hex string to bytes

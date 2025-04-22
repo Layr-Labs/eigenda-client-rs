@@ -5,7 +5,7 @@ use url::Url;
 
 use crate::{
     core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
-    payload_disperser::{PayloadDisperser, PayloadDisperserConfig, PayloadDisperserSecrets},
+    payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
     payloadretrieval::relay_payload_retriever::{
         RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig,
     },
@@ -40,12 +40,6 @@ fn get_test_payload_disperser_config() -> PayloadDisperserConfig {
         eth_rpc_url: get_test_holesky_rpc_url(),
         disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
         use_secure_grpc_flag: false,
-    }
-}
-
-fn get_test_payload_disperser_secrets() -> PayloadDisperserSecrets {
-    PayloadDisperserSecrets {
-        private_key: get_test_private_key(),
     }
 }
 
@@ -115,12 +109,10 @@ async fn test_disperse_and_retrieve_blob() {
     let payload = Payload::new(payload_data.clone());
 
     // First we disperse a blob using a Payload Disperser
-    let mut payload_disperser = PayloadDisperser::new(
-        get_test_payload_disperser_config(),
-        get_test_payload_disperser_secrets(),
-    )
-    .await
-    .unwrap();
+    let mut payload_disperser =
+        PayloadDisperser::new(get_test_payload_disperser_config(), get_test_private_key())
+            .await
+            .unwrap();
     let blob_key = payload_disperser.send_payload(payload).await.unwrap();
 
     // Then we wait for the blob to be finalized and verified

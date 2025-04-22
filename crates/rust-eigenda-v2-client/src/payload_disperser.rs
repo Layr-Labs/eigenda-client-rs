@@ -19,11 +19,6 @@ pub struct PayloadDisperserConfig {
     pub use_secure_grpc_flag: bool,
 }
 
-#[derive(Clone)]
-pub struct PayloadDisperserSecrets {
-    pub private_key: PrivateKey,
-}
-
 #[derive(Debug, Clone)]
 /// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
 pub struct PayloadDisperser {
@@ -37,11 +32,11 @@ impl PayloadDisperser {
     /// Creates a PayloadDisperser from the specified configs.
     pub async fn new(
         payload_config: PayloadDisperserConfig,
-        payload_secrets: PayloadDisperserSecrets,
+        private_key: PrivateKey,
     ) -> Result<Self, PayloadDisperserError> {
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
-            private_key: payload_secrets.private_key.clone(),
+            private_key: private_key.clone(),
             use_secure_grpc_flag: payload_config.use_secure_grpc_flag,
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
@@ -149,7 +144,7 @@ impl PayloadDisperser {
 mod tests {
     use crate::{
         core::{Payload, PayloadForm},
-        payload_disperser::{PayloadDisperser, PayloadDisperserConfig, PayloadDisperserSecrets},
+        payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         tests::{
             get_test_holesky_rpc_url, get_test_private_key, CERT_VERIFIER_ADDRESS,
             HOLESKY_DISPERSER_RPC_URL,
@@ -161,10 +156,6 @@ mod tests {
     async fn test_disperse_payload() {
         let timeout = tokio::time::Duration::from_secs(180);
 
-        let payload_secrets = PayloadDisperserSecrets {
-            private_key: get_test_private_key(),
-        };
-
         let payload_config = PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
@@ -174,7 +165,7 @@ mod tests {
             use_secure_grpc_flag: false,
         };
 
-        let mut payload_disperser = PayloadDisperser::new(payload_config, payload_secrets)
+        let mut payload_disperser = PayloadDisperser::new(payload_config, get_test_private_key())
             .await
             .unwrap();
 
