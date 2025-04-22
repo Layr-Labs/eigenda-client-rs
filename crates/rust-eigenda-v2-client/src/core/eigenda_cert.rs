@@ -87,7 +87,7 @@ pub struct BlobCommitments {
 
 /// Helper struct for BlobCommitments,
 /// for simpler serialization, and deserialization
-#[derive(serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(bincode::Encode, bincode::Decode)]
 struct BlobCommitmentsHelper {
     commitment: Vec<u8>,
     length_commitment: Vec<u8>,
@@ -469,7 +469,7 @@ impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
 }
 
 /// Helper struct for serialization and deserialization of NonSignerStakesAndSignature
-#[derive(serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(bincode::Encode, bincode::Decode)]
 struct NonSignerStakesAndSignatureHelper {
     non_signer_quorum_bitmap_indices: Vec<u32>,
     non_signer_pubkeys: Vec<Vec<u8>>,
