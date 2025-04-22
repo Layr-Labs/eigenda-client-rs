@@ -128,6 +128,7 @@ impl PayloadDisperser {
         Ok(cert)
     }
 
+    /// Returns the Max size of a blob that can be dispersed
     pub fn blob_size_limit() -> Option<usize> {
         Some(Self::BLOB_SIZE_LIMIT)
     }
