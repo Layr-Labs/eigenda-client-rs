@@ -16,7 +16,7 @@ exclude = [
 
 [dependencies]
 rand = { workspace = true }
-bytes = { workspace = true}
+bytes = { workspace = true }
 reqwest = { workspace = true }
 num-bigint = { workspace = true }
 serde = { workspace = true }
@@ -37,7 +37,7 @@ tonic = { workspace = true }
 tiny-keccak = { workspace = true }
 tokio-stream = { workspace = true }
 ark-bn254 = { workspace = true }
-secp256k1 = { workspace = true}
+secp256k1 = { workspace = true }
 rust-kzg-bn254-primitives = { workspace = true }
 rust-kzg-bn254-verifier = { workspace = true }
 rust-kzg-bn254-prover = { workspace = true }
@@ -50,8 +50,9 @@ ark-ec = { workspace = true }
 sha2 = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
-alloy-contract = {workspace = true}
-alloy = {workspace = true}
+alloy-contract = { workspace = true }
+bincode = { workspace = true }
+alloy = { workspace = true }
 
 [dev-dependencies]
 dotenv = { workspace = true }

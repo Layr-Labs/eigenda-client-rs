@@ -1,10 +1,7 @@
 [workspace]
 resolver = "2"
 
-members = [
-    "crates/rust-eigenda-client",
-    "crates/rust-eigenda-v2-client",
-]
+members = ["crates/rust-eigenda-client", "crates/rust-eigenda-v2-client"]
 
 [workspace.package]
 authors = ["Layr Labs"]
@@ -15,7 +12,7 @@ edition = "2021"
 
 
 [workspace.dependencies]
-tokio = {version = "1", features = ["fs"]}
+tokio = { version = "1", features = ["fs"] }
 tokio-stream = "0.1.16"
 rust-kzg-bn254 = "0.2.1"
 ark-bn254 = "0.5.0"
@@ -37,8 +34,8 @@ url = "2.5.2"
 tempfile = "3.0.2"
 hex-literal = "0.3"
 secp256k1 = { version = "0.27.0", features = ["recovery", "global-context"] }
-bytes = {version= "1", features = ["serde"]}
-reqwest = {version = "0.12", features = ["json"] }
+bytes = { version = "1", features = ["serde"] }
+reqwest = { version = "0.12", features = ["json"] }
 prost = "0.12.6"
 num-bigint = "0.4.6"
 rand = "0.8"
@@ -56,3 +53,4 @@ alloy-sol-types = "1.0.0"
 alloy-contract = "0.14.0"
 alloy = "0.14.0"
 serial_test = "3.1.1"
+bincode = "2.0.1"
