@@ -85,7 +85,7 @@ mod tests {
     fn get_test_relay_client_config() -> RelayClientConfig {
         RelayClientConfig {
             max_grpc_message_size: 9999999,
-            relay_clients_keys: vec![1, 2],
+            relay_clients_keys: vec![0, 1, 2],
             relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
             eth_rpc_url: get_test_holesky_rpc_url(),
         }
