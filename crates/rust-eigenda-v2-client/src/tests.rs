@@ -53,8 +53,8 @@ pub fn get_relay_payload_retriever_test_config() -> RelayPayloadRetrieverConfig 
 pub fn get_srs_test_config() -> SRSConfig {
     SRSConfig {
         source_path: "../../resources/g1.point".to_string(),
-        order: 42,
-        points_to_load: 42,
+        order: 9999999,
+        points_to_load: 9999999,
     }
 }
 
