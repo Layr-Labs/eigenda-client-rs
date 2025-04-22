@@ -45,10 +45,7 @@ impl PayloadDisperser {
     }
 
     /// Executes the dispersal of a payload, returning the associated blob key
-    pub async fn send_payload(
-        &self,
-        payload: Payload,
-    ) -> Result<BlobKey, PayloadDisperserError> {
+    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError> {
         let blob = payload.to_blob(self.config.polynomial_form)?;
 
         let (blob_status, blob_key) = self
