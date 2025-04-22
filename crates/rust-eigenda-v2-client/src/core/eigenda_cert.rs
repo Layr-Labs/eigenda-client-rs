@@ -127,7 +127,9 @@ impl bincode::Encode for BlobCommitments {
         encoder: &mut E,
     ) -> Result<(), bincode::error::EncodeError> {
         BlobCommitmentsHelper::try_from(self)
-            .unwrap()
+            .map_err(|e| {
+                bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
+            })?
             .encode(encoder)
             .map_err(|e| {
                 bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
@@ -537,7 +539,9 @@ impl bincode::Encode for NonSignerStakesAndSignature {
         encoder: &mut E,
     ) -> Result<(), bincode::error::EncodeError> {
         NonSignerStakesAndSignatureHelper::try_from(self)
-            .unwrap()
+            .map_err(|e| {
+                bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
+            })?
             .encode(encoder)
             .map_err(|e| {
                 bincode::error::EncodeError::OtherString(format!("Conversion failed: {}", e))
