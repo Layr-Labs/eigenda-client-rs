@@ -8,11 +8,13 @@ use crate::{
     core::eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch},
     errors::CertVerifierError,
     generated::disperser::v2::SignedBatch as SignedBatchProto,
+    utils::SecretUrl,
 };
 
 pub type CertVerifierContract =
     IEigenDACertVerifier::IEigenDACertVerifierInstance<RootProvider<Ethereum>>;
 
+#[derive(Debug, Clone)]
 /// CertVerifier is a struct that provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier {
     cert_verifier_contract: CertVerifierContract,
@@ -20,9 +22,8 @@ pub struct CertVerifier {
 
 impl CertVerifier {
     /// Creates a new instance of CertVerifier receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: H160, rpc_url: String) -> Result<Self, CertVerifierError> {
-        let url = alloy::transports::http::reqwest::Url::from_str(&rpc_url)
-            .map_err(|_| CertVerifierError::InvalidEthRpc(rpc_url))?;
+    pub fn new(address: H160, rpc_url: SecretUrl) -> Result<Self, CertVerifierError> {
+        let url = rpc_url.try_into()?;
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
         let cert_verifier_address = alloy::primitives::Address::from_str(&hex::encode(address))
@@ -89,6 +90,7 @@ mod tests {
 
     use ark_bn254::{G1Affine, G2Affine};
     use ark_ff::{BigInt, Fp2};
+    use url::Url;
 
     use crate::{
         cert_verifier::CertVerifier,
@@ -97,6 +99,7 @@ mod tests {
             EigenDACert, NonSignerStakesAndSignature,
         },
         tests::{CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
+        utils::SecretUrl,
     };
 
     fn get_test_eigenda_cert() -> EigenDACert {
@@ -286,8 +289,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_cert() {
-        let cert_verifier =
-            CertVerifier::new(CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL.to_string()).unwrap();
+        let cert_verifier = CertVerifier::new(
+            CERT_VERIFIER_ADDRESS,
+            SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
+        )
+        .unwrap();
         let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;
         assert!(res.is_ok())
     }

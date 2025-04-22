@@ -1,6 +1,6 @@
 on:
   workflow_dispatch:
-  
+
 jobs:
   crates-publish:
     runs-on: ubuntu-latest
@@ -16,5 +16,4 @@ jobs:
           override: true
 
       - name: Publish Crate
-        # TODO: we should also publish rust-eigenda-v2-client once its done
-        run: cargo publish --package rust-eigenda-client --token ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish --package rust-eigenda-v2-client --token ${{ secrets.CRATES_IO_TOKEN }}

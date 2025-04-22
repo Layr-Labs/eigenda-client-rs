@@ -1,9 +1,10 @@
 use ethereum_types::Address;
 use secp256k1::{Message, SecretKey, SECP256K1};
+use secrecy::ExposeSecret;
 use sha2::{Digest, Sha256};
 use tiny_keccak::{Hasher, Keccak};
 
-use crate::errors::SignerError;
+use crate::{errors::SignerError, utils::PrivateKey};
 
 use super::eigenda_cert::BlobHeader;
 
@@ -15,12 +16,14 @@ pub trait BlobRequestSigner {
     fn account_id(&self) -> Address;
 }
 
+#[derive(Debug, Clone)]
 pub struct LocalBlobRequestSigner {
     private_key: SecretKey,
 }
 
 impl LocalBlobRequestSigner {
-    pub fn new(private_key: &str) -> Result<Self, SignerError> {
+    pub fn new(private_key: PrivateKey) -> Result<Self, SignerError> {
+        let private_key = private_key.0.expose_secret();
         // Strip "0x" prefix if present
         let clean_hex = private_key.strip_prefix("0x").unwrap_or(private_key);
 

@@ -1,4 +1,9 @@
-use crate::{core::BYTES_PER_SYMBOL, errors::ConversionError};
+use std::str::FromStr;
+
+use crate::{
+    core::BYTES_PER_SYMBOL,
+    errors::{ConversionError, EigenClientError},
+};
 use ark_bn254::Fr;
 use ark_ff::fields::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
@@ -22,15 +27,41 @@ impl SecretUrl {
     }
 }
 
-impl From<SecretUrl> for Url {
-    fn from(secret_url: SecretUrl) -> Self {
-        Url::parse(secret_url.inner.expose_secret()).unwrap() // Safe to unwrap, as the `new` fn ensures the URL is valid
+impl TryFrom<SecretUrl> for alloy::transports::http::reqwest::Url {
+    type Error = ConversionError;
+
+    fn try_from(secret_url: SecretUrl) -> Result<Self, Self::Error> {
+        let url = alloy::transports::http::reqwest::Url::from_str(secret_url.inner.expose_secret())
+            .map_err(|_| {
+                ConversionError::InvalidEthRpc(secret_url.inner.expose_secret().to_string())
+            })?;
+        Ok(url)
     }
 }
 
 impl PartialEq for SecretUrl {
     fn eq(&self, other: &Self) -> bool {
         self.inner.expose_secret().eq(other.inner.expose_secret())
+    }
+}
+
+/// Secretly enclosed Private Key
+#[derive(Debug, Clone)]
+pub struct PrivateKey(pub Secret<String>);
+
+impl PartialEq for PrivateKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret().eq(other.0.expose_secret())
+    }
+}
+
+impl FromStr for PrivateKey {
+    type Err = EigenClientError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(PrivateKey(
+            s.parse().map_err(|_| ConversionError::PrivateKey)?,
+        ))
     }
 }
 

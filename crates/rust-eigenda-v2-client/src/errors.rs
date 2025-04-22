@@ -50,6 +50,10 @@ pub enum ConversionError {
     SignedBatch(String),
     #[error("Failed to parse eigenda cert: {0}")]
     EigenDACert(String),
+    #[error("Private Key Error")]
+    PrivateKey,
+    #[error("Invalid ETH rpc: {0}")]
+    InvalidEthRpc(String),
 }
 
 /// Errors specific to the Blob type
@@ -111,6 +115,10 @@ pub enum RelayClientError {
     InvalidURI(String),
     #[error(transparent)]
     EthClient(#[from] EthClientError),
+    #[error(transparent)]
+    Alloy(#[from] alloy_contract::Error),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
 }
 
 /// Errors for the EthClient
@@ -124,8 +132,6 @@ pub enum EthClientError {
     HexEncoding(#[from] hex::FromHexError),
     #[error(transparent)]
     EthAbi(#[from] ethabi::Error),
-    #[error("RPC: {0}")]
-    Rpc(crate::eth_client::RpcErrorResponse),
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
 }
@@ -213,8 +219,6 @@ pub enum CertVerifierError {
     Conversion(#[from] ConversionError),
     #[error(transparent)]
     Alloy(#[from] alloy_contract::Error),
-    #[error("Invalid ETH rpc: {0}")]
-    InvalidEthRpc(String),
     #[error("Invalid cert verifier contract address: {0}")]
     InvalidCertVerifierAddress(H160),
 }

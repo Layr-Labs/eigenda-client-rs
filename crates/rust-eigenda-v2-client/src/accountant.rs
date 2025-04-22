@@ -17,7 +17,7 @@ pub struct PeriodRecord {
     pub usage: u64,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Accountant {
     // on-chain states
     account_id: Address,

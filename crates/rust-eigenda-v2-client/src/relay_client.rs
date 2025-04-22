@@ -1,18 +1,17 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
-use ethabi::{Address, ParamType, Token};
-use ethereum_types::U256;
-use tokio::sync::Mutex;
+use ethabi::Address;
 use tonic::transport::Channel;
 
 use crate::{
     core::BlobKey,
-    errors::{EthClientError, RelayClientError},
-    eth_client::EthClient,
+    errors::RelayClientError,
     generated::relay::{
         relay_client::{self, RelayClient as RpcRelayClient},
         GetBlobRequest,
     },
+    relay_registry::RelayRegistry,
+    utils::SecretUrl,
 };
 
 pub type RelayKey = u32;
@@ -21,39 +20,7 @@ pub struct RelayClientConfig {
     pub(crate) max_grpc_message_size: usize,
     pub(crate) relay_clients_keys: Vec<u32>,
     pub(crate) relay_registry_address: Address,
-}
-
-async fn get_url_from_relay_key(
-    eth_client: Arc<Mutex<EthClient>>,
-    relay_registry_address: Address,
-    relay_key: RelayKey,
-) -> Result<String, EthClientError> {
-    // Solidity: function relayKeyToUrl() view returns(string)
-    let func_selector = ethabi::short_signature("relayKeyToUrl", &[ParamType::Uint(32)]);
-    let mut data = func_selector.to_vec();
-
-    let relay_key_data = ethabi::encode(&[Token::Uint(U256::from(relay_key))]);
-    data.extend_from_slice(&relay_key_data);
-
-    let response_bytes = eth_client
-        .lock()
-        .await
-        .call(
-            relay_registry_address,
-            bytes::Bytes::copy_from_slice(&data),
-            None,
-        )
-        .await?;
-
-    let output_type = [ParamType::String];
-
-    let tokens = ethabi::decode(&output_type, &response_bytes).map_err(EthClientError::EthAbi)?;
-
-    // Safe unwrap because decode guarantees type correctness and non-empty output
-    let url_token = tokens.first().unwrap();
-    let url = format!("https://{}", url_token.clone().into_string().unwrap()); // TODO: forcing https schema on local stack will fail
-
-    Ok(url)
+    pub(crate) eth_rpc_url: SecretUrl,
 }
 
 // RelayClient is a client for the entire relay subsystem.
@@ -64,22 +31,18 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
-    pub async fn new(
-        config: RelayClientConfig,
-        eth_client: Arc<Mutex<EthClient>>,
-    ) -> Result<Self, RelayClientError> {
+    pub async fn new(config: RelayClientConfig) -> Result<Self, RelayClientError> {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
 
+        let relay_registry_address = hex::encode(config.relay_registry_address);
+        let relay_registry =
+            RelayRegistry::new(relay_registry_address, config.eth_rpc_url.clone())?;
+
         let mut rpc_clients = HashMap::new();
         for relay_key in config.relay_clients_keys.iter() {
-            let url = get_url_from_relay_key(
-                eth_client.clone(),
-                config.relay_registry_address,
-                *relay_key,
-            )
-            .await?;
+            let url = relay_registry.get_url_from_relay_key(*relay_key).await?;
             let endpoint =
                 Channel::from_shared(url.clone()).map_err(|_| RelayClientError::InvalidURI(url))?;
             let channel = endpoint.connect().await?;
@@ -113,32 +76,24 @@ impl RelayClient {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
     use crate::{
-        eth_client::EthClient,
         relay_client::RelayClient,
-        tests::{HOLESKY_ETH_RPC_URL, HOLESKY_RELAY_REGISTRY_ADDRESS},
-        utils::SecretUrl,
+        tests::{get_test_holesky_rpc_url, HOLESKY_RELAY_REGISTRY_ADDRESS},
     };
-    use url::Url;
 
     fn get_test_relay_client_config() -> RelayClientConfig {
         RelayClientConfig {
             max_grpc_message_size: 9999999,
             relay_clients_keys: vec![1, 2],
             relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
+            eth_rpc_url: get_test_holesky_rpc_url(),
         }
     }
 
     #[tokio::test]
     async fn test_retrieve_single_blob() {
-        let eth_client =
-            EthClient::new(SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()));
-        let eth_client = Arc::new(Mutex::new(eth_client));
-
-        let mut client = RelayClient::new(get_test_relay_client_config(), eth_client)
+        let mut client = RelayClient::new(get_test_relay_client_config())
             .await
             .unwrap();
 
