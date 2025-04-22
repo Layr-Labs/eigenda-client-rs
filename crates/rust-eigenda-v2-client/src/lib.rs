@@ -7,12 +7,9 @@ pub mod disperser_client;
 pub mod errors;
 pub mod payload_disperser;
 pub mod payloadretrieval;
-pub mod prover;
 pub mod relay_client;
 pub mod relay_registry;
-pub mod retrieval_client;
 pub mod utils;
-pub mod verifier;
 
 #[cfg(test)]
 mod tests;

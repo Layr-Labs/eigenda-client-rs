@@ -140,9 +140,9 @@ impl RelayPayloadRetriever {
     }
 
     /// Attempts to retrieve a [`Blob`] from a given [`RelayKey`].
-    /// 
+    ///
     /// Times out based on config's `retrieval_timeout_secs`.
-    /// 
+    ///
     /// Returns [`RelayPayloadRetrieverError::RetrievalTimeout`] if the timeout is exceeded.
     async fn retrieve_blob_with_timeout(
         &mut self,

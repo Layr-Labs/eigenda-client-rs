@@ -56,6 +56,7 @@ impl DisperserClientConfig {
     }
 }
 
+/// Disperser client for interacting with the EigenDA disperser.
 #[derive(Debug, Clone)]
 pub(crate) struct DisperserClient {
     signer: LocalBlobRequestSigner,
@@ -63,8 +64,8 @@ pub(crate) struct DisperserClient {
     accountant: Arc<Mutex<Accountant>>,
 }
 
-// todo: add locks
 impl DisperserClient {
+    /// Creates a new disperser client from a configuration.
     pub(crate) async fn new(config: DisperserClientConfig) -> Result<Self, DisperseError> {
         let mut endpoint = Channel::from_shared(config.disperser_rpc.clone())
             .map_err(|_| DisperseError::InvalidURI(config.disperser_rpc.clone()))?;
@@ -245,7 +246,6 @@ impl DisperserClient {
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         disperser_client::DisperserClient,
         tests::{get_test_private_key, HOLESKY_DISPERSER_RPC_URL},

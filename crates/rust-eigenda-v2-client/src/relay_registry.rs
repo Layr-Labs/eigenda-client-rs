@@ -11,7 +11,7 @@ use crate::{
 
 pub type RelayRegistryContract = IRelayRegistry::IRelayRegistryInstance<RootProvider<Ethereum>>;
 
-/// RelayRegistry is a struct that provides methods for interacting with the EigenDA RelayRegistry contract.
+/// Provides methods for interacting with the EigenDA RelayRegistry contract.
 pub struct RelayRegistry {
     relay_registry_contract: RelayRegistryContract,
 }

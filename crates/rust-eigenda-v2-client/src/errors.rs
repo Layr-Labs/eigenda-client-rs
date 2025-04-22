@@ -6,7 +6,7 @@ use crate::relay_client::RelayKey;
 use hex::FromHexError;
 use prost::DecodeError;
 
-/// Errors returned by this crate
+/// Errors returned by the client.
 #[derive(Debug, thiserror::Error)]
 pub enum EigenClientError {
     #[error(transparent)]
@@ -77,7 +77,7 @@ pub enum BlobError {
     Bn254(#[from] Bn254Error),
 }
 
-/// Errors specific to the Relay Payload Retriever
+/// Errors specific to the [`RelayPayloadRetriever`].
 #[derive(Debug, thiserror::Error)]
 pub enum RelayPayloadRetrieverError {
     #[error(transparent)]
@@ -96,7 +96,7 @@ pub enum RelayPayloadRetrieverError {
     RetrievalTimeout,
 }
 
-/// Errors specific to the Relay Client
+/// Errors specific to the [`RelayClient`].
 #[derive(Debug, thiserror::Error)]
 pub enum RelayClientError {
     #[error("Max grpc message size must be greater than 0")]
@@ -197,7 +197,7 @@ pub enum SignerError {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
 }
-/// Errors specific to the PayloadDisperser
+/// Errors specific to the [`PayloadDisperser`].
 #[derive(Debug, thiserror::Error)]
 pub enum PayloadDisperserError {
     #[error(transparent)]
