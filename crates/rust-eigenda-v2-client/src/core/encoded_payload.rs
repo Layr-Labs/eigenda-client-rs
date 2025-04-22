@@ -5,7 +5,7 @@ use crate::{
 use ark_bn254::Fr;
 use rust_kzg_bn254_primitives::helpers::{to_byte_array, to_fr_array};
 
-/// `EncodedPayload` represents a payload that has had an encoding applied to it
+/// [`EncodedPayload`] represents a payload that has had an encoding applied to it.
 ///
 /// Encoding Format:
 ///
@@ -31,7 +31,7 @@ pub struct EncodedPayload {
 }
 
 impl EncodedPayload {
-    /// Creates a new `EncodedPayload` from a `Payload`, performing the `PayloadEncodingVersion0` encoding
+    /// Creates a new [`EncodedPayload`] from a [`Payload`], performing the `PayloadEncodingVersion0` encoding.
     pub fn new(payload: &Payload) -> Result<EncodedPayload, ConversionError> {
         let mut header = [0u8; 32].to_vec();
         header[1] = PayloadEncodingVersion::Zero as u8;
@@ -52,7 +52,7 @@ impl EncodedPayload {
         Ok(EncodedPayload { bytes })
     }
 
-    /// Decodes the `EncodedPayload` back into a `Payload`.
+    /// Decodes the [`EncodedPayload`] back into a [`Payload`].
     pub fn decode(&self) -> Result<Payload, ConversionError> {
         let expected_data_length = match self.bytes[2..6].try_into() {
             Ok(arr) => u32::from_be_bytes(arr),
@@ -91,7 +91,7 @@ impl EncodedPayload {
     }
 
     /// Creates an `EncodedPayload` from an array of field elements.
-    /// `max_payload_length` is the maximum length in bytes that the contained `Payload` is permitted to be.
+    /// `max_payload_length` is the maximum length in bytes that the contained [`Payload`] is permitted to be.
     pub fn from_field_elements(
         field_elements: &[Fr],
         max_payload_length: usize,
@@ -152,7 +152,7 @@ impl EncodedPayload {
     }
 }
 
-/// Accepts an array of padded data, and removes the internal padding that was added in PadPayload
+/// Accepts an array of padded data, and removes the internal padding.
 ///
 /// This function assumes that the input aligns to 32 bytes. Since it is removing 1 byte for every 31 bytes kept, the
 /// output from this function is not guaranteed to align to 32 bytes.
@@ -185,7 +185,7 @@ fn remove_internal_padding(padded_data: &[u8]) -> Result<Vec<u8>, ConversionErro
 /// Accepts the length of a byte array, and returns the length that the array would be after
 /// adding internal byte padding.
 ///
-/// The value returned from this function will always be a multiple of `BYTES_PER_SYMBOL`
+/// The value returned from this function will always be a multiple of [`BYTES_PER_SYMBOL`]
 fn get_padded_data_length(data_length: usize) -> usize {
     let bytes_per_chunk = BYTES_PER_SYMBOL - 1;
     let mut chunk_count = data_length / bytes_per_chunk;

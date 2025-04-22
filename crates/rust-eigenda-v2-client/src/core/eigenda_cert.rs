@@ -588,9 +588,9 @@ impl TryFrom<ProtoAttestation> for Attestation {
     }
 }
 
-// EigenDACert contains all data necessary to retrieve and validate a blob
-//
-// This struct represents the composition of a eigenDA blob certificate, as it would exist in a rollup inbox.
+/// Contains all data necessary to retrieve and validate a [`Blob`]
+///
+/// This struct represents the composition of a EigenDA blob certificate, as it would exist in a rollup inbox.
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EigenDACert {
     pub blob_inclusion_info: BlobInclusionInfo,
@@ -600,7 +600,7 @@ pub struct EigenDACert {
 }
 
 impl EigenDACert {
-    /// creates a new EigenDACert from a BlobStatusReply, and NonSignerStakesAndSignature
+    /// Creates a new [`EigenDACert`] from a [`BlobStatusReply`], and [`NonSignerStakesAndSignature`].
     pub fn new(
         blob_status_reply: &BlobStatusReply,
         non_signer_stakes_and_signature: NonSignerStakesAndSignature,
@@ -642,7 +642,7 @@ impl EigenDACert {
         })
     }
 
-    /// Computes the blob_key of the blob that belongs to the EigenDACert
+    /// Computes the blob key of the blob that belongs to the [`EigenDACert`].
     pub fn compute_blob_key(&self) -> Result<BlobKey, ConversionError> {
         let blob_header = self
             .blob_inclusion_info
