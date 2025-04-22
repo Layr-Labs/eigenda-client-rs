@@ -45,6 +45,8 @@ impl BlobKey {
     }
 
     /// Converts the [`BlobKey`] to a hex string.
+    /// 
+    /// Note: The hex string will not include the 0x prefix.
     pub fn to_hex(&self) -> String {
         hex::encode(self.0)
     }
