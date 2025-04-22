@@ -44,6 +44,7 @@ impl BlobKey {
         Ok(BlobKey(bytes.try_into().unwrap()))
     }
 
+    /// Converts the [`BlobKey`] to a hex string.
     pub fn to_hex(&self) -> String {
         hex::encode(self.0)
     }
