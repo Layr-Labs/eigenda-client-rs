@@ -50,10 +50,11 @@ ark-ec = { workspace = true }
 sha2 = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
-alloy-contract = { workspace = true }
+alloy-contract = { workspace = true}
 alloy-transport-http = { workspace = true }
 alloy-network = { workspace = true }
 alloy-provider = { workspace = true }
+alloy-consensus = { workspace = true, default-features = false}
 bincode = { workspace = true }
 
 [dev-dependencies]
