@@ -3,6 +3,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use ark_bn254::G1Affine;
+use ark_serialize::CanonicalSerialize;
 use eigensdk::crypto_bls::BlsKeyPair;
 use ethabi::Address;
 use tiny_keccak::{Hasher, Keccak};
@@ -23,6 +25,23 @@ use crate::{
 
 const RELAY_GET_CHUNKS_REQUEST_DOMAIN: &str = "relay.GetChunksRequest";
 const CHUNK_REQUEST_BY_RANGE: u8 = 0x72; // 'r'
+
+// TODO: Move to commitment_utils? Not the same as g1_to_bytes??
+fn g1_point_raw_bytes(g1_point: &G1Affine) -> Vec<u8> {
+    // TODO: Add infitiny flag and check?
+
+    let mut bytes = vec![];
+
+    let mut y_bytes = Vec::new();
+    g1_point.y.serialize_uncompressed(&mut y_bytes).unwrap();
+    bytes.extend_from_slice(&y_bytes);
+
+    let mut x_bytes = Vec::new();
+    g1_point.x.serialize_uncompressed(&mut x_bytes).unwrap();
+    bytes.extend_from_slice(&x_bytes);
+    bytes.reverse();
+    bytes
+}
 
 /// All integers are encoded as unsigned 4 byte big endian values.
 ///
@@ -162,8 +181,7 @@ impl RelayClient {
 
         let hash = hash_get_chunks_request(request)?;
         let signature = self.message_signer.sign_message(&hash);
-        let sig = bincode::serialize(&signature).unwrap(); // TODO: What's the appropriate serialization format?
-
+        let sig = g1_point_raw_bytes(&signature.g1_point().g1());
         request.operator_signature = sig;
         Ok(())
     }
@@ -313,5 +331,46 @@ mod tests {
         let expected_blob_data = vec![1, 2, 3, 4, 5];
         let actual_blob_data = result.unwrap();
         assert_eq!(expected_blob_data, actual_blob_data);
+    }
+
+    #[tokio::test]
+    async fn test_sign_get_chunks_request() {
+        let mut config = get_test_relay_client_config();
+
+        // We set a specific bls private key, otherwise the signature will be different
+        config.bls_private_key =
+            "18523706440931002834984598044673773734215117097254740594844099528915818025925"
+                .to_string();
+
+        let client = RelayClient::new(config).await.unwrap();
+
+        let mut test_request = GetChunksRequestProto {
+            chunk_requests: vec![ChunkRequestProto {
+                request: Some(chunk_request::Request::ByRange(ChunkRequestByRange {
+                    blob_key: vec![
+                        194, 149, 65, 194, 139, 215, 34, 33, 168, 131, 147, 111, 125, 155, 86, 135,
+                        109, 54, 26, 50, 183, 155, 154, 4, 16, 126, 219, 97, 138, 29, 148, 187,
+                    ],
+                    start_index: 1618487414,
+                    end_index: 1440410313,
+                })),
+            }],
+            operator_id: vec![
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0,
+            ],
+            timestamp: 0,
+            operator_signature: vec![],
+        };
+        client.sign_get_chunks_request(&mut test_request).unwrap();
+
+        let expected_signature = vec![
+            13, 201, 103, 55, 115, 63, 62, 42, 102, 207, 208, 109, 29, 11, 190, 182, 118, 54, 85,
+            0, 141, 181, 144, 60, 122, 195, 237, 100, 198, 24, 201, 213, 13, 30, 102, 125, 61, 58,
+            108, 20, 170, 21, 58, 170, 101, 24, 128, 76, 226, 51, 63, 132, 196, 239, 227, 187, 82,
+            74, 202, 235, 158, 10, 245, 189,
+        ];
+        let actual_signature = test_request.operator_signature;
+        assert_eq!(expected_signature, actual_signature)
     }
 }
