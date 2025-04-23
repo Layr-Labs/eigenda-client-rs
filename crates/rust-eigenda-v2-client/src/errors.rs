@@ -53,6 +53,8 @@ pub enum ConversionError {
     PrivateKey,
     #[error("Invalid ETH rpc: {0}")]
     InvalidEthRpc(String),
+    #[error("hash digest was not 32B as expected. This is a bug, please report it")]
+    InvalidDigest,
 }
 
 /// Errors specific to the Blob type

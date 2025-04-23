@@ -2,9 +2,7 @@ use ark_bn254::G1Affine;
 use tokio::sync::mpsc::error::SendError;
 use tonic::{transport::Error as TonicError, Status};
 
-use crate::{
-    blob_info::BlobQuorumParam, eth_client::RpcErrorResponse, generated::disperser,
-};
+use crate::{blob_info::BlobQuorumParam, eth_client::RpcErrorResponse, generated::disperser};
 
 /// Errors returned by this crate
 #[derive(Debug, thiserror::Error)]
@@ -80,6 +78,8 @@ pub enum ConversionError {
     NotPresent(String),
     #[error("Failed to cast {0}")]
     Cast(String),
+    #[error("hash digest was not 32B as expected. This is a bug, please report it")]
+    InvalidDigest,
 }
 
 /// Errors for the EthClient

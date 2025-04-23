@@ -8,7 +8,8 @@ use crate::{
     blob_info,
     client::BlobProvider,
     errors::{
-        BlobStatusError, CommunicationError, ConfigError, EigenClientError, VerificationError,
+        BlobStatusError, CommunicationError, ConfigError, ConversionError, EigenClientError,
+        VerificationError,
     },
     generated::disperser::{
         self,
@@ -300,9 +301,7 @@ impl<S> RawEigenClient<S> {
         BigEndian::write_u32(&mut buf, blob_auth_header.challenge_parameter);
         let digest = self.keccak256(&buf);
 
-        let msg = Message::from_slice(&digest).map_err(|e| {
-            EigenClientError::Communication(CommunicationError::Signing(Box::new(e)))
-        })?;
+        let msg = Message::from_slice(&digest).map_err(|_| ConversionError::InvalidDigest)?;
 
         let authentication_data = self
             .signer

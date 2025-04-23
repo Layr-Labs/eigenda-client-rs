@@ -1,7 +1,3 @@
-use std::{
-    error::Error,
-    fmt::{Display, Formatter},
-};
 
 use ethereum_types::Address;
 use num_bigint::BigInt;
@@ -9,7 +5,7 @@ use rust_eigenda_signers::secp256k1::Message;
 use sha2::{Digest, Sha256};
 use tiny_keccak::{Hasher, Keccak};
 
-use crate::generated::disperser::v2::Reservation;
+use crate::{errors::ConversionError, generated::disperser::v2::Reservation};
 
 #[derive(Debug, PartialEq)]
 pub struct PaymentMetadata {
@@ -71,25 +67,12 @@ pub struct PaymentStateRequest {
     timestamp: u64,
 }
 
-#[derive(Debug)]
-pub struct InvalidDigest;
-impl Display for InvalidDigest {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "hash digest was not 32B as expected. This is a bug, please report it."
-        )
-    }
-}
-
-impl Error for InvalidDigest {}
-
 impl PaymentStateRequest {
     pub fn new(timestamp: u64) -> Self {
         Self { timestamp }
     }
 
-    pub fn prepare_for_signing_by(&self, account_id: &Address) -> Result<Message, InvalidDigest> {
+    pub fn prepare_for_signing_by(&self, account_id: &Address) -> Result<Message, ConversionError> {
         let mut keccak_hash = Keccak::v256();
         keccak_hash.update(
             (account_id.as_bytes().len() as u32)
@@ -105,6 +88,6 @@ impl PaymentStateRequest {
         // Hash the account ID bytes with SHA-256
         let hash = Sha256::digest(account_id_hash);
 
-        Message::from_slice(hash.as_slice()).map_err(|_| InvalidDigest)
+        Message::from_slice(hash.as_slice()).map_err(|_| ConversionError::InvalidDigest)
     }
 }

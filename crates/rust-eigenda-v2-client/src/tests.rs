@@ -6,7 +6,6 @@ use url::Url;
 
 use crate::{
     core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
-    disperser_client::DisperserClientConfig,
     payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
     payloadretrieval::relay_payload_retriever::{
         RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig,

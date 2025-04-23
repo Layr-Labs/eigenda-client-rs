@@ -13,7 +13,7 @@ use crate::core::eigenda_cert::{BlobCommitments, BlobHeader, PaymentHeader};
 use crate::core::{
     BlobKey, OnDemandPayment, PaymentStateRequest, PrivateKeySigner, ReservedPayment,
 };
-use crate::errors::DisperseError;
+use crate::errors::{ConversionError, DisperseError};
 use crate::generated::common::v2::{
     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
 };
@@ -146,7 +146,7 @@ impl<S> DisperserClient<S> {
         };
 
         let digest = Message::from_slice(&blob_header.blob_key()?.to_bytes())
-            .map_err(|e| DisperseError::Signer(Box::new(e)))?;
+            .map_err(|_| ConversionError::InvalidDigest)?;
         let signature = self
             .signer
             .sign_digest(&digest)
@@ -225,8 +225,7 @@ impl<S> DisperserClient<S> {
         let account_id = self.signer.public_key().address().encode_hex();
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let digest = PaymentStateRequest::new(timestamp as u64)
-            .prepare_for_signing_by(&self.signer.public_key().address())
-            .map_err(|e| DisperseError::Signer(Box::new(e)))?;
+            .prepare_for_signing_by(&self.signer.public_key().address())?;
 
         let signature = self
             .signer
