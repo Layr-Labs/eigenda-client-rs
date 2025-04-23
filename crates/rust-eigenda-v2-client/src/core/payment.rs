@@ -1,4 +1,3 @@
-
 use ethereum_types::Address;
 use num_bigint::BigInt;
 use rust_eigenda_signers::secp256k1::Message;
