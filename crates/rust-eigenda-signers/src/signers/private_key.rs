@@ -31,10 +31,7 @@ impl Signer {
 impl Sign for Signer {
     type Error = Infallible;
 
-    async fn sign_digest(
-        &self,
-        message: &Message,
-    ) -> Result<RecoverableSignature, Self::Error> {
+    async fn sign_digest(&self, message: &Message) -> Result<RecoverableSignature, Self::Error> {
         let sig = SECP256K1.sign_ecdsa_recoverable(message, &self.secret_key);
         Ok(sig.into())
     }
@@ -60,8 +57,7 @@ mod tests {
 
         let message_bytes = b"Test message for local signer";
         let digest = crate::public_key::keccak256(message_bytes);
-        let message =
-            Message::from_slice(&digest).expect("Failed to create Message from digest");
+        let message = Message::from_slice(&digest).expect("Failed to create Message from digest");
 
         // when
         let recoverable_sig: RecoverableSignature =
@@ -78,10 +74,9 @@ mod tests {
     #[test]
     fn test_local_signer_address() {
         // given
-        let key = SecretKey::from_str(
-            "856f2fd4e3ff354a7f43680d6d9da56390184b43ec63beb06b66c9fd1bc79858",
-        )
-        .unwrap();
+        let key =
+            SecretKey::from_str("856f2fd4e3ff354a7f43680d6d9da56390184b43ec63beb06b66c9fd1bc79858")
+                .unwrap();
         let signer = Signer::new(key);
 
         // when
