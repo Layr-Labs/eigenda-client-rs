@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use alloy::{network::Ethereum, providers::RootProvider};
+use alloy_network::Ethereum;
+use alloy_provider::RootProvider;
 use ethereum_types::H160;
 
 use crate::{
@@ -26,7 +27,7 @@ impl CertVerifier {
         let url = rpc_url.try_into()?;
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
-        let cert_verifier_address = alloy::primitives::Address::from_str(&hex::encode(address))
+        let cert_verifier_address = alloy_primitives::Address::from_str(&hex::encode(address))
             .map_err(|_| CertVerifierError::InvalidCertVerifierAddress(address))?;
         let cert_verifier_contract: IEigenDACertVerifier::IEigenDACertVerifierInstance<
             RootProvider,

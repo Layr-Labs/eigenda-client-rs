@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use alloy::{network::Ethereum, providers::RootProvider};
+use alloy_network::Ethereum;
+use alloy_provider::RootProvider;
 
 use crate::{
     contracts_bindings::IRelayRegistry::{self},
@@ -22,7 +23,7 @@ impl RelayRegistry {
         let url = rpc_url.try_into()?;
         let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
 
-        let relay_registry_address = alloy::primitives::Address::from_str(&address).unwrap();
+        let relay_registry_address = alloy_primitives::Address::from_str(&address).unwrap();
         let relay_registry_contract: IRelayRegistry::IRelayRegistryInstance<RootProvider> =
             IRelayRegistry::new(relay_registry_address, provider);
         Ok(RelayRegistry {
