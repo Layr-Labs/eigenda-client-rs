@@ -3,6 +3,7 @@ use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, Fp2, PrimeField};
 use ethabi::Token;
 use ethereum_types::U256;
+use serde::ser::Error;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::contracts_bindings::IEigenDACertVerifier::{
@@ -18,7 +19,10 @@ use crate::generated::disperser::v2::{
     Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
 };
 
-use crate::commitment_utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
+use crate::commitment_utils::{
+    g1_commitment_from_bytes, g1_commitment_to_bytes, g2_commitment_from_bytes,
+    g2_commitment_to_bytes,
+};
 use crate::generated::{
     common::{
         v2::{
@@ -82,6 +86,63 @@ pub struct BlobCommitments {
     pub length: u32,
 }
 
+/// Helper struct for BlobCommitments,
+/// for simpler serialization, and deserialization
+#[derive(serde::Serialize, serde::Deserialize)]
+struct BlobCommitmentsHelper {
+    commitment: Vec<u8>,
+    length_commitment: Vec<u8>,
+    length_proof: Vec<u8>,
+    length: u32,
+}
+
+impl TryFrom<&BlobCommitments> for BlobCommitmentsHelper {
+    type Error = ConversionError;
+
+    fn try_from(b: &BlobCommitments) -> Result<Self, Self::Error> {
+        Ok(BlobCommitmentsHelper {
+            commitment: g1_commitment_to_bytes(&b.commitment)?,
+            length_commitment: g2_commitment_to_bytes(&b.length_commitment)?,
+            length_proof: g2_commitment_to_bytes(&b.length_proof)?,
+            length: b.length,
+        })
+    }
+}
+
+impl TryFrom<BlobCommitmentsHelper> for BlobCommitments {
+    type Error = ConversionError;
+
+    fn try_from(helper: BlobCommitmentsHelper) -> Result<Self, Self::Error> {
+        Ok(BlobCommitments {
+            commitment: g1_commitment_from_bytes(&helper.commitment)?,
+            length_commitment: g2_commitment_from_bytes(&helper.length_commitment)?,
+            length_proof: g2_commitment_from_bytes(&helper.length_proof)?,
+            length: helper.length,
+        })
+    }
+}
+
+impl serde::Serialize for BlobCommitments {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        BlobCommitmentsHelper::try_from(self)
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for BlobCommitments {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let helper = BlobCommitmentsHelper::deserialize(deserializer)?;
+        Self::try_from(helper).map_err(serde::de::Error::custom)
+    }
+}
+
 impl From<BlobCommitments> for BlobCommitmentContract {
     fn from(value: BlobCommitments) -> Self {
         Self {
@@ -111,7 +172,7 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BlobHeader {
     pub(crate) version: u16,
     pub(crate) quorum_numbers: Vec<u8>,
@@ -175,7 +236,7 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 /// BlobCertificate contains a full description of a blob and how it is dispersed. Part of the certificate
 /// is provided by the blob submitter (i.e. the blob header), and part is provided by the disperser (i.e. the relays).
 /// Validator nodes eventually sign the blob certificate once they are in custody of the required chunks
@@ -210,7 +271,7 @@ impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 /// BlobInclusionInfo is the information needed to verify the inclusion of a blob in a batch.
 pub struct BlobInclusionInfo {
     pub blob_certificate: BlobCertificate,
@@ -291,7 +352,7 @@ impl TryFrom<SignedBatchProto> for SignedBatch {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BatchHeaderV2 {
     pub batch_root: [u8; 32],
     pub reference_block_number: u32,
@@ -392,6 +453,90 @@ impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
     }
 }
 
+/// Helper struct for serialization and deserialization of NonSignerStakesAndSignature
+#[derive(serde::Serialize, serde::Deserialize)]
+struct NonSignerStakesAndSignatureHelper {
+    non_signer_quorum_bitmap_indices: Vec<u32>,
+    non_signer_pubkeys: Vec<Vec<u8>>,
+    quorum_apks: Vec<Vec<u8>>,
+    apk_g2: Vec<u8>,
+    sigma: Vec<u8>,
+    quorum_apk_indices: Vec<u32>,
+    total_stake_indices: Vec<u32>,
+    non_signer_stake_indices: Vec<Vec<u32>>,
+}
+
+impl TryFrom<&NonSignerStakesAndSignature> for NonSignerStakesAndSignatureHelper {
+    type Error = ConversionError;
+
+    fn try_from(n: &NonSignerStakesAndSignature) -> Result<Self, Self::Error> {
+        Ok(NonSignerStakesAndSignatureHelper {
+            non_signer_quorum_bitmap_indices: n.non_signer_quorum_bitmap_indices.clone(),
+            non_signer_pubkeys: n
+                .non_signer_pubkeys
+                .iter()
+                .map(g1_commitment_to_bytes)
+                .collect::<Result<_, _>>()?,
+            quorum_apks: n
+                .quorum_apks
+                .iter()
+                .map(g1_commitment_to_bytes)
+                .collect::<Result<_, _>>()?,
+            apk_g2: g2_commitment_to_bytes(&n.apk_g2)?,
+            sigma: g1_commitment_to_bytes(&n.sigma)?,
+            quorum_apk_indices: n.quorum_apk_indices.clone(),
+            total_stake_indices: n.total_stake_indices.clone(),
+            non_signer_stake_indices: n.non_signer_stake_indices.clone(),
+        })
+    }
+}
+
+impl TryFrom<NonSignerStakesAndSignatureHelper> for NonSignerStakesAndSignature {
+    type Error = ConversionError;
+
+    fn try_from(helper: NonSignerStakesAndSignatureHelper) -> Result<Self, Self::Error> {
+        Ok(NonSignerStakesAndSignature {
+            non_signer_quorum_bitmap_indices: helper.non_signer_quorum_bitmap_indices,
+            non_signer_pubkeys: helper
+                .non_signer_pubkeys
+                .iter()
+                .map(|b| g1_commitment_from_bytes(b))
+                .collect::<Result<_, _>>()?,
+            quorum_apks: helper
+                .quorum_apks
+                .iter()
+                .map(|b| g1_commitment_from_bytes(b))
+                .collect::<Result<_, _>>()?,
+            apk_g2: g2_commitment_from_bytes(&helper.apk_g2)?,
+            sigma: g1_commitment_from_bytes(&helper.sigma)?,
+            quorum_apk_indices: helper.quorum_apk_indices,
+            total_stake_indices: helper.total_stake_indices,
+            non_signer_stake_indices: helper.non_signer_stake_indices,
+        })
+    }
+}
+
+impl serde::Serialize for NonSignerStakesAndSignature {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        NonSignerStakesAndSignatureHelper::try_from(self)
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for NonSignerStakesAndSignature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let helper = NonSignerStakesAndSignatureHelper::deserialize(deserializer)?;
+        Self::try_from(helper).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Attestation {
     pub non_signer_pubkeys: Vec<G1Affine>,
@@ -446,7 +591,7 @@ impl TryFrom<ProtoAttestation> for Attestation {
 // EigenDACert contains all data necessary to retrieve and validate a blob
 //
 // This struct represents the composition of a eigenDA blob certificate, as it would exist in a rollup inbox.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EigenDACert {
     pub blob_inclusion_info: BlobInclusionInfo,
     pub batch_header: BatchHeaderV2,
@@ -506,6 +651,16 @@ impl EigenDACert {
             .clone();
 
         BlobKey::compute_blob_key(&blob_header)
+    }
+
+    /// Transforms the EigenDACert into bytes using bincode
+    pub fn to_bytes(&self) -> Result<Vec<u8>, ConversionError> {
+        bincode::serialize(self).map_err(|e| ConversionError::EigenDACert(e.to_string()))
+    }
+
+    /// Builds a new EigenDACert from bytes using bincode
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ConversionError> {
+        bincode::deserialize(bytes).map_err(|e| ConversionError::EigenDACert(e.to_string()))
     }
 }
 
@@ -605,7 +760,7 @@ mod test {
                 Attestation, BlobInclusionInfo as BlobInclusionInfoProto, SignedBatch,
             },
         },
-        tests::{CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
+        tests::{get_test_holesky_rpc_url, CERT_VERIFIER_ADDRESS},
     };
 
     use super::{BlobStatusReply, EigenDACert, NonSignerStakesAndSignature};
@@ -991,6 +1146,14 @@ mod test {
     }
 
     #[test]
+    fn test_cert_serialization() {
+        let cert = get_test_eigenda_cert();
+        let cert_bytes = cert.to_bytes().unwrap();
+        let deserialized = EigenDACert::from_bytes(&cert_bytes).unwrap();
+        assert_eq!(cert, deserialized);
+    }
+
+    #[test]
     fn test_blob_key() {
         let commitment_x = Fq::from_be_bytes_mod_order(&[
             47, 227, 202, 245, 187, 25, 196, 187, 223, 98, 97, 40, 194, 244, 32, 4, 86, 33, 187, 1,
@@ -1079,7 +1242,7 @@ mod test {
         assert_eq!(expected_eigenda_cert, eigenda_cert);
 
         let cert_verifier =
-            CertVerifier::new(CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL.to_string()).unwrap();
+            CertVerifier::new(CERT_VERIFIER_ADDRESS, get_test_holesky_rpc_url()).unwrap();
         let res = cert_verifier.verify_cert_v2(&eigenda_cert).await;
         assert!(res.is_ok())
     }

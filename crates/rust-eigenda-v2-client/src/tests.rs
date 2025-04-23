@@ -1,7 +1,8 @@
 use dotenv::dotenv;
 use ethereum_types::H160;
 use rust_eigenda_signers::signers::private_key::Signer;
-use std::{env, time::Duration};
+use std::{env, str::FromStr, time::Duration};
+use url::Url;
 
 use crate::{
     core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
@@ -11,6 +12,7 @@ use crate::{
         RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig,
     },
     relay_client::RelayClient,
+    utils::SecretUrl,
 };
 
 const TEST_BLOB_FINALIZATION_TIMEOUT: u64 = 180;
@@ -36,20 +38,14 @@ pub fn get_test_private_key_signer() -> Signer {
     Signer::new(key)
 }
 
-fn get_test_disperser_client_config() -> DisperserClientConfig {
-    DisperserClientConfig {
-        disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
-        signer: get_test_private_key_signer(),
-        use_secure_grpc_flag: false,
-    }
-}
-
 fn get_test_payload_disperser_config() -> PayloadDisperserConfig {
     PayloadDisperserConfig {
         polynomial_form: PayloadForm::Coeff,
         blob_version: 0,
         cert_verifier_address: CERT_VERIFIER_ADDRESS,
-        eth_rpc_url: HOLESKY_ETH_RPC_URL.to_string(),
+        eth_rpc_url: get_test_holesky_rpc_url(),
+        disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+        use_secure_grpc_flag: false,
     }
 }
 
@@ -63,18 +59,22 @@ pub fn get_relay_payload_retriever_test_config() -> RelayPayloadRetrieverConfig 
 pub fn get_srs_test_config() -> SRSConfig {
     SRSConfig {
         source_path: "../../resources/g1.point".to_string(),
-        order: 42,
-        points_to_load: 42,
+        order: 9999999,
+        points_to_load: 9999999,
     }
 }
 
 pub fn get_relay_client_test_config() -> crate::relay_client::RelayClientConfig {
     crate::relay_client::RelayClientConfig {
         max_grpc_message_size: 9999999,
-        relay_clients_keys: vec![1, 2],
+        relay_clients_keys: vec![0, 1, 2],
         relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
-        eth_rpc_url: HOLESKY_ETH_RPC_URL.to_string(),
+        eth_rpc_url: get_test_holesky_rpc_url(),
     }
+}
+
+pub fn get_test_holesky_rpc_url() -> SecretUrl {
+    SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap())
 }
 
 pub async fn get_test_relay_client() -> RelayClient {
@@ -84,7 +84,7 @@ pub async fn get_test_relay_client() -> RelayClient {
 }
 
 async fn wait_for_blob_finalization_and_verification(
-    payload_disperser: &mut PayloadDisperser,
+    payload_disperser: &PayloadDisperser,
     blob_key: &BlobKey,
 ) -> EigenDACert {
     let timeout = tokio::time::Duration::from_secs(TEST_BLOB_FINALIZATION_TIMEOUT);
@@ -115,9 +115,9 @@ async fn test_disperse_and_retrieve_blob() {
     let payload = Payload::new(payload_data.clone());
 
     // First we disperse a blob using a Payload Disperser
-    let mut payload_disperser = PayloadDisperser::new(
-        get_test_disperser_client_config(),
+    let payload_disperser = PayloadDisperser::new(
         get_test_payload_disperser_config(),
+        get_test_private_key_signer(),
     )
     .await
     .unwrap();
@@ -125,7 +125,7 @@ async fn test_disperse_and_retrieve_blob() {
 
     // Then we wait for the blob to be finalized and verified
     let eigenda_cert =
-        wait_for_blob_finalization_and_verification(&mut payload_disperser, &blob_key).await;
+        wait_for_blob_finalization_and_verification(&payload_disperser, &blob_key).await;
 
     // Finally we retrieve the blob using a Relay Payload Retriever
     let relay_config = get_relay_payload_retriever_test_config();

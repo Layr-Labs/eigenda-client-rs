@@ -1,9 +1,11 @@
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hex::ToHex;
 use rust_eigenda_signers::secp256k1::Message;
 use rust_eigenda_signers::Sign;
+use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
@@ -49,10 +51,11 @@ impl<S> DisperserClientConfig<S> {
     }
 }
 
-pub struct DisperserClient<S = PrivateKeySigner> {
+#[derive(Debug, Clone)]
+pub(crate) struct DisperserClient<S = PrivateKeySigner> {
     signer: S,
-    rpc_client: disperser_client::DisperserClient<tonic::transport::Channel>,
-    accountant: Accountant,
+    rpc_client: Arc<Mutex<disperser_client::DisperserClient<tonic::transport::Channel>>>,
+    accountant: Arc<Mutex<Accountant>>,
 }
 
 // todo: add locks
@@ -81,15 +84,15 @@ impl<S> DisperserClient<S> {
         );
         let mut disperser = Self {
             signer,
-            rpc_client,
-            accountant,
+            rpc_client: Arc::new(Mutex::new(rpc_client)),
+            accountant: Arc::new(Mutex::new(accountant)),
         };
         disperser.populate_accountant().await?;
         Ok(disperser)
     }
 
     pub(crate) async fn disperse_blob(
-        &mut self,
+        &self,
         data: &[u8],
         blob_version: u16,
         quorums: &[u8],
@@ -104,6 +107,8 @@ impl<S> DisperserClient<S> {
         let symbol_length = data.len().div_ceil(BYTES_PER_SYMBOL).next_power_of_two();
         let payment = self
             .accountant
+            .lock()
+            .await
             .account_blob(
                 SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as i64,
                 symbol_length as u64,
@@ -166,6 +171,8 @@ impl<S> DisperserClient<S> {
 
         let reply = self
             .rpc_client
+            .lock()
+            .await
             .disperse_blob(disperse_request)
             .await
             .map(|response| response.into_inner())
@@ -185,6 +192,8 @@ impl<S> DisperserClient<S> {
     {
         let payment_state = self.payment_state().await?;
         self.accountant
+            .lock()
+            .await
             .set_payment_state(&payment_state)
             .map_err(DisperseError::Accountant)?;
         Ok(())
@@ -192,7 +201,7 @@ impl<S> DisperserClient<S> {
 
     /// Returns the status of a blob with the given blob key.
     pub(crate) async fn blob_status(
-        &mut self,
+        &self,
         blob_key: &BlobKey,
     ) -> Result<BlobStatusReply, DisperseError> {
         let request = BlobStatusRequest {
@@ -200,6 +209,8 @@ impl<S> DisperserClient<S> {
         };
 
         self.rpc_client
+            .lock()
+            .await
             .get_blob_status(request)
             .await
             .map(|response| response.into_inner())
@@ -207,7 +218,7 @@ impl<S> DisperserClient<S> {
     }
 
     /// Returns the payment state of the disperser client
-    pub async fn payment_state(&mut self) -> Result<GetPaymentStateReply, DisperseError>
+    pub(crate) async fn payment_state(&mut self) -> Result<GetPaymentStateReply, DisperseError>
     where
         S: Sign,
     {
@@ -230,6 +241,8 @@ impl<S> DisperserClient<S> {
         };
 
         self.rpc_client
+            .lock()
+            .await
             .get_payment_state(request)
             .await
             .map(|response: tonic::Response<GetPaymentStateReply>| response.into_inner())
@@ -237,7 +250,7 @@ impl<S> DisperserClient<S> {
     }
 
     pub(crate) async fn blob_commitment(
-        &mut self,
+        &self,
         data: &[u8],
     ) -> Result<BlobCommitmentReply, DisperseError> {
         let request = BlobCommitmentRequest {
@@ -245,6 +258,8 @@ impl<S> DisperserClient<S> {
         };
 
         self.rpc_client
+            .lock()
+            .await
             .get_blob_commitment(request)
             .await
             .map(|response| response.into_inner())
@@ -273,7 +288,7 @@ mod tests {
             signer: get_test_private_key_signer(),
             use_secure_grpc_flag: false,
         };
-        let mut client = DisperserClient::new(config).await.unwrap();
+        let client = DisperserClient::new(config).await.unwrap();
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
@@ -291,7 +306,7 @@ mod tests {
             signer: get_test_private_key_signer(),
             use_secure_grpc_flag: true,
         };
-        let mut client = DisperserClient::new(config).await.unwrap();
+        let client = DisperserClient::new(config).await.unwrap();
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];
@@ -308,7 +323,7 @@ mod tests {
             signer: get_test_private_key_signer(),
             use_secure_grpc_flag: true,
         };
-        let mut client = DisperserClient::new(config).await.unwrap();
+        let client = DisperserClient::new(config).await.unwrap();
         let data = vec![1, 2, 3, 4, 5];
         let blob_version = 0;
         let quorums = vec![0, 1];

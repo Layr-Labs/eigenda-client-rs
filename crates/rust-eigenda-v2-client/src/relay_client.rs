@@ -11,6 +11,7 @@ use crate::{
         GetBlobRequest,
     },
     relay_registry::RelayRegistry,
+    utils::SecretUrl,
 };
 
 pub type RelayKey = u32;
@@ -19,7 +20,7 @@ pub struct RelayClientConfig {
     pub(crate) max_grpc_message_size: usize,
     pub(crate) relay_clients_keys: Vec<u32>,
     pub(crate) relay_registry_address: Address,
-    pub(crate) eth_rpc_url: String,
+    pub(crate) eth_rpc_url: SecretUrl,
 }
 
 // RelayClient is a client for the entire relay subsystem.
@@ -36,7 +37,8 @@ impl RelayClient {
         }
 
         let relay_registry_address = hex::encode(config.relay_registry_address);
-        let relay_registry = RelayRegistry::new(relay_registry_address, config.eth_rpc_url.clone());
+        let relay_registry =
+            RelayRegistry::new(relay_registry_address, config.eth_rpc_url.clone())?;
 
         let mut rpc_clients = HashMap::new();
         for relay_key in config.relay_clients_keys.iter() {
@@ -77,15 +79,15 @@ mod tests {
     use super::*;
     use crate::{
         relay_client::RelayClient,
-        tests::{HOLESKY_ETH_RPC_URL, HOLESKY_RELAY_REGISTRY_ADDRESS},
+        tests::{get_test_holesky_rpc_url, HOLESKY_RELAY_REGISTRY_ADDRESS},
     };
 
     fn get_test_relay_client_config() -> RelayClientConfig {
         RelayClientConfig {
             max_grpc_message_size: 9999999,
-            relay_clients_keys: vec![1, 2],
+            relay_clients_keys: vec![0, 1, 2],
             relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
-            eth_rpc_url: HOLESKY_ETH_RPC_URL.to_string(),
+            eth_rpc_url: get_test_holesky_rpc_url(),
         }
     }
 

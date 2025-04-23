@@ -25,7 +25,7 @@ pub enum PayloadEncodingVersion {
 }
 
 /// The form of a payload dictates what conversion, if any, must be performed when creating a blob from the payload.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PayloadForm {
     /// Evaluation form, where the payload is in evaluation form
     Eval,

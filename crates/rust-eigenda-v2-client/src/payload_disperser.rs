@@ -6,16 +6,20 @@ use crate::{
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply},
+    utils::SecretUrl,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PayloadDisperserConfig {
     pub polynomial_form: PayloadForm,
     pub blob_version: u16,
     pub cert_verifier_address: H160,
-    pub eth_rpc_url: String,
+    pub eth_rpc_url: SecretUrl,
+    pub disperser_rpc: String,
+    pub use_secure_grpc_flag: bool,
 }
 
+#[derive(Debug, Clone)]
 /// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
 pub struct PayloadDisperser<S = crate::core::PrivateKeySigner> {
     config: PayloadDisperserConfig,
@@ -25,14 +29,20 @@ pub struct PayloadDisperser<S = crate::core::PrivateKeySigner> {
 }
 
 impl<S> PayloadDisperser<S> {
+    const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 16; // 16 MB
     /// Creates a PayloadDisperser from the specified configs.
     pub async fn new(
-        disperser_config: DisperserClientConfig<S>,
         payload_config: PayloadDisperserConfig,
+        signer: S,
     ) -> Result<Self, PayloadDisperserError>
     where
         S: Sign,
     {
+        let disperser_config = DisperserClientConfig {
+            disperser_rpc: payload_config.disperser_rpc.clone(),
+            signer,
+            use_secure_grpc_flag: payload_config.use_secure_grpc_flag,
+        };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
             payload_config.cert_verifier_address,
@@ -41,14 +51,14 @@ impl<S> PayloadDisperser<S> {
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {
             disperser_client,
-            config: payload_config,
+            config: payload_config.clone(),
             cert_verifier,
             required_quorums,
         })
     }
 
     /// Executes the dispersal of a payload, returning the associated blob key
-    pub async fn send_payload(&mut self, payload: Payload) -> Result<BlobKey, PayloadDisperserError>
+    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError>
     where
         S: Sign,
     {
@@ -78,7 +88,7 @@ impl<S> PayloadDisperser<S> {
     /// Retrieves the inclusion data for a given blob key
     /// If the requested blob is still not complete, returns None
     pub async fn get_inclusion_data(
-        &mut self,
+        &self,
         blob_key: &BlobKey,
     ) -> Result<Option<EigenDACert>, EigenClientError> {
         let status = self
@@ -132,17 +142,21 @@ impl<S> PayloadDisperser<S> {
 
         Ok(cert)
     }
+
+    /// Returns the Max size of a blob that can be dispersed
+    pub fn blob_size_limit() -> Option<usize> {
+        Some(Self::BLOB_SIZE_LIMIT)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
         core::{Payload, PayloadForm},
-        disperser_client::DisperserClientConfig,
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         tests::{
-            get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_DISPERSER_RPC_URL,
-            HOLESKY_ETH_RPC_URL,
+            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS,
+            HOLESKY_DISPERSER_RPC_URL,
         },
     };
 
@@ -151,22 +165,19 @@ mod tests {
     async fn test_disperse_payload() {
         let timeout = tokio::time::Duration::from_secs(180);
 
-        let disperser_config = DisperserClientConfig {
-            disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
-            signer: get_test_private_key_signer(),
-            use_secure_grpc_flag: false,
-        };
-
         let payload_config = PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
             cert_verifier_address: CERT_VERIFIER_ADDRESS,
-            eth_rpc_url: HOLESKY_ETH_RPC_URL.to_string(),
+            eth_rpc_url: get_test_holesky_rpc_url(),
+            disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+            use_secure_grpc_flag: false,
         };
 
-        let mut payload_disperser = PayloadDisperser::new(disperser_config, payload_config)
-            .await
-            .unwrap();
+        let payload_disperser =
+            PayloadDisperser::new(payload_config, get_test_private_key_signer())
+                .await
+                .unwrap();
 
         let payload = Payload::new(vec![1, 2, 3, 4, 5]);
         let blob_key = payload_disperser.send_payload(payload).await.unwrap();
