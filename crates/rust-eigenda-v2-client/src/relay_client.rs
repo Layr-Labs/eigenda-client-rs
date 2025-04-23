@@ -1,26 +1,95 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
+use eigensdk::crypto_bls::BlsKeyPair;
 use ethabi::Address;
+use tiny_keccak::{Hasher, Keccak};
 use tonic::transport::Channel;
 
 use crate::{
     core::BlobKey,
     errors::RelayClientError,
     generated::relay::{
+        chunk_request,
         relay_client::{self, RelayClient as RpcRelayClient},
-        GetBlobRequest,
+        ChunkRequest as ChunkRequestProto, ChunkRequestByIndex as ChunkRequestByIndexProto,
+        GetBlobRequest, GetChunksRequest as GetChunksRequestProto,
     },
     relay_registry::RelayRegistry,
     utils::SecretUrl,
 };
 
+const RELAY_GET_CHUNKS_REQUEST_DOMAIN: &str = "relay.GetChunksRequest";
+const CHUNK_REQUEST_BY_RANGE: u8 = 0x72; // 'r'
+
+/// All integers are encoded as unsigned 4 byte big endian values.
+///
+/// Perform a keccak256 hash on the following data in the following order:
+/// 1. the length of the operator ID in bytes
+/// 2. the operator id
+/// 3. the number of chunk requests
+/// 4. for each chunk request:
+///     a. if the chunk request is a request by index:
+///        i.   a one byte ASCII representation of the character "i" (aka Ox69)
+///        ii.  the length blob key in bytes
+///        iii. the blob key
+///        iv.  the start index
+///        v.   the end index
+///     b. if the chunk request is a request by range:
+///        i.   a one byte ASCII representation of the character "r" (aka Ox72)
+///        ii.  the length of the blob key in bytes
+///        iii. the blob key
+///        iv.  each requested chunk index, in order
+/// 5. the timestamp (seconds since the Unix epoch encoded as a 4 byte big endian value)
+fn hash_get_chunks_request(request: &GetChunksRequestProto) -> Result<[u8; 32], RelayClientError> {
+    // TODO: implementation follows the one in go client
+    // https://github.com/Layr-Labs/eigenda/blob/02c0788d875e2e0ef07c8596d6bea9e883bb0cea/api/hashing/relay_hashing.go#L18
+    // The steps 5 is missing apparently
+
+    let mut hasher = Keccak::v256();
+
+    hasher.update(RELAY_GET_CHUNKS_REQUEST_DOMAIN.as_bytes());
+    hasher.update(&(request.operator_id.len() as u32).to_be_bytes());
+    hasher.update(&request.operator_id);
+
+    hasher.update(&(request.chunk_requests.len() as u32).to_be_bytes());
+    for request in &request.chunk_requests {
+        match &request.request {
+            Some(chunk_request::Request::ByIndex(_)) => {
+                unimplemented!()
+            }
+            Some(chunk_request::Request::ByRange(req)) => {
+                hasher.update(&[CHUNK_REQUEST_BY_RANGE]);
+                hasher.update(&(req.blob_key.len() as u32).to_be_bytes());
+                hasher.update(&req.blob_key);
+                hasher.update(&req.start_index.to_be_bytes());
+                hasher.update(&req.end_index.to_be_bytes());
+            }
+            None => {}
+        }
+    }
+
+    let mut output = [0u8; 32];
+    hasher.finalize(&mut output);
+    Ok(output)
+}
+
 pub type RelayKey = u32;
+
+pub struct ChunkRequestByIndex {
+    blob_key: BlobKey,
+    indices: Vec<u32>,
+}
 
 pub struct RelayClientConfig {
     pub(crate) max_grpc_message_size: usize,
     pub(crate) relay_clients_keys: Vec<u32>,
     pub(crate) relay_registry_address: Address,
     pub(crate) eth_rpc_url: SecretUrl,
+    pub(crate) operator_id: String,
+    pub(crate) bls_private_key: String,
 }
 
 // RelayClient is a client for the entire relay subsystem.
@@ -28,6 +97,8 @@ pub struct RelayClientConfig {
 // It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
 pub struct RelayClient {
     rpc_clients: HashMap<RelayKey, RpcRelayClient<tonic::transport::Channel>>,
+    config: RelayClientConfig,
+    message_signer: BlsKeyPair,
 }
 
 impl RelayClient {
@@ -50,7 +121,13 @@ impl RelayClient {
             rpc_clients.insert(*relay_key, rpc_client);
         }
 
-        Ok(Self { rpc_clients })
+        let message_signer = BlsKeyPair::new(config.bls_private_key.clone()).unwrap();
+
+        Ok(Self {
+            rpc_clients,
+            config,
+            message_signer,
+        })
     }
 
     // get_blob retrieves a blob from a relay.
@@ -72,14 +149,77 @@ impl RelayClient {
 
         Ok(res.blob)
     }
+
+    // sign_get_chunks_request signs the GetChunksRequest with the operator's private key
+    // and sets the signature in the request.
+    fn sign_get_chunks_request(
+        &self,
+        request: &mut GetChunksRequestProto,
+    ) -> Result<(), RelayClientError> {
+        if self.config.operator_id.is_empty() {
+            panic!("no operator ID provided in config, cannot sign get chunks request");
+        }
+
+        let hash = hash_get_chunks_request(request)?;
+        let signature = self.message_signer.sign_message(&hash);
+        let sig = bincode::serialize(&signature).unwrap(); // TODO: What's the appropriate serialization format?
+
+        request.operator_signature = sig;
+        Ok(())
+    }
+
+    // get_chunks_by_index retrieves blob chunks from a relay by index
+    // The returned slice has the same length and ordering as the input slice, and the i-th element is the bundle for the i-th request.
+    // Each bundle is a sequence of frames in raw form.
+    pub async fn get_chunks_by_index(
+        &mut self,
+        relay_key: RelayKey,
+        requests: Vec<ChunkRequestByIndex>,
+    ) -> Result<Vec<Vec<u8>>, RelayClientError> {
+        if requests.is_empty() {
+            return Err(RelayClientError::EmptyRequest);
+        }
+
+        let mut request = {
+            let chunk_requests = requests
+                .into_iter()
+                .map(|request| ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByIndex(ChunkRequestByIndexProto {
+                        blob_key: request.blob_key.to_bytes().to_vec(),
+                        chunk_indices: request.indices,
+                    })),
+                })
+                .collect();
+
+            GetChunksRequestProto {
+                chunk_requests,
+                operator_id: self.config.operator_id.clone().into_bytes(), // TODO: hex::decode?
+                timestamp: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as u32,
+                operator_signature: vec![], // Left blank, modified in self.sign_get_chunks_request (TODO: can it be done in a better way?)
+            }
+        };
+
+        self.sign_get_chunks_request(&mut request)?;
+
+        let relay_client = self
+            .rpc_clients
+            .get_mut(&relay_key)
+            .ok_or(RelayClientError::InvalidRelayKey(relay_key))?;
+
+        let res = relay_client.get_chunks(request).await.unwrap().into_inner();
+        Ok(res.data)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
+        generated::relay::ChunkRequestByRange,
         relay_client::RelayClient,
-        tests::{get_test_holesky_rpc_url, HOLESKY_RELAY_REGISTRY_ADDRESS},
+        tests::{
+            get_test_holesky_rpc_url, BLS_PRIVATE_KEY, HOLESKY_RELAY_REGISTRY_ADDRESS, OPERATOR_ID,
+        },
     };
 
     fn get_test_relay_client_config() -> RelayClientConfig {
@@ -88,8 +228,74 @@ mod tests {
             relay_clients_keys: vec![0, 1, 2],
             relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
             eth_rpc_url: get_test_holesky_rpc_url(),
+            operator_id: OPERATOR_ID.to_string(),
+            bls_private_key: BLS_PRIVATE_KEY.to_string(),
         }
     }
+
+    #[test]
+    fn test_hash_get_chunks_request_with_empty_requests() {
+        let test_request_empty = GetChunksRequestProto {
+            chunk_requests: vec![],
+            operator_id: vec![
+                201, 153, 167, 111, 188, 113, 30, 37, 78, 145, 171, 80, 212, 48, 177, 104, 38, 158,
+                24, 188, 84, 209, 230, 114, 65, 204, 174, 131, 246, 33, 70, 151,
+            ],
+            timestamp: 0,
+            operator_signature: vec![],
+        };
+
+        let expected_hash = [
+            14, 92, 29, 247, 32, 112, 78, 13, 164, 68, 233, 213, 195, 182, 122, 237, 135, 147, 27,
+            128, 208, 10, 143, 39, 228, 7, 108, 125, 141, 127, 246, 73,
+        ];
+        let actual_hash = hash_get_chunks_request(&test_request_empty).unwrap();
+        assert_eq!(expected_hash, actual_hash);
+    }
+
+    #[test]
+    fn test_hash_get_chunks_request_by_range() {
+        let test_request_by_range = GetChunksRequestProto {
+            chunk_requests: vec![
+                ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByRange(ChunkRequestByRange {
+                        blob_key: vec![
+                            35, 129, 131, 197, 7, 71, 144, 68, 167, 251, 175, 50, 13, 238, 41, 48,
+                            94, 186, 194, 190, 67, 245, 157, 163, 227, 228, 145, 133, 109, 122, 2,
+                            31,
+                        ],
+                        start_index: 838755209,
+                        end_index: 4151325033,
+                    })),
+                },
+                ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByRange(ChunkRequestByRange {
+                        blob_key: vec![
+                            195, 98, 231, 115, 67, 155, 36, 173, 82, 50, 16, 70, 88, 209, 122, 141,
+                            141, 147, 7, 125, 69, 10, 22, 22, 17, 148, 183, 78, 128, 123, 194, 221,
+                        ],
+                        start_index: 3772926323,
+                        end_index: 59516524,
+                    })),
+                },
+            ],
+            operator_id: vec![
+                196, 105, 75, 125, 70, 118, 16, 71, 56, 44, 189, 228, 119, 170, 195, 156, 193, 62,
+                43, 89, 179, 237, 208, 95, 3, 14, 180, 118, 202, 54, 161, 136,
+            ],
+            timestamp: 0,
+            operator_signature: vec![],
+        };
+
+        let expected_hash = [
+            19, 177, 33, 150, 96, 20, 237, 133, 11, 48, 227, 61, 83, 188, 113, 81, 176, 201, 99,
+            196, 245, 170, 214, 141, 52, 106, 224, 20, 16, 238, 59, 180,
+        ];
+        let actual_hash = hash_get_chunks_request(&test_request_by_range).unwrap();
+        assert_eq!(expected_hash, actual_hash);
+    }
+
+    // TODO: REMOVE BASE64 CRATE EVENTUALLY
 
     #[tokio::test]
     async fn test_retrieve_single_blob() {

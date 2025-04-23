@@ -25,6 +25,9 @@ pub const CERT_VERIFIER_ADDRESS: H160 = H160([
     0xfe, 0x52, 0xfe, 0x19, 0x40, 0x85, 0x8d, 0xcb, 0x6e, 0x12, 0x15, 0x3e, 0x21, 0x04, 0xad, 0x0f,
     0xdf, 0xbe, 0x11, 0x62,
 ]);
+pub const OPERATOR_ID: &str = "TODO";
+pub const BLS_PRIVATE_KEY: &str =
+    "12248929636257230549931416853095037629726205319386239410403476017439825112537";
 
 pub fn get_test_private_key() -> PrivateKey {
     dotenv().ok();
@@ -64,6 +67,8 @@ pub fn get_relay_client_test_config() -> crate::relay_client::RelayClientConfig 
         relay_clients_keys: vec![0, 1, 2],
         relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
         eth_rpc_url: get_test_holesky_rpc_url(),
+        operator_id: OPERATOR_ID.to_string(),
+        bls_private_key: BLS_PRIVATE_KEY.to_string(),
     }
 }
 

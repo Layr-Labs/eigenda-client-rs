@@ -119,6 +119,8 @@ pub enum RelayClientError {
     Alloy(#[from] alloy_contract::Error),
     #[error(transparent)]
     Conversion(#[from] ConversionError),
+    #[error("Failed to get current time")]
+    SystemTime(#[from] std::time::SystemTimeError),
 }
 
 /// Errors for the EthClient

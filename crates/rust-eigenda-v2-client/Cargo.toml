@@ -53,7 +53,9 @@ alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-contract = { workspace = true }
 bincode = { workspace = true }
 alloy = { workspace = true }
+eigensdk = { workspace = true, features = ["crypto-bls"] }
 
 [dev-dependencies]
 dotenv = { workspace = true }
+base64 = { workspace = true }
 serial_test = { workspace = true }
