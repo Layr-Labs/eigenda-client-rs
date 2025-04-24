@@ -1241,6 +1241,7 @@ mod test {
         );
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_build_eigenda_cert() {
         let (blob_status_reply, non_signer_stakes_and_signature) = get_test_reply();

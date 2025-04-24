@@ -300,6 +300,7 @@ mod tests {
         }
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_verify_cert() {
         let cert_verifier = CertVerifier::new(

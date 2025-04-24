@@ -96,6 +96,7 @@ mod tests {
         }
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_retrieve_single_blob() {
         let mut client = RelayClient::new(get_test_relay_client_config(), get_test_private_key())
