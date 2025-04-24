@@ -3,10 +3,14 @@ use num_bigint::BigInt;
 
 use crate::generated::disperser::v2::Reservation;
 
+/// Represents the header information for a blob.
 #[derive(Debug, PartialEq)]
 pub struct PaymentMetadata {
+    /// ETH account address for the payer.
     pub account_id: Address,
+    /// Represents the nanosecond of the dispersal request creation.
     pub timestamp: i64,
+    /// Represents the total amount of payment (in wei) made by the user up to this point.
     pub cumulative_payment: BigInt,
 }
 
@@ -53,6 +57,7 @@ impl From<Reservation> for ReservedPayment {
     }
 }
 
+/// Represents an on-demand payment.
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct OnDemandPayment {
     /// Total amount deposited by the user.
