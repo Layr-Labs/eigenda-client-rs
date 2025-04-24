@@ -60,7 +60,7 @@ impl DisperserClientConfig {
 /// DisperserClient is a client for the entire disperser subsystem.
 ///
 /// This struct is a low level implementation and should not be used directly,
-/// use a high level abstraction to interact with it (`PayloadDisperser`).
+/// use a high level abstraction to interact with it ([`PayloadDisperser`]).
 #[derive(Debug, Clone)]
 pub struct DisperserClient {
     signer: LocalBlobRequestSigner,
