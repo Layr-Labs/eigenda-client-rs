@@ -252,7 +252,7 @@ mod tests {
             signed_quorum_numbers: vec![0, 1],
         }
     }
-    
+
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn get_payload_from_relay() {

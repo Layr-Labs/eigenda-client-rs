@@ -17,10 +17,10 @@ use crate::{
 pub type RelayKey = u32;
 
 pub struct RelayClientConfig {
-    pub(crate) max_grpc_message_size: usize,
-    pub(crate) relay_clients_keys: Vec<u32>,
-    pub(crate) relay_registry_address: Address,
-    pub(crate) eth_rpc_url: SecretUrl,
+    pub max_grpc_message_size: usize,
+    pub relay_clients_keys: Vec<u32>,
+    pub relay_registry_address: Address,
+    pub eth_rpc_url: SecretUrl,
 }
 
 // RelayClient is a client for the entire relay subsystem.
