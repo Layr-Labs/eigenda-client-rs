@@ -25,6 +25,7 @@ use crate::{
 
 const RELAY_GET_CHUNKS_REQUEST_DOMAIN: &str = "relay.GetChunksRequest";
 const CHUNK_REQUEST_BY_RANGE: u8 = 0x72; // 'r'
+const CHUNK_REQUEST_BY_INDEX: u8 = 0x69; // 'i'
 
 // TODO: Move to commitment_utils? Not the same as g1_to_bytes??
 fn g1_point_raw_bytes(g1_point: &G1Affine) -> Vec<u8> {
@@ -43,30 +44,7 @@ fn g1_point_raw_bytes(g1_point: &G1Affine) -> Vec<u8> {
     bytes
 }
 
-/// All integers are encoded as unsigned 4 byte big endian values.
-///
-/// Perform a keccak256 hash on the following data in the following order:
-/// 1. the length of the operator ID in bytes
-/// 2. the operator id
-/// 3. the number of chunk requests
-/// 4. for each chunk request:
-///     a. if the chunk request is a request by index:
-///        i.   a one byte ASCII representation of the character "i" (aka Ox69)
-///        ii.  the length blob key in bytes
-///        iii. the blob key
-///        iv.  the start index
-///        v.   the end index
-///     b. if the chunk request is a request by range:
-///        i.   a one byte ASCII representation of the character "r" (aka Ox72)
-///        ii.  the length of the blob key in bytes
-///        iii. the blob key
-///        iv.  each requested chunk index, in order
-/// 5. the timestamp (seconds since the Unix epoch encoded as a 4 byte big endian value)
 fn hash_get_chunks_request(request: &GetChunksRequestProto) -> Result<[u8; 32], RelayClientError> {
-    // TODO: implementation follows the one in go client
-    // https://github.com/Layr-Labs/eigenda/blob/02c0788d875e2e0ef07c8596d6bea9e883bb0cea/api/hashing/relay_hashing.go#L18
-    // The steps 5 is missing apparently
-
     let mut hasher = Keccak::v256();
 
     hasher.update(RELAY_GET_CHUNKS_REQUEST_DOMAIN.as_bytes());
@@ -76,8 +54,14 @@ fn hash_get_chunks_request(request: &GetChunksRequestProto) -> Result<[u8; 32], 
     hasher.update(&(request.chunk_requests.len() as u32).to_be_bytes());
     for request in &request.chunk_requests {
         match &request.request {
-            Some(chunk_request::Request::ByIndex(_)) => {
-                unimplemented!()
+            Some(chunk_request::Request::ByIndex(req)) => {
+                hasher.update(&[CHUNK_REQUEST_BY_INDEX]);
+                hasher.update(&(req.blob_key.len() as u32).to_be_bytes());
+                hasher.update(&req.blob_key);
+                hasher.update(&(req.chunk_indices.len() as u32).to_be_bytes());
+                for index in &req.chunk_indices {
+                    hasher.update(&index.to_be_bytes());
+                }
             }
             Some(chunk_request::Request::ByRange(req)) => {
                 hasher.update(&[CHUNK_REQUEST_BY_RANGE]);
@@ -313,8 +297,51 @@ mod tests {
         assert_eq!(expected_hash, actual_hash);
     }
 
+    #[test]
+    fn test_hash_get_chunks_request_by_index() {
+        let test_request_by_range = GetChunksRequestProto {
+            chunk_requests: vec![
+                ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByIndex(ChunkRequestByIndexProto {
+                        blob_key: vec![
+                            74, 175, 235, 241, 191, 90, 144, 126, 204, 146, 115, 115, 30, 65, 151,
+                            17, 0, 217, 86, 9, 4, 186, 209, 245, 4, 252, 35, 194, 227, 252, 35, 79,
+                        ],
+                        chunk_indices: vec![
+                            758166708, 755702841, 3071977814, 4000427110, 3579555988,
+                        ],
+                    })),
+                },
+                ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByIndex(ChunkRequestByIndexProto {
+                        blob_key: vec![
+                            244, 43, 219, 203, 238, 107, 244, 134, 165, 177, 209, 83, 35, 192, 192,
+                            89, 53, 89, 119, 106, 202, 96, 59, 229, 175, 208, 45, 184, 41, 83, 140,
+                            72,
+                        ],
+                        chunk_indices: vec![2264458652, 3625422776],
+                    })),
+                },
+            ],
+            operator_id: vec![
+                89, 110, 60, 62, 69, 59, 210, 3, 162, 158, 169, 35, 95, 157, 24, 91, 160, 201, 26,
+                193, 195, 93, 250, 23, 46, 76, 193, 70, 84, 28, 134, 167,
+            ],
+            timestamp: 0,
+            operator_signature: vec![],
+        };
+
+        let expected_hash = [
+            115, 233, 164, 222, 90, 174, 202, 253, 137, 225, 212, 55, 110, 142, 252, 179, 91, 51,
+            150, 97, 178, 115, 170, 2, 102, 21, 178, 4, 86, 216, 197, 39,
+        ];
+        let actual_hash = hash_get_chunks_request(&test_request_by_range).unwrap();
+        assert_eq!(expected_hash, actual_hash);
+    }
+
     // TODO: REMOVE BASE64 CRATE EVENTUALLY
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_retrieve_single_blob() {
         let mut client = RelayClient::new(get_test_relay_client_config())
@@ -333,28 +360,45 @@ mod tests {
         assert_eq!(expected_blob_data, actual_blob_data);
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_sign_get_chunks_request() {
         let mut config = get_test_relay_client_config();
 
         // We set a specific bls private key, otherwise the signature will be different
         config.bls_private_key =
-            "18523706440931002834984598044673773734215117097254740594844099528915818025925"
+            "18959225578362426315950880151265128588967843516032712394056671181174645903587"
                 .to_string();
 
         let client = RelayClient::new(config).await.unwrap();
 
         let mut test_request = GetChunksRequestProto {
-            chunk_requests: vec![ChunkRequestProto {
-                request: Some(chunk_request::Request::ByRange(ChunkRequestByRange {
-                    blob_key: vec![
-                        194, 149, 65, 194, 139, 215, 34, 33, 168, 131, 147, 111, 125, 155, 86, 135,
-                        109, 54, 26, 50, 183, 155, 154, 4, 16, 126, 219, 97, 138, 29, 148, 187,
-                    ],
-                    start_index: 1618487414,
-                    end_index: 1440410313,
-                })),
-            }],
+            chunk_requests: vec![
+                ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByIndex(ChunkRequestByIndexProto {
+                        blob_key: vec![
+                            170, 196, 143, 51, 173, 161, 147, 250, 108, 61, 45, 68, 86, 179, 148,
+                            157, 75, 222, 161, 73, 4, 174, 51, 208, 191, 146, 219, 241, 236, 68,
+                            178, 80,
+                        ],
+                        chunk_indices: vec![
+                            203844548, 1456580166, 152621468, 67180442, 786495950, 3407409718,
+                            3460281575, 2153531929, 2944574584, 3432716980,
+                        ],
+                    })),
+                },
+                ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByRange(ChunkRequestByRange {
+                        blob_key: vec![
+                            235, 208, 225, 148, 235, 203, 86, 167, 207, 184, 43, 95, 3, 210, 169,
+                            105, 136, 70, 163, 114, 183, 245, 17, 193, 37, 101, 89, 59, 107, 190,
+                            4, 229,
+                        ],
+                        start_index: 1739543624,
+                        end_index: 3569400570,
+                    })),
+                },
+            ],
             operator_id: vec![
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0,
@@ -365,10 +409,10 @@ mod tests {
         client.sign_get_chunks_request(&mut test_request).unwrap();
 
         let expected_signature = vec![
-            13, 201, 103, 55, 115, 63, 62, 42, 102, 207, 208, 109, 29, 11, 190, 182, 118, 54, 85,
-            0, 141, 181, 144, 60, 122, 195, 237, 100, 198, 24, 201, 213, 13, 30, 102, 125, 61, 58,
-            108, 20, 170, 21, 58, 170, 101, 24, 128, 76, 226, 51, 63, 132, 196, 239, 227, 187, 82,
-            74, 202, 235, 158, 10, 245, 189,
+            36, 200, 137, 60, 194, 52, 175, 141, 50, 95, 123, 124, 91, 92, 117, 98, 66, 208, 211,
+            159, 81, 14, 26, 245, 71, 231, 91, 94, 188, 69, 48, 92, 12, 95, 67, 180, 233, 245, 97,
+            72, 40, 43, 100, 11, 249, 41, 33, 163, 93, 69, 168, 88, 215, 235, 221, 25, 124, 200,
+            71, 64, 22, 8, 207, 228,
         ];
         let actual_signature = test_request.operator_signature;
         assert_eq!(expected_signature, actual_signature)
