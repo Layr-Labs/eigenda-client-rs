@@ -23,9 +23,11 @@ pub struct RelayClientConfig {
     pub(crate) eth_rpc_url: SecretUrl,
 }
 
-// RelayClient is a client for the entire relay subsystem.
-//
-// It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
+/// RelayClient is a client for the entire relay subsystem.
+///
+/// It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
+/// This struct is a low level implementation and should not be used directly,
+/// use a high level abstraction to interact with it (`RelayPayloadRetriever`).
 pub struct RelayClient {
     rpc_clients: HashMap<RelayKey, RpcRelayClient<tonic::transport::Channel>>,
 }
