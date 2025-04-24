@@ -44,6 +44,13 @@ impl BlobKey {
         Ok(BlobKey(bytes.try_into().unwrap()))
     }
 
+    /// Converts the [`BlobKey`] to a hex string.
+    ///
+    /// Note: The hex string will not include the 0x prefix.
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.0)
+    }
+
     /// Computes a new [`BlobKey`] from the given [`BlobHeader`].
     pub(crate) fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
         let mut sorted_quorums = blob_header.quorum_numbers.clone();
@@ -157,5 +164,24 @@ impl BlobKey {
         let mut blob_key = [0u8; 32];
         keccak.finalize(&mut blob_key);
         Ok(BlobKey(blob_key))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_blob_key_from_hex() {
+        let hex = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        let blob_key = BlobKey::from_hex(hex).unwrap();
+        assert_eq!(blob_key.to_hex(), hex);
+    }
+
+    #[test]
+    fn test_blob_key_from_bytes() {
+        let bytes = [1; 32];
+        let blob_key = BlobKey::from_bytes(bytes);
+        assert_eq!(blob_key.to_bytes(), bytes);
     }
 }
