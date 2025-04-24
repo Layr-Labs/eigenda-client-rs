@@ -44,6 +44,7 @@ impl PayloadDisperser {
         let cert_verifier = CertVerifier::new(
             payload_config.cert_verifier_address,
             payload_config.eth_rpc_url.clone(),
+            private_key,
         )?;
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {

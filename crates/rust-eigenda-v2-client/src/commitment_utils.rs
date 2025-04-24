@@ -1,12 +1,11 @@
 use ark_bn254::{G1Affine, G1Projective, G2Affine};
 use ark_ec::{CurveGroup, VariableBaseMSM};
-use ark_ff::{AdditiveGroup, BigInteger, Fp, Fp2, PrimeField, Zero};
+use ark_ff::{AdditiveGroup, Fp, Fp2, PrimeField, Zero};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
 
 use crate::{
     errors::{BlobError, Bn254Error, ConversionError},
-    generated::common::G1Commitment,
     utils::fr_array_from_bytes,
 };
 
@@ -35,7 +34,7 @@ fn generate_blob_commitment(
 /// Generates the kzg-bn254 commitment of the blob, and compares it with a claimed
 /// commitment. An error is returned if there is a problem generating the commitment. True is returned if the commitment
 /// is successfully generated, and is equal to the claimed commitment, otherwise false.
-pub fn generate_and_compare_blob_commitment(
+pub(crate) fn generate_and_compare_blob_commitment(
     g1_srs: Vec<G1Affine>,
     blob_bytes: Vec<u8>,
     claimed_commitment: G1Affine,
@@ -46,20 +45,13 @@ pub fn generate_and_compare_blob_commitment(
 
 /// Converts a byte slice to a [`G1Affine`] point.
 /// The points received are in compressed form.
-pub fn g1_commitment_from_bytes(bytes: &[u8]) -> Result<G1Affine, ConversionError> {
+pub(crate) fn g1_commitment_from_bytes(bytes: &[u8]) -> Result<G1Affine, ConversionError> {
     read_g1_point_from_bytes_be(bytes).map_err(|e| ConversionError::G1Point(e.to_string()))
-}
-
-/// Converts a [`G1Affine`] point to a [`G1Commitment`] (proto representation).
-pub fn g1_commitment_to_proto(point: &G1Affine) -> G1Commitment {
-    let x = point.x.into_bigint().to_bytes_be();
-    let y = point.y.into_bigint().to_bytes_be();
-    G1Commitment { x, y }
 }
 
 /// Serialize a G1Affine point applying necessary flags.
 /// https://github.com/Consensys/gnark-crypto/blob/5fd6610ac2a1d1b10fae06c5e552550bf43f4d44/ecc/bn254/marshal.go#L790-L801
-pub fn g1_commitment_to_bytes(point: &G1Affine) -> Result<Vec<u8>, ConversionError> {
+pub(crate) fn g1_commitment_to_bytes(point: &G1Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![0u8; 32];
 
     // Infinity case
@@ -85,7 +77,7 @@ pub fn g1_commitment_to_bytes(point: &G1Affine) -> Result<Vec<u8>, ConversionErr
 }
 
 /// Converts a byte slice to a [`G2Affine`] point.
-pub fn g2_commitment_from_bytes(bytes: &[u8]) -> Result<G2Affine, ConversionError> {
+pub(crate) fn g2_commitment_from_bytes(bytes: &[u8]) -> Result<G2Affine, ConversionError> {
     if bytes.len() != 64 {
         return Err(ConversionError::G2Point(
             "Invalid length for G2 Commitment".to_string(),
@@ -165,12 +157,20 @@ pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionErr
 #[cfg(test)]
 mod tests {
     use ark_bn254::Fq;
-    use ark_ff::UniformRand;
+    use ark_ff::{BigInteger, UniformRand};
 
     use proptest::prelude::*;
     use rand::{rngs::StdRng, SeedableRng};
 
+    use crate::generated::common::G1Commitment;
+
     use super::*;
+
+    pub fn g1_commitment_to_proto(point: &G1Affine) -> G1Commitment {
+        let x = point.x.into_bigint().to_bytes_be();
+        let y = point.y.into_bigint().to_bytes_be();
+        G1Commitment { x, y }
+    }
 
     #[test]
     fn test_g1_commitment_utils_positive_point() {

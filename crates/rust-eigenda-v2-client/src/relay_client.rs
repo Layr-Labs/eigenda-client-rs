@@ -11,34 +11,41 @@ use crate::{
         GetBlobRequest,
     },
     relay_registry::RelayRegistry,
-    utils::SecretUrl,
+    utils::{PrivateKey, SecretUrl},
 };
 
 pub type RelayKey = u32;
 
 pub struct RelayClientConfig {
-    pub(crate) max_grpc_message_size: usize,
-    pub(crate) relay_clients_keys: Vec<u32>,
-    pub(crate) relay_registry_address: Address,
-    pub(crate) eth_rpc_url: SecretUrl,
+    pub max_grpc_message_size: usize,
+    pub relay_clients_keys: Vec<u32>,
+    pub relay_registry_address: Address,
+    pub eth_rpc_url: SecretUrl,
 }
 
 /// [`RelayClient`] is a client for the entire relay subsystem.
 ///
-/// It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
+/// It is a wrapper around a collection of GRPC clients, which are used to interact with individual relays.
+/// This struct is a low level implementation and should not be used directly,
+/// use a high level abstraction to interact with it ([`RelayPayloadRetriever`]).
 pub struct RelayClient {
     rpc_clients: HashMap<RelayKey, RpcRelayClient<tonic::transport::Channel>>,
 }
 
 impl RelayClient {
-    pub async fn new(config: RelayClientConfig) -> Result<Self, RelayClientError> {
+    pub async fn new(
+        config: RelayClientConfig,
+        private_key: PrivateKey,
+    ) -> Result<Self, RelayClientError> {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
 
-        let relay_registry_address = hex::encode(config.relay_registry_address);
-        let relay_registry =
-            RelayRegistry::new(relay_registry_address, config.eth_rpc_url.clone())?;
+        let relay_registry = RelayRegistry::new(
+            config.relay_registry_address,
+            config.eth_rpc_url.clone(),
+            private_key,
+        )?;
 
         let mut rpc_clients = HashMap::new();
         for relay_key in config.relay_clients_keys.iter() {
@@ -79,7 +86,7 @@ mod tests {
     use super::*;
     use crate::{
         relay_client::RelayClient,
-        tests::{get_test_holesky_rpc_url, HOLESKY_RELAY_REGISTRY_ADDRESS},
+        tests::{get_test_holesky_rpc_url, get_test_private_key, HOLESKY_RELAY_REGISTRY_ADDRESS},
     };
 
     fn get_test_relay_client_config() -> RelayClientConfig {
@@ -91,9 +98,10 @@ mod tests {
         }
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_retrieve_single_blob() {
-        let mut client = RelayClient::new(get_test_relay_client_config())
+        let mut client = RelayClient::new(get_test_relay_client_config(), get_test_private_key())
             .await
             .unwrap();
 
