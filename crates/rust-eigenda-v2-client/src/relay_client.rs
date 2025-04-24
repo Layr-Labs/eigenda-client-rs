@@ -12,7 +12,7 @@ use tonic::transport::Channel;
 
 use crate::{
     core::BlobKey,
-    errors::RelayClientError,
+    errors::{ConversionError, RelayClientError},
     generated::relay::{
         chunk_request,
         relay_client::{self, RelayClient as RpcRelayClient},
@@ -28,19 +28,25 @@ const RELAY_GET_CHUNKS_REQUEST_DOMAIN: &str = "relay.GetChunksRequest";
 const CHUNK_REQUEST_BY_RANGE: u8 = 0x72; // 'r'
 const CHUNK_REQUEST_BY_INDEX: u8 = 0x69; // 'i'
 
-fn g1_point_raw_bytes(g1_point: &G1Affine) -> Vec<u8> {
+fn g1_point_raw_bytes(g1_point: &G1Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![];
 
     let mut y_bytes = Vec::new();
-    g1_point.y.serialize_uncompressed(&mut y_bytes).unwrap();
+    g1_point
+        .y
+        .serialize_uncompressed(&mut y_bytes)
+        .map_err(|e| ConversionError::G1Point(e.to_string()))?;
     bytes.extend_from_slice(&y_bytes);
 
     let mut x_bytes = Vec::new();
-    g1_point.x.serialize_uncompressed(&mut x_bytes).unwrap();
+    g1_point
+        .x
+        .serialize_uncompressed(&mut x_bytes)
+        .map_err(|e| ConversionError::G1Point(e.to_string()))?;
     bytes.extend_from_slice(&x_bytes);
 
     bytes.reverse();
-    bytes
+    Ok(bytes)
 }
 
 fn hash_get_chunks_request(request: &GetChunksRequestProto) -> Result<[u8; 32], RelayClientError> {
@@ -135,7 +141,9 @@ impl RelayClient {
             rpc_clients.insert(*relay_key, rpc_client);
         }
 
-        let message_signer = BlsKeyPair::new(config.bls_private_key.clone()).unwrap();
+        let bls_private_key = config.bls_private_key.clone();
+        let message_signer = BlsKeyPair::new(bls_private_key.clone())
+            .map_err(|_| RelayClientError::InvalidBLSPrivateKey(bls_private_key))?;
 
         Ok(Self {
             rpc_clients,
@@ -176,7 +184,7 @@ impl RelayClient {
 
         let hash = hash_get_chunks_request(request)?;
         let signature = self.message_signer.sign_message(&hash);
-        let sig = g1_point_raw_bytes(&signature.g1_point().g1());
+        let sig = g1_point_raw_bytes(&signature.g1_point().g1())?;
         request.operator_signature = sig;
         Ok(())
     }
@@ -204,9 +212,12 @@ impl RelayClient {
                 })
                 .collect();
 
+            let operator_id = hex::decode(self.config.operator_id.clone()).map_err(|_| {
+                RelayClientError::InvalidOperatorID(self.config.operator_id.clone())
+            })?;
             GetChunksRequestProto {
                 chunk_requests,
-                operator_id: hex::decode(self.config.operator_id.clone()).unwrap(),
+                operator_id,
                 timestamp: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as u32,
                 operator_signature: vec![], // Left blank, modified in self.sign_get_chunks_request (TODO: can it be done in a better way?)
             }
@@ -219,7 +230,7 @@ impl RelayClient {
             .get_mut(&relay_key)
             .ok_or(RelayClientError::InvalidRelayKey(relay_key))?;
 
-        let res = relay_client.get_chunks(request).await.unwrap().into_inner();
+        let res = relay_client.get_chunks(request).await?.into_inner();
         Ok(res.data)
     }
 
@@ -247,9 +258,12 @@ impl RelayClient {
                 })
                 .collect();
 
+            let operator_id = hex::decode(self.config.operator_id.clone()).map_err(|_| {
+                RelayClientError::InvalidOperatorID(self.config.operator_id.clone())
+            })?;
             GetChunksRequestProto {
                 chunk_requests,
-                operator_id: hex::decode(self.config.operator_id.clone()).unwrap(),
+                operator_id,
                 timestamp: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as u32,
                 operator_signature: vec![], // Left blank, modified in self.sign_get_chunks_request (TODO: can it be done in a better way?)
             }
@@ -262,7 +276,7 @@ impl RelayClient {
             .get_mut(&relay_key)
             .ok_or(RelayClientError::InvalidRelayKey(relay_key))?;
 
-        let res = relay_client.get_chunks(request).await.unwrap().into_inner();
+        let res = relay_client.get_chunks(request).await?.into_inner();
         Ok(res.data)
     }
 }
