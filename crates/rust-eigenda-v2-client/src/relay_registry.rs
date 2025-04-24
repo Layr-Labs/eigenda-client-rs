@@ -1,30 +1,37 @@
-use std::str::FromStr;
-
-use alloy::{network::Ethereum, providers::RootProvider};
+use ethers::prelude::*;
+use secrecy::ExposeSecret;
+use std::sync::Arc;
 
 use crate::{
     contracts_bindings::IRelayRegistry::{self},
     errors::{ConversionError, RelayClientError},
     relay_client::RelayKey,
-    utils::SecretUrl,
+    utils::{PrivateKey, SecretUrl},
 };
-
-pub type RelayRegistryContract = IRelayRegistry::IRelayRegistryInstance<RootProvider<Ethereum>>;
 
 /// RelayRegistry is a struct that provides methods for interacting with the EigenDA RelayRegistry contract.
 pub struct RelayRegistry {
-    relay_registry_contract: RelayRegistryContract,
+    relay_registry_contract: IRelayRegistry<SignerMiddleware<Provider<Http>, LocalWallet>>,
 }
 
 impl RelayRegistry {
     /// Creates a new instance of RelayRegistry receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: String, rpc_url: SecretUrl) -> Result<Self, ConversionError> {
-        let url = rpc_url.try_into()?;
-        let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
+    pub fn new(
+        address: H160,
+        rpc_url: SecretUrl,
+        private_key: PrivateKey,
+    ) -> Result<Self, ConversionError> {
+        let url: String = rpc_url.try_into()?;
 
-        let relay_registry_address = alloy::primitives::Address::from_str(&address).unwrap();
-        let relay_registry_contract: IRelayRegistry::IRelayRegistryInstance<RootProvider> =
-            IRelayRegistry::new(relay_registry_address, provider);
+        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
+        let wallet: LocalWallet = private_key
+            .0
+            .expose_secret()
+            .parse()
+            .map_err(ConversionError::Wallet)?;
+        let client = SignerMiddleware::new(provider, wallet);
+        let client = Arc::new(client);
+        let relay_registry_contract = IRelayRegistry::new(address, client);
         Ok(RelayRegistry {
             relay_registry_contract,
         })
@@ -39,9 +46,10 @@ impl RelayRegistry {
         let url = format!(
             "https://{}",
             self.relay_registry_contract
-                .relayKeyToUrl(relay_key)
+                .relay_key_to_url(relay_key)
                 .call()
-                .await?
+                .await
+                .map_err(|_| RelayClientError::RelayKeyToUrl(relay_key))?
         ); // TODO: forcing https schema on local stack will fail
         Ok(url)
     }

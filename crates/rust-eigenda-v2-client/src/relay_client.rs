@@ -21,7 +21,7 @@ use crate::{
         GetChunksRequest as GetChunksRequestProto,
     },
     relay_registry::RelayRegistry,
-    utils::SecretUrl,
+    utils::{PrivateKey, SecretUrl},
 };
 
 const RELAY_GET_CHUNKS_REQUEST_DOMAIN: &str = "relay.GetChunksRequest";
@@ -111,14 +111,19 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
-    pub async fn new(config: RelayClientConfig) -> Result<Self, RelayClientError> {
+    pub async fn new(
+        config: RelayClientConfig,
+        private_key: PrivateKey,
+    ) -> Result<Self, RelayClientError> {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
 
-        let relay_registry_address = hex::encode(config.relay_registry_address);
-        let relay_registry =
-            RelayRegistry::new(relay_registry_address, config.eth_rpc_url.clone())?;
+        let relay_registry = RelayRegistry::new(
+            config.relay_registry_address,
+            config.eth_rpc_url.clone(),
+            private_key,
+        )?;
 
         let mut rpc_clients = HashMap::new();
         for relay_key in config.relay_clients_keys.iter() {
@@ -269,7 +274,8 @@ mod tests {
         generated::relay::ChunkRequestByRange,
         relay_client::RelayClient,
         tests::{
-            get_test_holesky_rpc_url, BLS_PRIVATE_KEY, HOLESKY_RELAY_REGISTRY_ADDRESS, OPERATOR_ID,
+            get_test_holesky_rpc_url, get_test_private_key, BLS_PRIVATE_KEY,
+            HOLESKY_RELAY_REGISTRY_ADDRESS, OPERATOR_ID,
         },
     };
 
@@ -398,7 +404,9 @@ mod tests {
             "18959225578362426315950880151265128588967843516032712394056671181174645903587"
                 .to_string();
 
-        let client = RelayClient::new(config).await.unwrap();
+        let client = RelayClient::new(config, get_test_private_key())
+            .await
+            .unwrap();
 
         let mut test_request = GetChunksRequestProto {
             chunk_requests: vec![
@@ -449,7 +457,7 @@ mod tests {
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_retrieve_single_blob() {
-        let mut client = RelayClient::new(get_test_relay_client_config())
+        let mut client = RelayClient::new(get_test_relay_client_config(), get_test_private_key())
             .await
             .unwrap();
 

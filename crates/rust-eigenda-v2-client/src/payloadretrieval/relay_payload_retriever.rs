@@ -253,6 +253,7 @@ mod tests {
         }
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn get_payload_from_relay() {
         let relay_config = get_relay_payload_retriever_test_config();
