@@ -116,8 +116,6 @@ pub enum RelayClientError {
     #[error(transparent)]
     EthClient(#[from] EthClientError),
     #[error(transparent)]
-    Alloy(#[from] alloy_contract::Error),
-    #[error(transparent)]
     Conversion(#[from] ConversionError),
 }
 
@@ -217,8 +215,6 @@ pub enum PayloadDisperserError {
 pub enum CertVerifierError {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
-    #[error(transparent)]
-    Alloy(#[from] alloy_contract::Error),
     #[error("Invalid cert verifier contract address: {0}")]
     InvalidCertVerifierAddress(H160),
 }

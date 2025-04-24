@@ -72,7 +72,7 @@ pub fn get_test_holesky_rpc_url() -> SecretUrl {
 }
 
 pub async fn get_test_relay_client() -> RelayClient {
-    RelayClient::new(get_relay_client_test_config())
+    RelayClient::new(get_relay_client_test_config(), get_test_private_key())
         .await
         .unwrap()
 }

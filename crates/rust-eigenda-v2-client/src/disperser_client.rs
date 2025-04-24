@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use ethers::utils::to_checksum;
 use hex::ToHex;
 use secrecy::ExposeSecret;
 use tokio::sync::Mutex;
@@ -128,9 +129,10 @@ impl DisperserClient {
         }
         let account_id: String = payment.account_id.encode_hex();
 
-        let account_id: String = alloy_primitives::Address::from_str(&account_id)
-            .map_err(|_| DisperseError::AccountID)?
-            .to_checksum(None);
+        let account_id = to_checksum(
+            &ethers::types::Address::from_str(&account_id).map_err(|_| DisperseError::AccountID)?,
+            None,
+        );
 
         let blob_header = BlobHeader {
             version: blob_version,
