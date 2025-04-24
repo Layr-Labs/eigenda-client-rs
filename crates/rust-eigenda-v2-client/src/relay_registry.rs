@@ -23,8 +23,12 @@ impl RelayRegistry {
     ) -> Result<Self, ConversionError> {
         let url: String = rpc_url.try_into()?;
 
-        let provider = Provider::<Http>::try_from(url).unwrap();
-        let wallet: LocalWallet = private_key.0.expose_secret().parse().unwrap();
+        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
+        let wallet: LocalWallet = private_key
+            .0
+            .expose_secret()
+            .parse()
+            .map_err(ConversionError::Wallet)?;
         let client = SignerMiddleware::new(provider, wallet);
         let client = Arc::new(client);
         let relay_registry_contract = IRelayRegistry::new(address, client);
@@ -45,7 +49,7 @@ impl RelayRegistry {
                 .relay_key_to_url(relay_key)
                 .call()
                 .await
-                .unwrap()
+                .map_err(|_| RelayClientError::RelayKeyToUrl(relay_key))?
         ); // TODO: forcing https schema on local stack will fail
         Ok(url)
     }

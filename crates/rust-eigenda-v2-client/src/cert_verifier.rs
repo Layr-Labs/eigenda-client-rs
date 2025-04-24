@@ -10,7 +10,7 @@ use crate::{
         NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
     },
     core::eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch},
-    errors::CertVerifierError,
+    errors::{CertVerifierError, ConversionError},
     generated::disperser::v2::SignedBatch as SignedBatchProto,
     utils::{PrivateKey, SecretUrl},
 };
@@ -30,8 +30,12 @@ impl CertVerifier {
     ) -> Result<Self, CertVerifierError> {
         let url: String = rpc_url.try_into()?;
 
-        let provider = Provider::<Http>::try_from(url).unwrap();
-        let wallet: LocalWallet = private_key.0.expose_secret().parse().unwrap();
+        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
+        let wallet: LocalWallet = private_key
+            .0
+            .expose_secret()
+            .parse()
+            .map_err(ConversionError::Wallet)?;
         let client = SignerMiddleware::new(provider, wallet);
         let client = Arc::new(client);
         let cert_verifier_contract = IEigenDACertVerifier::new(address, client);
@@ -53,7 +57,9 @@ impl CertVerifier {
             .get_non_signer_stakes_and_signature(contract_signed_batch)
             .call()
             .await
-            .unwrap();
+            .map_err(|_| {
+                CertVerifierError::Contract("non_signer_stakes_and_signature".to_string())
+            })?;
 
         Ok(non_signer_stakes_and_signature.try_into()?)
     }
@@ -66,7 +72,7 @@ impl CertVerifier {
             .quorum_numbers_required()
             .call()
             .await
-            .unwrap();
+            .map_err(|_| CertVerifierError::Contract("quorum_numbers_required".to_string()))?;
         Ok(quorums.to_vec())
     }
 
@@ -86,7 +92,7 @@ impl CertVerifier {
             )
             .call()
             .await
-            .unwrap();
+            .map_err(|_| CertVerifierError::Contract("verify_cert_v2".to_string()))?;
         Ok(())
     }
 }

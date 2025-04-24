@@ -666,7 +666,6 @@ impl EigenDACert {
 fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
     let x = g2_affine.x;
     let y = g2_affine.y;
-    // Safe unwrapping as we now this types are equivalent
     G2PointContract {
         x: [
             U256::from_big_endian(&x.c1.into_bigint().to_bytes_be()),
@@ -682,7 +681,6 @@ fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
 fn g1_contract_point_from_g1_affine(g1_affine: &G1Affine) -> G1PointContract {
     let x = g1_affine.x;
     let y = g1_affine.y;
-    // Safe unwrapping as we now this types are equivalent
     G1PointContract {
         x: U256::from_big_endian(&x.into_bigint().to_bytes_be()),
         y: U256::from_big_endian(&y.into_bigint().to_bytes_be()),

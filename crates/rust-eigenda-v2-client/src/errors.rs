@@ -1,5 +1,6 @@
 use ark_bn254::{Fr, G1Affine};
 use ethereum_types::H160;
+use ethers::signers::WalletError;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
 use crate::relay_client::RelayKey;
@@ -54,6 +55,10 @@ pub enum ConversionError {
     PrivateKey,
     #[error("Invalid ETH rpc: {0}")]
     InvalidEthRpc(String),
+    #[error(transparent)]
+    UrlParse(#[from] url::ParseError),
+    #[error(transparent)]
+    Wallet(#[from] WalletError),
 }
 
 /// Errors specific to the Blob type
@@ -117,6 +122,8 @@ pub enum RelayClientError {
     EthClient(#[from] EthClientError),
     #[error(transparent)]
     Conversion(#[from] ConversionError),
+    #[error("Failed to parse relay key to URL: {0}")]
+    RelayKeyToUrl(u32),
 }
 
 /// Errors for the EthClient
@@ -217,4 +224,6 @@ pub enum CertVerifierError {
     Conversion(#[from] ConversionError),
     #[error("Invalid cert verifier contract address: {0}")]
     InvalidCertVerifierAddress(H160),
+    #[error("Error while calling contract function: {0}")]
+    Contract(String),
 }
