@@ -12,7 +12,6 @@ default = ["private-key-signer"]
 private-key-signer = ["secp256k1/rand"]
 
 [dependencies]
-auto_impl = { workspace = true }
 secp256k1 = { workspace = true, features = ["global-context"] }
 async-trait = { workspace = true }
 tiny-keccak = { workspace = true }
