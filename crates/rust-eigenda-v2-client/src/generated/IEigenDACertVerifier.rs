@@ -12,7 +12,7 @@ pub use i_eigen_da_cert_verifier::*;
 pub mod i_eigen_da_cert_verifier {
     const _: () = {
         ::core::include_bytes!(
-            "/Users/gianlucabelinche/Desktop/verifier_test/IEigenDACertVerifier.json",
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifier.json"),
         );
     };
     #[allow(deprecated)]

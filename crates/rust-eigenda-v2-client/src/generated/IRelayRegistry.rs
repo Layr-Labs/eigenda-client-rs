@@ -12,7 +12,7 @@ pub use i_relay_registry::*;
 pub mod i_relay_registry {
     const _: () = {
         ::core::include_bytes!(
-            "/Users/gianlucabelinche/Desktop/verifier_test/IRelayRegistry.json",
+            concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IRelayRegistry.json"),
         );
     };
     #[allow(deprecated)]
