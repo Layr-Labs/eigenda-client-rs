@@ -17,7 +17,8 @@ use crate::{
         chunk_request,
         relay_client::{self, RelayClient as RpcRelayClient},
         ChunkRequest as ChunkRequestProto, ChunkRequestByIndex as ChunkRequestByIndexProto,
-        GetBlobRequest, GetChunksRequest as GetChunksRequestProto,
+        ChunkRequestByRange as ChunkRequestByRangeProto, GetBlobRequest,
+        GetChunksRequest as GetChunksRequestProto,
     },
     relay_registry::RelayRegistry,
     utils::SecretUrl,
@@ -82,6 +83,12 @@ pub type RelayKey = u32;
 pub struct ChunkRequestByIndex {
     blob_key: BlobKey,
     indices: Vec<u32>,
+}
+
+pub struct ChunkRequestByRange {
+    blob_key: BlobKey,
+    start_index: u32,
+    end_index: u32,
 }
 
 pub struct RelayClientConfig {
@@ -188,6 +195,49 @@ impl RelayClient {
                     request: Some(chunk_request::Request::ByIndex(ChunkRequestByIndexProto {
                         blob_key: request.blob_key.to_bytes().to_vec(),
                         chunk_indices: request.indices,
+                    })),
+                })
+                .collect();
+
+            GetChunksRequestProto {
+                chunk_requests,
+                operator_id: hex::decode(self.config.operator_id.clone()).unwrap(),
+                timestamp: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as u32,
+                operator_signature: vec![], // Left blank, modified in self.sign_get_chunks_request (TODO: can it be done in a better way?)
+            }
+        };
+
+        self.sign_get_chunks_request(&mut request)?;
+
+        let relay_client = self
+            .rpc_clients
+            .get_mut(&relay_key)
+            .ok_or(RelayClientError::InvalidRelayKey(relay_key))?;
+
+        let res = relay_client.get_chunks(request).await.unwrap().into_inner();
+        Ok(res.data)
+    }
+
+    // get_chunks_by_range retrieves blob chunks from a relay by chunk index range
+    // The returned slice has the same length and ordering as the input slice, and the i-th element is the bundle for the i-th request.
+    // Each bundle is a sequence of frames in raw form (i.e., serialized core.Bundle bytearray).
+    pub async fn get_chunks_by_range(
+        &mut self,
+        relay_key: RelayKey,
+        requests: Vec<ChunkRequestByRange>,
+    ) -> Result<Vec<Vec<u8>>, RelayClientError> {
+        if requests.is_empty() {
+            return Err(RelayClientError::EmptyRequest);
+        }
+
+        let mut request = {
+            let chunk_requests = requests
+                .into_iter()
+                .map(|request| ChunkRequestProto {
+                    request: Some(chunk_request::Request::ByRange(ChunkRequestByRangeProto {
+                        blob_key: request.blob_key.to_bytes().to_vec(),
+                        start_index: request.start_index,
+                        end_index: request.end_index,
                     })),
                 })
                 .collect();
@@ -415,5 +465,3 @@ mod tests {
         assert_eq!(expected_blob_data, actual_blob_data);
     }
 }
-
-// TODO: REMOVE BASE64 CRATE EVENTUALLY
