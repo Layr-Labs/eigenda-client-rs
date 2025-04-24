@@ -27,10 +27,7 @@ const RELAY_GET_CHUNKS_REQUEST_DOMAIN: &str = "relay.GetChunksRequest";
 const CHUNK_REQUEST_BY_RANGE: u8 = 0x72; // 'r'
 const CHUNK_REQUEST_BY_INDEX: u8 = 0x69; // 'i'
 
-// TODO: Move to commitment_utils? Not the same as g1_to_bytes??
 fn g1_point_raw_bytes(g1_point: &G1Affine) -> Vec<u8> {
-    // TODO: Add infitiny flag and check?
-
     let mut bytes = vec![];
 
     let mut y_bytes = Vec::new();
@@ -40,6 +37,7 @@ fn g1_point_raw_bytes(g1_point: &G1Affine) -> Vec<u8> {
     let mut x_bytes = Vec::new();
     g1_point.x.serialize_uncompressed(&mut x_bytes).unwrap();
     bytes.extend_from_slice(&x_bytes);
+
     bytes.reverse();
     bytes
 }
@@ -91,6 +89,7 @@ pub struct RelayClientConfig {
     pub(crate) relay_clients_keys: Vec<u32>,
     pub(crate) relay_registry_address: Address,
     pub(crate) eth_rpc_url: SecretUrl,
+    // Operator ID is encoded as a hex string.
     pub(crate) operator_id: String,
     pub(crate) bls_private_key: String,
 }
@@ -195,7 +194,7 @@ impl RelayClient {
 
             GetChunksRequestProto {
                 chunk_requests,
-                operator_id: self.config.operator_id.clone().into_bytes(), // TODO: hex::decode?
+                operator_id: hex::decode(self.config.operator_id.clone()).unwrap(),
                 timestamp: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as u32,
                 operator_signature: vec![], // Left blank, modified in self.sign_get_chunks_request (TODO: can it be done in a better way?)
             }
@@ -339,27 +338,6 @@ mod tests {
         assert_eq!(expected_hash, actual_hash);
     }
 
-    // TODO: REMOVE BASE64 CRATE EVENTUALLY
-
-    #[ignore = "depends on external RPC"]
-    #[tokio::test]
-    async fn test_retrieve_single_blob() {
-        let mut client = RelayClient::new(get_test_relay_client_config())
-            .await
-            .unwrap();
-
-        let blob_key =
-            BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
-                .unwrap();
-        let relay_key = 2;
-        let result = client.get_blob(relay_key, &blob_key).await;
-        assert!(result.is_ok());
-
-        let expected_blob_data = vec![1, 2, 3, 4, 5];
-        let actual_blob_data = result.unwrap();
-        assert_eq!(expected_blob_data, actual_blob_data);
-    }
-
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_sign_get_chunks_request() {
@@ -417,4 +395,25 @@ mod tests {
         let actual_signature = test_request.operator_signature;
         assert_eq!(expected_signature, actual_signature)
     }
+
+    #[ignore = "depends on external RPC"]
+    #[tokio::test]
+    async fn test_retrieve_single_blob() {
+        let mut client = RelayClient::new(get_test_relay_client_config())
+            .await
+            .unwrap();
+
+        let blob_key =
+            BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
+                .unwrap();
+        let relay_key = 2;
+        let result = client.get_blob(relay_key, &blob_key).await;
+        assert!(result.is_ok());
+
+        let expected_blob_data = vec![1, 2, 3, 4, 5];
+        let actual_blob_data = result.unwrap();
+        assert_eq!(expected_blob_data, actual_blob_data);
+    }
 }
+
+// TODO: REMOVE BASE64 CRATE EVENTUALLY
