@@ -1,7 +1,6 @@
 pub mod accountant;
 pub mod cert_verifier;
 pub mod commitment_utils;
-pub mod contracts_bindings;
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
@@ -51,5 +50,13 @@ pub(crate) mod generated {
 
     pub mod relay {
         include!("generated/relay.rs");
+    }
+
+    pub mod i_cert_verifier {
+        include!("generated/IEigenDACertVerifier.rs");
+    }
+
+    pub mod i_relay_registry {
+        include!("generated/IRelayRegistry.rs");
     }
 }

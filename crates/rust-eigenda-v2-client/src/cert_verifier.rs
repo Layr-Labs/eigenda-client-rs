@@ -5,14 +5,7 @@ use ethereum_types::H160;
 use secrecy::ExposeSecret;
 
 use crate::{
-    contracts_bindings::{
-        IEigenDACertVerifier::{self},
-        NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
-    },
-    core::eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch},
-    errors::{CertVerifierError, ConversionError},
-    generated::disperser::v2::SignedBatch as SignedBatchProto,
-    utils::{PrivateKey, SecretUrl},
+    core::eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch}, errors::{CertVerifierError, ConversionError}, generated::{disperser::v2::SignedBatch as SignedBatchProto, i_cert_verifier::{IEigenDACertVerifier, NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract}}, utils::{PrivateKey, SecretUrl}
 };
 
 #[derive(Debug, Clone)]

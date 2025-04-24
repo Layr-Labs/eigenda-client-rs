@@ -5,14 +5,14 @@ use ethereum_types::U256;
 use serde::ser::Error;
 use tiny_keccak::{Hasher, Keccak};
 
-use crate::contracts_bindings::{
+use crate::generated::i_cert_verifier::{
     Attestation as AttestationContract, BatchHeaderV2 as BatchHeaderV2Contract,
     BlobCertificate as BlobCertificateContract, BlobCommitment as BlobCommitmentContract,
     BlobHeaderV2 as BlobHeaderV2Contract, BlobInclusionInfo as BlobInclusionInfoContract,
     NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
     SignedBatch as SignedBatchContract,
 };
-use crate::contracts_bindings::{G1Point as G1PointContract, G2Point as G2PointContract};
+use crate::generated::i_cert_verifier::{G1Point as G1PointContract, G2Point as G2PointContract};
 use crate::errors::{BlobError, ConversionError, EigenClientError};
 use crate::generated::disperser::v2::{
     Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
