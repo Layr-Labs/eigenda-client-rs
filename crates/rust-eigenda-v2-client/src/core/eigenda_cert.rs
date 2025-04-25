@@ -1,4 +1,3 @@
-use alloy_primitives::Uint;
 use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, Fp2, PrimeField};
 use ethabi::Token;
@@ -6,17 +5,19 @@ use ethereum_types::U256;
 use serde::ser::Error;
 use tiny_keccak::{Hasher, Keccak};
 
-use crate::contracts_bindings::IEigenDACertVerifier::{
+use crate::errors::{BlobError, ConversionError, EigenClientError};
+use crate::generated::disperser::v2::{
+    Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
+};
+use crate::generated::i_cert_verifier::{
     Attestation as AttestationContract, BatchHeaderV2 as BatchHeaderV2Contract,
     BlobCertificate as BlobCertificateContract, BlobCommitment as BlobCommitmentContract,
     BlobHeaderV2 as BlobHeaderV2Contract, BlobInclusionInfo as BlobInclusionInfoContract,
     NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
     SignedBatch as SignedBatchContract,
 };
-use crate::contracts_bindings::BN254::{G1Point as G1PointContract, G2Point as G2PointContract};
-use crate::errors::{BlobError, ConversionError, EigenClientError};
-use crate::generated::disperser::v2::{
-    Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
+use crate::generated::i_cert_verifier::{
+    G1Point as G1PointContract, G2Point as G2PointContract,
 };
 
 use crate::commitment_utils::{
@@ -146,8 +147,8 @@ impl<'de> serde::Deserialize<'de> for BlobCommitments {
 impl From<BlobCommitments> for BlobCommitmentContract {
     fn from(value: BlobCommitments) -> Self {
         Self {
-            lengthCommitment: g2_contract_point_from_g2_affine(&value.length_commitment),
-            lengthProof: g2_contract_point_from_g2_affine(&value.length_proof),
+            length_commitment: g2_contract_point_from_g2_affine(&value.length_commitment),
+            length_proof: g2_contract_point_from_g2_affine(&value.length_proof),
             length: value.length,
             commitment: g1_contract_point_from_g1_affine(&value.commitment),
         }
@@ -190,9 +191,9 @@ impl From<BlobHeader> for BlobHeaderV2Contract {
     fn from(value: BlobHeader) -> Self {
         Self {
             version: value.version,
-            quorumNumbers: value.quorum_numbers.clone().into(),
+            quorum_numbers: value.quorum_numbers.clone().into(),
             commitment: value.commitment.clone().into(),
-            paymentHeaderHash: value.payment_header_hash.into(),
+            payment_header_hash: value.payment_header_hash,
         }
     }
 }
@@ -250,9 +251,9 @@ pub struct BlobCertificate {
 impl From<BlobCertificate> for BlobCertificateContract {
     fn from(value: BlobCertificate) -> Self {
         Self {
-            blobHeader: value.blob_header.into(),
+            blob_header: value.blob_header.into(),
             signature: value.signature.into(),
-            relayKeys: value.relay_keys,
+            relay_keys: value.relay_keys,
         }
     }
 }
@@ -282,9 +283,9 @@ pub struct BlobInclusionInfo {
 impl From<BlobInclusionInfo> for BlobInclusionInfoContract {
     fn from(value: BlobInclusionInfo) -> Self {
         BlobInclusionInfoContract {
-            blobCertificate: value.blob_certificate.into(),
-            blobIndex: value.blob_index,
-            inclusionProof: value.inclusion_proof.clone().into(),
+            blob_certificate: value.blob_certificate.into(),
+            blob_index: value.blob_index,
+            inclusion_proof: value.inclusion_proof.clone().into(),
         }
     }
 }
@@ -312,7 +313,7 @@ pub struct SignedBatch {
 impl From<SignedBatch> for SignedBatchContract {
     fn from(value: SignedBatch) -> Self {
         Self {
-            batchHeader: value.header.into(),
+            batch_header: value.header.into(),
             attestation: value.attestation.into(),
         }
     }
@@ -327,13 +328,18 @@ impl TryFrom<SignedBatchProto> for SignedBatch {
                 batch_root: header.batch_root.try_into().map_err(|_| {
                     ConversionError::SignedBatch("Failed parsing batch root".to_string())
                 })?,
-                reference_block_number: header.reference_block_number.try_into().map_err(|_| {
-                    ConversionError::SignedBatch(
-                        "Failed parsing reference block number".to_string(),
-                    )
-                })?,
+                reference_block_number: header
+                    .reference_block_number
+                    .try_into()
+                    .map_err(|_| {
+                        ConversionError::SignedBatch(
+                            "Failed parsing reference block number".to_string(),
+                        )
+                    })?,
             },
-            None => return Err(ConversionError::SignedBatch("Header is None".to_string())),
+            None => {
+                return Err(ConversionError::SignedBatch("Header is None".to_string()))
+            }
         };
 
         let attestation = match value.attestation {
@@ -361,8 +367,8 @@ pub struct BatchHeaderV2 {
 impl From<BatchHeaderV2> for BatchHeaderV2Contract {
     fn from(value: BatchHeaderV2) -> Self {
         Self {
-            batchRoot: alloy_primitives::FixedBytes(value.batch_root),
-            referenceBlockNumber: value.reference_block_number,
+            batch_root: value.batch_root,
+            reference_block_number: value.reference_block_number,
         }
     }
 }
@@ -380,12 +386,13 @@ impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
                 )))
             }
         };
-        let reference_block_number = value.reference_block_number.try_into().map_err(|_| {
-            ConversionError::BatchHeader(format!(
-                "Invalid reference block number: {}",
-                value.reference_block_number
-            ))
-        })?;
+        let reference_block_number =
+            value.reference_block_number.try_into().map_err(|_| {
+                ConversionError::BatchHeader(format!(
+                    "Invalid reference block number: {}",
+                    value.reference_block_number
+                ))
+            })?;
         Ok(Self {
             batch_root,
             reference_block_number,
@@ -410,22 +417,22 @@ impl TryFrom<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignatur
 
     fn try_from(value: NonSignerStakesAndSignatureContract) -> Result<Self, Self::Error> {
         Ok(Self {
-            non_signer_quorum_bitmap_indices: value.nonSignerQuorumBitmapIndices,
+            non_signer_quorum_bitmap_indices: value.non_signer_quorum_bitmap_indices,
             non_signer_pubkeys: value
-                .nonSignerPubkeys
+                .non_signer_pubkeys
                 .iter()
                 .map(g1_affine_from_g1_contract_point)
                 .collect::<Result<Vec<_>, _>>()?,
             quorum_apks: value
-                .quorumApks
+                .quorum_apks
                 .iter()
                 .map(g1_affine_from_g1_contract_point)
                 .collect::<Result<Vec<_>, _>>()?,
-            apk_g2: g2_affine_from_g2_contract_point(&value.apkG2)?,
+            apk_g2: g2_affine_from_g2_contract_point(&value.apk_g2)?,
             sigma: g1_affine_from_g1_contract_point(&value.sigma)?,
-            quorum_apk_indices: value.quorumApkIndices,
-            total_stake_indices: value.totalStakeIndices,
-            non_signer_stake_indices: value.nonSignerStakeIndices,
+            quorum_apk_indices: value.quorum_apk_indices,
+            total_stake_indices: value.total_stake_indices,
+            non_signer_stake_indices: value.non_signer_stake_indices,
         })
     }
 }
@@ -433,22 +440,24 @@ impl TryFrom<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignatur
 impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
     fn from(value: NonSignerStakesAndSignature) -> Self {
         Self {
-            nonSignerQuorumBitmapIndices: value.non_signer_quorum_bitmap_indices.clone(),
-            nonSignerPubkeys: value
+            non_signer_quorum_bitmap_indices: value
+                .non_signer_quorum_bitmap_indices
+                .clone(),
+            non_signer_pubkeys: value
                 .non_signer_pubkeys
                 .iter()
                 .map(g1_contract_point_from_g1_affine)
                 .collect(),
-            quorumApks: value
+            quorum_apks: value
                 .quorum_apks
                 .iter()
                 .map(g1_contract_point_from_g1_affine)
                 .collect(),
-            apkG2: g2_contract_point_from_g2_affine(&value.apk_g2),
+            apk_g2: g2_contract_point_from_g2_affine(&value.apk_g2),
             sigma: g1_contract_point_from_g1_affine(&value.sigma),
-            quorumApkIndices: value.quorum_apk_indices.clone(),
-            totalStakeIndices: value.total_stake_indices.clone(),
-            nonSignerStakeIndices: value.non_signer_stake_indices.clone(),
+            quorum_apk_indices: value.quorum_apk_indices.clone(),
+            total_stake_indices: value.total_stake_indices.clone(),
+            non_signer_stake_indices: value.non_signer_stake_indices.clone(),
         }
     }
 }
@@ -549,19 +558,19 @@ pub struct Attestation {
 impl From<Attestation> for AttestationContract {
     fn from(value: Attestation) -> Self {
         Self {
-            nonSignerPubkeys: value
+            non_signer_pubkeys: value
                 .non_signer_pubkeys
                 .iter()
                 .map(g1_contract_point_from_g1_affine)
                 .collect::<Vec<_>>(),
-            quorumApks: value
+            quorum_apks: value
                 .quorum_apks
                 .iter()
                 .map(g1_contract_point_from_g1_affine)
                 .collect::<Vec<_>>(),
             sigma: g1_contract_point_from_g1_affine(&value.sigma),
-            apkG2: g2_contract_point_from_g2_affine(&value.apk_g2),
-            quorumNumbers: value.quorum_numbers,
+            apk_g2: g2_contract_point_from_g2_affine(&value.apk_g2),
+            quorum_numbers: value.quorum_numbers,
         }
     }
 }
@@ -588,9 +597,9 @@ impl TryFrom<ProtoAttestation> for Attestation {
     }
 }
 
-// EigenDACert contains all data necessary to retrieve and validate a blob
-//
-// This struct represents the composition of a eigenDA blob certificate, as it would exist in a rollup inbox.
+/// Contains all data necessary to retrieve and validate a [`Blob`]
+///
+/// This struct represents the composition of a EigenDA blob certificate, as it would exist in a rollup inbox.
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EigenDACert {
     pub blob_inclusion_info: BlobInclusionInfo,
@@ -600,7 +609,7 @@ pub struct EigenDACert {
 }
 
 impl EigenDACert {
-    /// creates a new EigenDACert from a BlobStatusReply, and NonSignerStakesAndSignature
+    /// Creates a new [`EigenDACert`] from a [`BlobStatusReply`], and [`NonSignerStakesAndSignature`].
     pub fn new(
         blob_status_reply: &BlobStatusReply,
         non_signer_stakes_and_signature: NonSignerStakesAndSignature,
@@ -642,7 +651,7 @@ impl EigenDACert {
         })
     }
 
-    /// Computes the blob_key of the blob that belongs to the EigenDACert
+    /// Computes the blob key of the blob that belongs to the [`EigenDACert`].
     pub fn compute_blob_key(&self) -> Result<BlobKey, ConversionError> {
         let blob_header = self
             .blob_inclusion_info
@@ -660,22 +669,22 @@ impl EigenDACert {
 
     /// Builds a new EigenDACert from bytes using bincode
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ConversionError> {
-        bincode::deserialize(bytes).map_err(|e| ConversionError::EigenDACert(e.to_string()))
+        bincode::deserialize(bytes)
+            .map_err(|e| ConversionError::EigenDACert(e.to_string()))
     }
 }
 
 fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
     let x = g2_affine.x;
     let y = g2_affine.y;
-    // Safe unwrapping as we now this types are equivalent
     G2PointContract {
-        X: [
-            Uint::from_be_bytes::<32>(x.c1.into_bigint().to_bytes_be().try_into().unwrap()),
-            Uint::from_be_bytes::<32>(x.c0.into_bigint().to_bytes_be().try_into().unwrap()),
+        x: [
+            U256::from_big_endian(&x.c1.into_bigint().to_bytes_be()),
+            U256::from_big_endian(&x.c0.into_bigint().to_bytes_be()),
         ],
-        Y: [
-            Uint::from_be_bytes::<32>(y.c1.into_bigint().to_bytes_be().try_into().unwrap()),
-            Uint::from_be_bytes::<32>(y.c0.into_bigint().to_bytes_be().try_into().unwrap()),
+        y: [
+            U256::from_big_endian(&y.c1.into_bigint().to_bytes_be()),
+            U256::from_big_endian(&y.c0.into_bigint().to_bytes_be()),
         ],
     }
 }
@@ -683,18 +692,21 @@ fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
 fn g1_contract_point_from_g1_affine(g1_affine: &G1Affine) -> G1PointContract {
     let x = g1_affine.x;
     let y = g1_affine.y;
-    // Safe unwrapping as we now this types are equivalent
     G1PointContract {
-        X: Uint::from_be_bytes::<32>(x.into_bigint().to_bytes_be().try_into().unwrap()),
-        Y: Uint::from_be_bytes::<32>(y.into_bigint().to_bytes_be().try_into().unwrap()),
+        x: U256::from_big_endian(&x.into_bigint().to_bytes_be()),
+        y: U256::from_big_endian(&y.into_bigint().to_bytes_be()),
     }
 }
 
 fn g1_affine_from_g1_contract_point(
     g1_point: &G1PointContract,
 ) -> Result<G1Affine, ConversionError> {
-    let x = Fq::from_be_bytes_mod_order(&g1_point.X.to_be_bytes::<32>());
-    let y = Fq::from_be_bytes_mod_order(&g1_point.Y.to_be_bytes::<32>());
+    let mut x_bytes = [0u8; 32];
+    g1_point.x.to_big_endian(&mut x_bytes);
+    let mut y_bytes = [0u8; 32];
+    g1_point.y.to_big_endian(&mut y_bytes);
+    let x = Fq::from_be_bytes_mod_order(&x_bytes);
+    let y = Fq::from_be_bytes_mod_order(&y_bytes);
     let point = G1Affine::new_unchecked(x, y);
     if !point.is_on_curve() {
         return Err(ConversionError::G1Point(
@@ -712,13 +724,21 @@ fn g1_affine_from_g1_contract_point(
 fn g2_affine_from_g2_contract_point(
     g2_point: &G2PointContract,
 ) -> Result<G2Affine, ConversionError> {
+    let mut x1_bytes = [0u8; 32];
+    g2_point.x[1].to_big_endian(&mut x1_bytes);
+    let mut x0_bytes = [0u8; 32];
+    g2_point.x[0].to_big_endian(&mut x0_bytes);
     let x = Fp2::new(
-        Fq::from_be_bytes_mod_order(&g2_point.X[1].to_be_bytes::<32>()),
-        Fq::from_be_bytes_mod_order(&g2_point.X[0].to_be_bytes::<32>()),
+        Fq::from_be_bytes_mod_order(&x1_bytes),
+        Fq::from_be_bytes_mod_order(&x0_bytes),
     );
+    let mut y1_bytes = [0u8; 32];
+    g2_point.y[1].to_big_endian(&mut y1_bytes);
+    let mut y0_bytes = [0u8; 32];
+    g2_point.y[0].to_big_endian(&mut y0_bytes);
     let y = Fp2::new(
-        Fq::from_be_bytes_mod_order(&g2_point.Y[1].to_be_bytes::<32>()),
-        Fq::from_be_bytes_mod_order(&g2_point.Y[0].to_be_bytes::<32>()),
+        Fq::from_be_bytes_mod_order(&y1_bytes),
+        Fq::from_be_bytes_mod_order(&y0_bytes),
     );
     let point = G2Affine::new_unchecked(x, y);
     if !point.is_on_curve() {
@@ -745,13 +765,14 @@ mod test {
     use crate::{
         cert_verifier::CertVerifier,
         core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
-            PaymentHeader,
+            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
+            BlobInclusionInfo, PaymentHeader,
         },
         generated::{
             common::{
                 v2::{
-                    BatchHeader as BatchHeaderProto, BlobCertificate as BlobCertificateProto,
+                    BatchHeader as BatchHeaderProto,
+                    BlobCertificate as BlobCertificateProto,
                     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
                 },
                 BlobCommitment as BlobCommitmentProto,
@@ -760,7 +781,9 @@ mod test {
                 Attestation, BlobInclusionInfo as BlobInclusionInfoProto, SignedBatch,
             },
         },
-        tests::{get_test_holesky_rpc_url, CERT_VERIFIER_ADDRESS},
+        tests::{
+            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS,
+        },
     };
 
     use super::{BlobStatusReply, EigenDACert, NonSignerStakesAndSignature};
@@ -770,39 +793,42 @@ mod test {
             signed_batch: Some(SignedBatch {
                 header: Some(BatchHeaderProto {
                     batch_root: vec![
-                        233, 19, 14, 15, 65, 33, 120, 11, 158, 216, 117, 11, 227, 47, 29, 155, 79,
-                        182, 24, 94, 146, 218, 107, 168, 123, 102, 91, 170, 206, 53, 139, 120,
+                        233, 19, 14, 15, 65, 33, 120, 11, 158, 216, 117, 11, 227, 47, 29,
+                        155, 79, 182, 24, 94, 146, 218, 107, 168, 123, 102, 91, 170, 206,
+                        53, 139, 120,
                     ],
                     reference_block_number: 3677228,
                 }),
                 attestation: Some(Attestation {
                     non_signer_pubkeys: vec![vec![
-                        149, 116, 165, 233, 216, 150, 77, 230, 96, 225, 164, 64, 31, 105, 148, 81,
-                        196, 61, 51, 216, 252, 183, 63, 121, 78, 173, 12, 22, 161, 96, 62, 209,
+                        149, 116, 165, 233, 216, 150, 77, 230, 96, 225, 164, 64, 31, 105,
+                        148, 81, 196, 61, 51, 216, 252, 183, 63, 121, 78, 173, 12, 22,
+                        161, 96, 62, 209,
                     ]],
                     apk_g2: vec![
-                        128, 240, 67, 205, 245, 139, 18, 92, 198, 206, 71, 79, 179, 90, 69, 162,
-                        218, 199, 207, 74, 138, 102, 16, 185, 204, 246, 154, 154, 124, 148, 53,
-                        211, 33, 22, 115, 242, 239, 223, 221, 73, 130, 66, 206, 2, 238, 161, 128,
-                        140, 150, 135, 255, 137, 141, 213, 108, 114, 206, 30, 72, 81, 211, 242, 5,
-                        81,
+                        128, 240, 67, 205, 245, 139, 18, 92, 198, 206, 71, 79, 179, 90,
+                        69, 162, 218, 199, 207, 74, 138, 102, 16, 185, 204, 246, 154,
+                        154, 124, 148, 53, 211, 33, 22, 115, 242, 239, 223, 221, 73, 130,
+                        66, 206, 2, 238, 161, 128, 140, 150, 135, 255, 137, 141, 213,
+                        108, 114, 206, 30, 72, 81, 211, 242, 5, 81,
                     ],
                     sigma: vec![
-                        204, 195, 219, 236, 124, 241, 73, 77, 182, 143, 252, 46, 168, 213, 195,
-                        205, 174, 113, 109, 29, 5, 215, 39, 52, 229, 160, 163, 122, 233, 136, 5,
-                        43,
+                        204, 195, 219, 236, 124, 241, 73, 77, 182, 143, 252, 46, 168,
+                        213, 195, 205, 174, 113, 109, 29, 5, 215, 39, 52, 229, 160, 163,
+                        122, 233, 136, 5, 43,
                     ],
                     quorum_numbers: vec![0, 1],
                     quorum_signed_percentages: vec![80, 100],
                     quorum_apks: vec![
                         vec![
-                            213, 80, 149, 82, 54, 82, 201, 67, 137, 35, 54, 247, 77, 10, 85, 54,
-                            216, 249, 216, 213, 4, 27, 185, 120, 200, 109, 119, 219, 5, 38, 27, 0,
+                            213, 80, 149, 82, 54, 82, 201, 67, 137, 35, 54, 247, 77, 10,
+                            85, 54, 216, 249, 216, 213, 4, 27, 185, 120, 200, 109, 119,
+                            219, 5, 38, 27, 0,
                         ],
                         vec![
-                            149, 180, 60, 155, 181, 219, 189, 21, 124, 76, 206, 221, 182, 31, 35,
-                            178, 11, 104, 1, 197, 178, 20, 16, 206, 61, 243, 11, 96, 200, 242, 2,
-                            216,
+                            149, 180, 60, 155, 181, 219, 189, 21, 124, 76, 206, 221, 182,
+                            31, 35, 178, 11, 104, 1, 197, 178, 20, 16, 206, 61, 243, 11,
+                            96, 200, 242, 2, 216,
                         ],
                     ],
                 }),
@@ -814,37 +840,41 @@ mod test {
                         quorum_numbers: vec![0, 1],
                         commitment: Some(BlobCommitmentProto {
                             commitment: vec![
-                                232, 2, 196, 90, 47, 44, 136, 140, 220, 190, 143, 211, 205, 225,
-                                191, 16, 207, 168, 84, 185, 10, 94, 237, 61, 43, 217, 173, 222, 51,
-                                240, 232, 208,
+                                232, 2, 196, 90, 47, 44, 136, 140, 220, 190, 143, 211,
+                                205, 225, 191, 16, 207, 168, 84, 185, 10, 94, 237, 61,
+                                43, 217, 173, 222, 51, 240, 232, 208,
                             ],
                             length_commitment: vec![
-                                148, 250, 45, 9, 249, 227, 179, 68, 60, 236, 203, 111, 184, 253,
-                                98, 119, 216, 93, 227, 68, 79, 24, 237, 232, 114, 174, 94, 55, 57,
-                                219, 223, 236, 19, 162, 109, 209, 5, 251, 122, 189, 110, 148, 207,
-                                115, 135, 46, 187, 183, 224, 106, 195, 173, 71, 19, 64, 204, 222,
-                                121, 46, 26, 9, 5, 207, 103,
+                                148, 250, 45, 9, 249, 227, 179, 68, 60, 236, 203, 111,
+                                184, 253, 98, 119, 216, 93, 227, 68, 79, 24, 237, 232,
+                                114, 174, 94, 55, 57, 219, 223, 236, 19, 162, 109, 209,
+                                5, 251, 122, 189, 110, 148, 207, 115, 135, 46, 187, 183,
+                                224, 106, 195, 173, 71, 19, 64, 204, 222, 121, 46, 26, 9,
+                                5, 207, 103,
                             ],
                             length_proof: vec![
-                                164, 242, 183, 79, 135, 39, 163, 7, 205, 3, 117, 112, 14, 51, 32,
-                                109, 225, 106, 139, 95, 30, 170, 141, 223, 234, 166, 196, 135, 89,
-                                209, 191, 105, 39, 10, 17, 9, 148, 157, 81, 31, 16, 65, 3, 153,
-                                149, 103, 207, 2, 243, 32, 46, 164, 209, 123, 18, 90, 216, 219,
-                                115, 179, 28, 217, 65, 167,
+                                164, 242, 183, 79, 135, 39, 163, 7, 205, 3, 117, 112, 14,
+                                51, 32, 109, 225, 106, 139, 95, 30, 170, 141, 223, 234,
+                                166, 196, 135, 89, 209, 191, 105, 39, 10, 17, 9, 148,
+                                157, 81, 31, 16, 65, 3, 153, 149, 103, 207, 2, 243, 32,
+                                46, 164, 209, 123, 18, 90, 216, 219, 115, 179, 28, 217,
+                                65, 167,
                             ],
                             length: 64,
                         }),
                         payment_header: Some(PaymentHeaderProto {
-                            account_id: "0xD9309b3CF1B7DBF59f53461c2a66e2783dD1766f".to_string(),
+                            account_id: "0xD9309b3CF1B7DBF59f53461c2a66e2783dD1766f"
+                                .to_string(),
                             timestamp: 1744727058739877000,
                             cumulative_payment: vec![],
                         }),
                     }),
                     signature: vec![
-                        168, 15, 169, 88, 137, 74, 179, 18, 3, 126, 94, 63, 143, 103, 188, 210, 49,
-                        46, 135, 26, 105, 222, 214, 37, 128, 4, 228, 62, 188, 96, 144, 186, 119,
-                        225, 173, 54, 9, 235, 152, 171, 108, 56, 209, 37, 220, 184, 124, 220, 79,
-                        32, 8, 168, 171, 53, 1, 116, 168, 63, 109, 43, 34, 59, 66, 115, 0,
+                        168, 15, 169, 88, 137, 74, 179, 18, 3, 126, 94, 63, 143, 103,
+                        188, 210, 49, 46, 135, 26, 105, 222, 214, 37, 128, 4, 228, 62,
+                        188, 96, 144, 186, 119, 225, 173, 54, 9, 235, 152, 171, 108, 56,
+                        209, 37, 220, 184, 124, 220, 79, 32, 8, 168, 171, 53, 1, 116,
+                        168, 63, 109, 43, 34, 59, 66, 115, 0,
                     ],
                     relay_keys: vec![1, 2],
                 }),
@@ -1109,15 +1139,17 @@ mod test {
                             length: 64,
                         },
                         payment_header_hash: [
-                            99, 114, 16, 1, 243, 70, 66, 44, 180, 153, 204, 46, 153, 207, 150, 9,
-                            74, 52, 71, 46, 38, 218, 196, 247, 84, 79, 185, 121, 213, 80, 162, 149,
+                            99, 114, 16, 1, 243, 70, 66, 44, 180, 153, 204, 46, 153, 207,
+                            150, 9, 74, 52, 71, 46, 38, 218, 196, 247, 84, 79, 185, 121,
+                            213, 80, 162, 149,
                         ],
                     },
                     signature: vec![
-                        168, 15, 169, 88, 137, 74, 179, 18, 3, 126, 94, 63, 143, 103, 188, 210, 49,
-                        46, 135, 26, 105, 222, 214, 37, 128, 4, 228, 62, 188, 96, 144, 186, 119,
-                        225, 173, 54, 9, 235, 152, 171, 108, 56, 209, 37, 220, 184, 124, 220, 79,
-                        32, 8, 168, 171, 53, 1, 116, 168, 63, 109, 43, 34, 59, 66, 115, 0,
+                        168, 15, 169, 88, 137, 74, 179, 18, 3, 126, 94, 63, 143, 103,
+                        188, 210, 49, 46, 135, 26, 105, 222, 214, 37, 128, 4, 228, 62,
+                        188, 96, 144, 186, 119, 225, 173, 54, 9, 235, 152, 171, 108, 56,
+                        209, 37, 220, 184, 124, 220, 79, 32, 8, 168, 171, 53, 1, 116,
+                        168, 63, 109, 43, 34, 59, 66, 115, 0,
                     ],
                     relay_keys: vec![1, 2],
                 },
@@ -1126,8 +1158,9 @@ mod test {
             },
             batch_header: BatchHeaderV2 {
                 batch_root: [
-                    233, 19, 14, 15, 65, 33, 120, 11, 158, 216, 117, 11, 227, 47, 29, 155, 79, 182,
-                    24, 94, 146, 218, 107, 168, 123, 102, 91, 170, 206, 53, 139, 120,
+                    233, 19, 14, 15, 65, 33, 120, 11, 158, 216, 117, 11, 227, 47, 29,
+                    155, 79, 182, 24, 94, 146, 218, 107, 168, 123, 102, 91, 170, 206, 53,
+                    139, 120,
                 ],
                 reference_block_number: 3677228,
             },
@@ -1156,48 +1189,48 @@ mod test {
     #[test]
     fn test_blob_key() {
         let commitment_x = Fq::from_be_bytes_mod_order(&[
-            47, 227, 202, 245, 187, 25, 196, 187, 223, 98, 97, 40, 194, 244, 32, 4, 86, 33, 187, 1,
-            12, 189, 12, 90, 30, 142, 112, 147, 146, 88, 249, 104,
+            47, 227, 202, 245, 187, 25, 196, 187, 223, 98, 97, 40, 194, 244, 32, 4, 86,
+            33, 187, 1, 12, 189, 12, 90, 30, 142, 112, 147, 146, 88, 249, 104,
         ]);
         let commitment_y = Fq::from_be_bytes_mod_order(&[
-            20, 91, 31, 26, 187, 114, 156, 101, 50, 219, 233, 184, 99, 191, 205, 182, 6, 159, 229,
-            182, 109, 197, 9, 213, 141, 125, 13, 219, 52, 178, 139, 146,
+            20, 91, 31, 26, 187, 114, 156, 101, 50, 219, 233, 184, 99, 191, 205, 182, 6,
+            159, 229, 182, 109, 197, 9, 213, 141, 125, 13, 219, 52, 178, 139, 146,
         ]);
 
         let length_commitment_x0 = Fq::from_be_bytes_mod_order(&[
-            8, 65, 223, 70, 245, 141, 117, 195, 15, 108, 165, 232, 225, 16, 48, 241, 231, 234, 102,
-            199, 125, 117, 21, 163, 169, 94, 92, 250, 30, 145, 48, 171,
+            8, 65, 223, 70, 245, 141, 117, 195, 15, 108, 165, 232, 225, 16, 48, 241, 231,
+            234, 102, 199, 125, 117, 21, 163, 169, 94, 92, 250, 30, 145, 48, 171,
         ]);
         let length_commitment_x1 = Fq::from_be_bytes_mod_order(&[
-            39, 3, 247, 81, 154, 56, 239, 185, 210, 149, 195, 180, 108, 221, 16, 192, 77, 138, 32,
-            157, 171, 219, 234, 248, 239, 93, 143, 126, 56, 204, 132, 102,
+            39, 3, 247, 81, 154, 56, 239, 185, 210, 149, 195, 180, 108, 221, 16, 192, 77,
+            138, 32, 157, 171, 219, 234, 248, 239, 93, 143, 126, 56, 204, 132, 102,
         ]);
 
         let length_commitment_y0 = Fq::from_be_bytes_mod_order(&[
-            14, 234, 250, 97, 56, 209, 123, 188, 191, 0, 109, 187, 173, 92, 82, 77, 236, 38, 75,
-            145, 102, 0, 177, 111, 42, 228, 130, 88, 227, 21, 3, 90,
+            14, 234, 250, 97, 56, 209, 123, 188, 191, 0, 109, 187, 173, 92, 82, 77, 236,
+            38, 75, 145, 102, 0, 177, 111, 42, 228, 130, 88, 227, 21, 3, 90,
         ]);
         let length_commitment_y1 = Fq::from_be_bytes_mod_order(&[
-            13, 18, 145, 28, 229, 160, 11, 188, 145, 68, 148, 75, 22, 196, 32, 197, 2, 113, 249,
-            176, 226, 81, 16, 168, 135, 74, 84, 143, 61, 183, 164, 42,
+            13, 18, 145, 28, 229, 160, 11, 188, 145, 68, 148, 75, 22, 196, 32, 197, 2,
+            113, 249, 176, 226, 81, 16, 168, 135, 74, 84, 143, 61, 183, 164, 42,
         ]);
 
         let length_proof_x0 = Fq::from_be_bytes_mod_order(&[
-            4, 58, 192, 64, 99, 97, 56, 104, 197, 61, 137, 206, 145, 118, 143, 216, 15, 40, 191,
-            251, 238, 37, 248, 97, 241, 136, 54, 180, 15, 235, 174, 42,
+            4, 58, 192, 64, 99, 97, 56, 104, 197, 61, 137, 206, 145, 118, 143, 216, 15,
+            40, 191, 251, 238, 37, 248, 97, 241, 136, 54, 180, 15, 235, 174, 42,
         ]);
         let length_proof_x1 = Fq::from_be_bytes_mod_order(&[
-            35, 146, 74, 104, 5, 13, 42, 164, 44, 141, 107, 115, 154, 6, 65, 146, 27, 136, 169,
-            149, 78, 27, 120, 242, 27, 172, 53, 196, 199, 133, 149, 205,
+            35, 146, 74, 104, 5, 13, 42, 164, 44, 141, 107, 115, 154, 6, 65, 146, 27,
+            136, 169, 149, 78, 27, 120, 242, 27, 172, 53, 196, 199, 133, 149, 205,
         ]);
 
         let length_proof_y0 = Fq::from_be_bytes_mod_order(&[
-            14, 180, 121, 174, 188, 158, 3, 195, 182, 93, 117, 123, 138, 52, 168, 68, 157, 43, 93,
-            68, 112, 237, 17, 72, 183, 227, 111, 102, 189, 137, 223, 43,
+            14, 180, 121, 174, 188, 158, 3, 195, 182, 93, 117, 123, 138, 52, 168, 68,
+            157, 43, 93, 68, 112, 237, 17, 72, 183, 227, 111, 102, 189, 137, 223, 43,
         ]);
         let length_proof_y1 = Fq::from_be_bytes_mod_order(&[
-            31, 226, 236, 78, 97, 43, 93, 185, 199, 205, 181, 172, 68, 53, 100, 1, 200, 41, 56,
-            150, 142, 207, 252, 194, 255, 160, 210, 92, 132, 123, 146, 191,
+            31, 226, 236, 78, 97, 43, 93, 185, 199, 205, 181, 172, 68, 53, 100, 1, 200,
+            41, 56, 150, 142, 207, 252, 194, 255, 160, 210, 92, 132, 123, 146, 191,
         ]);
 
         let commitments = BlobCommitments {
@@ -1232,17 +1265,23 @@ mod test {
         );
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_build_eigenda_cert() {
         let (blob_status_reply, non_signer_stakes_and_signature) = get_test_reply();
         let eigenda_cert =
-            EigenDACert::new(&blob_status_reply, non_signer_stakes_and_signature).unwrap();
+            EigenDACert::new(&blob_status_reply, non_signer_stakes_and_signature)
+                .unwrap();
 
         let expected_eigenda_cert = get_test_eigenda_cert();
         assert_eq!(expected_eigenda_cert, eigenda_cert);
 
-        let cert_verifier =
-            CertVerifier::new(CERT_VERIFIER_ADDRESS, get_test_holesky_rpc_url()).unwrap();
+        let cert_verifier = CertVerifier::new(
+            CERT_VERIFIER_ADDRESS,
+            get_test_holesky_rpc_url(),
+            get_test_private_key_signer(),
+        )
+        .unwrap();
         let res = cert_verifier.verify_cert_v2(&eigenda_cert).await;
         assert!(res.is_ok())
     }

@@ -27,15 +27,11 @@ impl SecretUrl {
     }
 }
 
-impl TryFrom<SecretUrl> for alloy::transports::http::reqwest::Url {
+impl TryFrom<SecretUrl> for String {
     type Error = ConversionError;
 
     fn try_from(secret_url: SecretUrl) -> Result<Self, Self::Error> {
-        let url = alloy::transports::http::reqwest::Url::from_str(secret_url.inner.expose_secret())
-            .map_err(|_| {
-                ConversionError::InvalidEthRpc(secret_url.inner.expose_secret().to_string())
-            })?;
-        Ok(url)
+        Ok(secret_url.inner.expose_secret().clone())
     }
 }
 

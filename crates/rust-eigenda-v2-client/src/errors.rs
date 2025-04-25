@@ -1,11 +1,12 @@
 use ark_bn254::{Fr, G1Affine};
 use ethereum_types::H160;
+use ethers::signers::WalletError;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
 use crate::relay_client::RelayKey;
 use prost::DecodeError;
 
-/// Errors returned by this crate
+/// Errors returned by the client.
 #[derive(Debug, thiserror::Error)]
 pub enum EigenClientError {
     #[error(transparent)]
@@ -53,6 +54,10 @@ pub enum ConversionError {
     PrivateKey,
     #[error("Invalid ETH rpc: {0}")]
     InvalidEthRpc(String),
+    #[error(transparent)]
+    UrlParse(#[from] url::ParseError),
+    #[error(transparent)]
+    Wallet(#[from] WalletError),
     #[error("hash digest was not 32B as expected. This is a bug, please report it")]
     InvalidDigest,
 }
@@ -78,7 +83,7 @@ pub enum BlobError {
     Bn254(#[from] Bn254Error),
 }
 
-/// Errors specific to the Relay Payload Retriever
+/// Errors specific to the [`RelayPayloadRetriever`].
 #[derive(Debug, thiserror::Error)]
 pub enum RelayPayloadRetrieverError {
     #[error(transparent)]
@@ -97,7 +102,7 @@ pub enum RelayPayloadRetrieverError {
     RetrievalTimeout,
 }
 
-/// Errors specific to the Relay Client
+/// Errors specific to the [`RelayClient`].
 #[derive(Debug, thiserror::Error)]
 pub enum RelayClientError {
     #[error("Max grpc message size must be greater than 0")]
@@ -117,9 +122,9 @@ pub enum RelayClientError {
     #[error(transparent)]
     EthClient(#[from] EthClientError),
     #[error(transparent)]
-    Alloy(#[from] alloy_contract::Error),
-    #[error(transparent)]
     Conversion(#[from] ConversionError),
+    #[error("Failed to parse relay key to URL: {0}")]
+    RelayKeyToUrl(u32),
 }
 
 /// Errors for the EthClient
@@ -188,7 +193,7 @@ pub enum DisperseError {
     Signer(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Errors specific to the PayloadDisperser
+/// Errors specific to the [`PayloadDisperser`].
 #[derive(Debug, thiserror::Error)]
 pub enum PayloadDisperserError {
     #[error(transparent)]
@@ -208,8 +213,10 @@ pub enum PayloadDisperserError {
 pub enum CertVerifierError {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
-    #[error(transparent)]
-    Alloy(#[from] alloy_contract::Error),
     #[error("Invalid cert verifier contract address: {0}")]
     InvalidCertVerifierAddress(H160),
+    #[error("Error while calling contract function: {0}")]
+    Contract(String),
+    #[error("Error while signing: {0}")]
+    Signing(String),
 }

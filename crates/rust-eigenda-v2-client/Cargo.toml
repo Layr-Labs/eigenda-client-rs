@@ -15,7 +15,7 @@ exclude = [
 ]
 
 [dependencies]
-rust-eigenda-signers = { workspace = true }
+rust-eigenda-signers = { workspace = true, features = ["ethers-signer"] }
 rand = { workspace = true }
 bytes = { workspace = true }
 reqwest = { workspace = true }
@@ -48,11 +48,8 @@ ark-serialize = { workspace = true }
 ark-std = { workspace = true }
 ark-ec = { workspace = true }
 sha2 = { workspace = true }
-alloy-primitives = { workspace = true }
-alloy-sol-types = { workspace = true, features = ["json"] }
-alloy-contract = { workspace = true }
 bincode = { workspace = true }
-alloy = { workspace = true }
+ethers = { workspace = true }
 
 [dev-dependencies]
 dotenv = { workspace = true }

@@ -1,85 +1,114 @@
-use std::str::FromStr;
+use ethers::prelude::*;
+use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
+use std::sync::Arc;
 
-use alloy::{network::Ethereum, providers::RootProvider};
 use ethereum_types::H160;
 
 use crate::{
-    contracts_bindings::IEigenDACertVerifier::{self},
     core::eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch},
-    errors::CertVerifierError,
-    generated::disperser::v2::SignedBatch as SignedBatchProto,
+    errors::{CertVerifierError, ConversionError},
+    generated::{
+        disperser::v2::SignedBatch as SignedBatchProto,
+        i_cert_verifier::{
+            IEigenDACertVerifier,
+            NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
+        },
+    },
     utils::SecretUrl,
 };
 
-pub type CertVerifierContract =
-    IEigenDACertVerifier::IEigenDACertVerifierInstance<RootProvider<Ethereum>>;
-
 #[derive(Debug, Clone)]
-/// CertVerifier is a struct that provides methods for interacting with the EigenDA CertVerifier contract.
-pub struct CertVerifier {
-    cert_verifier_contract: CertVerifierContract,
+/// Provides methods for interacting with the EigenDA CertVerifier contract.
+pub struct CertVerifier<S> {
+    cert_verifier_contract:
+        IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
-impl CertVerifier {
-    /// Creates a new instance of CertVerifier receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: H160, rpc_url: SecretUrl) -> Result<Self, CertVerifierError> {
-        let url = rpc_url.try_into()?;
-        let provider: RootProvider<Ethereum> = RootProvider::new_http(url);
+impl<S> CertVerifier<S> {
+    /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
+    pub fn new(
+        address: H160,
+        rpc_url: SecretUrl,
+        signer: S,
+    ) -> Result<Self, CertVerifierError>
+    where
+        EthersSigner<S>: Signer,
+    {
+        let url: String = rpc_url.try_into()?;
 
-        let cert_verifier_address = alloy::primitives::Address::from_str(&hex::encode(address))
-            .map_err(|_| CertVerifierError::InvalidCertVerifierAddress(address))?;
-        let cert_verifier_contract: IEigenDACertVerifier::IEigenDACertVerifierInstance<
-            RootProvider,
-        > = IEigenDACertVerifier::new(cert_verifier_address, provider);
+        let provider =
+            Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
+        // ethers hard codes 1 when constructing wallets
+        let chain_id = 1;
+        let signer = EthersSigner::new(signer, chain_id);
+        let client = SignerMiddleware::new(provider, signer);
+        let client = Arc::new(client);
+        let cert_verifier_contract = IEigenDACertVerifier::new(address, client);
         Ok(CertVerifier {
             cert_verifier_contract,
         })
     }
 
     /// Calls the getNonSignerStakesAndSignature view function on the EigenDACertVerifier
-    /// contract, and returns the resulting NonSignerStakesAndSignature object.
+    /// contract, and returns the resulting [`NonSignerStakesAndSignature`] object.
     pub async fn get_non_signer_stakes_and_signature(
         &self,
         signed_batch: SignedBatchProto,
-    ) -> Result<NonSignerStakesAndSignature, CertVerifierError> {
+    ) -> Result<NonSignerStakesAndSignature, CertVerifierError>
+    where
+        EthersSigner<S>: Signer,
+    {
         let signed_batch: SignedBatch = signed_batch.try_into()?;
         let contract_signed_batch = signed_batch.into();
-        let non_signer_stakes_and_signature = self
+        let non_signer_stakes_and_signature: NonSignerStakesAndSignatureContract = self
             .cert_verifier_contract
-            .getNonSignerStakesAndSignature(contract_signed_batch)
+            .get_non_signer_stakes_and_signature(contract_signed_batch)
             .call()
-            .await?;
+            .await
+            .map_err(|_| {
+                CertVerifierError::Contract("non_signer_stakes_and_signature".to_string())
+            })?;
 
         Ok(non_signer_stakes_and_signature.try_into()?)
     }
 
     /// Queries the cert verifier contract for the configured set of quorum numbers that must
     /// be set in the BlobHeader, and verified in VerifyDACertV2 and verifyDACertV2FromSignedBatch
-    pub async fn quorum_numbers_required(&self) -> Result<Vec<u8>, CertVerifierError> {
-        let quorums = self
+    pub async fn quorum_numbers_required(&self) -> Result<Vec<u8>, CertVerifierError>
+    where
+        EthersSigner<S>: Signer,
+    {
+        let quorums: Bytes = self
             .cert_verifier_contract
-            .quorumNumbersRequired()
+            .quorum_numbers_required()
             .call()
-            .await?;
+            .await
+            .map_err(|_| {
+                CertVerifierError::Contract("quorum_numbers_required".to_string())
+            })?;
         Ok(quorums.to_vec())
     }
 
     /// Calls the VerifyCertV2 view function on the EigenDACertVerifier contract.
     ///
-    /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a CertVerifierError.
+    /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a [`CertVerifierError`].
     pub async fn verify_cert_v2(
         &self,
         eigenda_cert: &EigenDACert,
-    ) -> Result<(), CertVerifierError> {
+    ) -> Result<(), CertVerifierError>
+    where
+        EthersSigner<S>: Signer,
+    {
         self.cert_verifier_contract
-            .verifyDACertV2(
+            .verify_da_cert_v2(
                 eigenda_cert.batch_header.clone().into(),
                 eigenda_cert.blob_inclusion_info.clone().into(),
                 eigenda_cert.non_signer_stakes_and_signature.clone().into(),
                 eigenda_cert.signed_quorum_numbers.clone().into(),
             )
             .call()
-            .await?;
+            .await
+            .map_err(|_| CertVerifierError::Contract("verify_cert_v2".to_string()))?;
         Ok(())
     }
 }
@@ -95,10 +124,12 @@ mod tests {
     use crate::{
         cert_verifier::CertVerifier,
         core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
-            EigenDACert, NonSignerStakesAndSignature,
+            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
+            BlobInclusionInfo, EigenDACert, NonSignerStakesAndSignature,
         },
-        tests::{CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
+        tests::{
+            get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL,
+        },
         utils::SecretUrl,
     };
 
@@ -250,16 +281,17 @@ mod tests {
                             length: 64,
                         },
                         payment_header_hash: [
-                            29, 146, 146, 30, 199, 36, 31, 25, 135, 92, 123, 219, 227, 120, 149,
-                            42, 90, 132, 47, 17, 6, 243, 38, 190, 6, 161, 62, 59, 163, 217, 173,
-                            131,
+                            29, 146, 146, 30, 199, 36, 31, 25, 135, 92, 123, 219, 227,
+                            120, 149, 42, 90, 132, 47, 17, 6, 243, 38, 190, 6, 161, 62,
+                            59, 163, 217, 173, 131,
                         ],
                     },
                     signature: vec![
-                        92, 83, 82, 196, 28, 254, 190, 62, 52, 229, 80, 45, 61, 171, 85, 81, 181,
-                        12, 175, 28, 208, 16, 84, 89, 8, 216, 93, 17, 233, 157, 220, 238, 91, 218,
-                        254, 142, 201, 178, 65, 198, 103, 157, 13, 105, 11, 39, 141, 231, 36, 67,
-                        58, 22, 227, 215, 132, 147, 146, 75, 172, 140, 72, 119, 222, 170, 0,
+                        92, 83, 82, 196, 28, 254, 190, 62, 52, 229, 80, 45, 61, 171, 85,
+                        81, 181, 12, 175, 28, 208, 16, 84, 89, 8, 216, 93, 17, 233, 157,
+                        220, 238, 91, 218, 254, 142, 201, 178, 65, 198, 103, 157, 13,
+                        105, 11, 39, 141, 231, 36, 67, 58, 22, 227, 215, 132, 147, 146,
+                        75, 172, 140, 72, 119, 222, 170, 0,
                     ],
                     relay_keys: vec![1, 0], // breaks when changes
                 },
@@ -268,8 +300,9 @@ mod tests {
             },
             batch_header: BatchHeaderV2 {
                 batch_root: [
-                    179, 157, 140, 16, 70, 67, 200, 196, 172, 175, 23, 7, 232, 98, 121, 153, 195,
-                    200, 53, 38, 173, 110, 102, 121, 6, 124, 187, 124, 64, 41, 132, 28,
+                    179, 157, 140, 16, 70, 67, 200, 196, 172, 175, 23, 7, 232, 98, 121,
+                    153, 195, 200, 53, 38, 173, 110, 102, 121, 6, 124, 187, 124, 64, 41,
+                    132, 28,
                 ], // breaks when changed
                 reference_block_number: 3672938, // breaks when changed
             },
@@ -287,11 +320,13 @@ mod tests {
         }
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_verify_cert() {
         let cert_verifier = CertVerifier::new(
             CERT_VERIFIER_ADDRESS,
             SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
+            get_test_private_key_signer(),
         )
         .unwrap();
         let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;

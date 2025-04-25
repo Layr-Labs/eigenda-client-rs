@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use ethabi::Address;
+use ethers::signers::Signer;
 use tonic::transport::Channel;
 
 use crate::{
@@ -13,38 +14,49 @@ use crate::{
     relay_registry::RelayRegistry,
     utils::SecretUrl,
 };
+use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
 
 pub type RelayKey = u32;
 
 pub struct RelayClientConfig {
-    pub(crate) max_grpc_message_size: usize,
-    pub(crate) relay_clients_keys: Vec<u32>,
-    pub(crate) relay_registry_address: Address,
-    pub(crate) eth_rpc_url: SecretUrl,
+    pub max_grpc_message_size: usize,
+    pub relay_clients_keys: Vec<u32>,
+    pub relay_registry_address: Address,
+    pub eth_rpc_url: SecretUrl,
 }
 
-// RelayClient is a client for the entire relay subsystem.
-//
-// It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
+/// [`RelayClient`] is a client for the entire relay subsystem.
+///
+/// It is a wrapper around a collection of GRPC clients, which are used to interact with individual relays.
+/// This struct is a low level implementation and should not be used directly,
+/// use a high level abstraction to interact with it ([`RelayPayloadRetriever`]).
 pub struct RelayClient {
     rpc_clients: HashMap<RelayKey, RpcRelayClient<tonic::transport::Channel>>,
 }
 
 impl RelayClient {
-    pub async fn new(config: RelayClientConfig) -> Result<Self, RelayClientError> {
+    pub async fn new<S>(
+        config: RelayClientConfig,
+        signer: S,
+    ) -> Result<Self, RelayClientError>
+    where
+        EthersSigner<S>: Signer,
+    {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
 
-        let relay_registry_address = hex::encode(config.relay_registry_address);
-        let relay_registry =
-            RelayRegistry::new(relay_registry_address, config.eth_rpc_url.clone())?;
+        let relay_registry = RelayRegistry::new(
+            config.relay_registry_address,
+            config.eth_rpc_url.clone(),
+            signer,
+        )?;
 
         let mut rpc_clients = HashMap::new();
         for relay_key in config.relay_clients_keys.iter() {
             let url = relay_registry.get_url_from_relay_key(*relay_key).await?;
-            let endpoint =
-                Channel::from_shared(url.clone()).map_err(|_| RelayClientError::InvalidURI(url))?;
+            let endpoint = Channel::from_shared(url.clone())
+                .map_err(|_| RelayClientError::InvalidURI(url))?;
             let channel = endpoint.connect().await?;
             let rpc_client = relay_client::RelayClient::new(channel);
             rpc_clients.insert(*relay_key, rpc_client);
@@ -53,7 +65,7 @@ impl RelayClient {
         Ok(Self { rpc_clients })
     }
 
-    // get_blob retrieves a blob from a relay.
+    /// Retrieves a blob from a relay.
     pub async fn get_blob(
         &mut self,
         relay_key: RelayKey,
@@ -79,7 +91,10 @@ mod tests {
     use super::*;
     use crate::{
         relay_client::RelayClient,
-        tests::{get_test_holesky_rpc_url, HOLESKY_RELAY_REGISTRY_ADDRESS},
+        tests::{
+            get_test_holesky_rpc_url, get_test_private_key_signer,
+            HOLESKY_RELAY_REGISTRY_ADDRESS,
+        },
     };
 
     fn get_test_relay_client_config() -> RelayClientConfig {
@@ -91,15 +106,20 @@ mod tests {
         }
     }
 
+    #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_retrieve_single_blob() {
-        let mut client = RelayClient::new(get_test_relay_client_config())
-            .await
-            .unwrap();
+        let mut client = RelayClient::new(
+            get_test_relay_client_config(),
+            get_test_private_key_signer(),
+        )
+        .await
+        .unwrap();
 
-        let blob_key =
-            BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
-                .unwrap();
+        let blob_key = BlobKey::from_hex(
+            "625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4",
+        )
+        .unwrap();
         let relay_key = 2;
         let result = client.get_blob(relay_key, &blob_key).await;
         assert!(result.is_ok());

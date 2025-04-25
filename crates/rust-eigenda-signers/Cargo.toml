@@ -10,13 +10,16 @@ license = "MIT OR Apache-2.0"
 [features]
 default = ["private-key-signer"]
 private-key-signer = ["secp256k1/rand"]
+ethers-signer = ["dep:ethers"]
 
 [dependencies]
+ethers = { workspace = true, optional = true }
 secp256k1 = { workspace = true, features = ["global-context"] }
 async-trait = { workspace = true }
 tiny-keccak = { workspace = true }
 rand = { workspace = true }
 ethereum-types = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

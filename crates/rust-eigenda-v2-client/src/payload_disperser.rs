@@ -20,33 +20,34 @@ pub struct PayloadDisperserConfig {
 }
 
 #[derive(Debug, Clone)]
-/// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
+/// Provides the ability to disperse payloads to EigenDA via a Disperser GRPC service.
 pub struct PayloadDisperser<S = crate::core::PrivateKeySigner> {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient<S>,
-    cert_verifier: CertVerifier,
+    cert_verifier: CertVerifier<S>,
     required_quorums: Vec<u8>,
 }
 
 impl<S> PayloadDisperser<S> {
     const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 16; // 16 MB
-    /// Creates a PayloadDisperser from the specified configs.
+    /// Creates a [`PayloadDisperser`] from the specified configuration.
     pub async fn new(
         payload_config: PayloadDisperserConfig,
         signer: S,
     ) -> Result<Self, PayloadDisperserError>
     where
-        S: Sign,
+        S: Sign + Clone,
     {
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
-            signer,
+            signer: signer.clone(),
             use_secure_grpc_flag: payload_config.use_secure_grpc_flag,
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
             payload_config.cert_verifier_address,
             payload_config.eth_rpc_url.clone(),
+            signer,
         )?;
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {
@@ -58,7 +59,10 @@ impl<S> PayloadDisperser<S> {
     }
 
     /// Executes the dispersal of a payload, returning the associated blob key
-    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError>
+    pub async fn send_payload(
+        &self,
+        payload: Payload,
+    ) -> Result<BlobKey, PayloadDisperserError>
     where
         S: Sign,
     {
@@ -90,25 +94,37 @@ impl<S> PayloadDisperser<S> {
     pub async fn get_inclusion_data(
         &self,
         blob_key: &BlobKey,
-    ) -> Result<Option<EigenDACert>, EigenClientError> {
+    ) -> Result<Option<EigenDACert>, EigenClientError>
+    where
+        S: Sign,
+    {
         let status = self
             .disperser_client
             .blob_status(blob_key)
             .await
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Disperser(e)))?;
+            .map_err(|e| {
+                EigenClientError::PayloadDisperser(PayloadDisperserError::Disperser(e))
+            })?;
 
-        let blob_status = BlobStatus::try_from(status.status)
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Decode(e)))?;
+        let blob_status = BlobStatus::try_from(status.status).map_err(|e| {
+            EigenClientError::PayloadDisperser(PayloadDisperserError::Decode(e))
+        })?;
         match blob_status {
-            BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
-            BlobStatus::Encoded | BlobStatus::GatheringSignatures | BlobStatus::Queued => Ok(None),
+            BlobStatus::Unknown | BlobStatus::Failed => {
+                Err(PayloadDisperserError::BlobStatus)?
+            }
+            BlobStatus::Encoded
+            | BlobStatus::GatheringSignatures
+            | BlobStatus::Queued => Ok(None),
             BlobStatus::Complete => {
                 let eigenda_cert = self.build_eigenda_cert(&status).await?;
                 self.cert_verifier
                     .verify_cert_v2(&eigenda_cert)
                     .await
                     .map_err(|e| {
-                        EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                        EigenClientError::PayloadDisperser(
+                            PayloadDisperserError::CertVerifier(e),
+                        )
                     })?;
                 Ok(Some(eigenda_cert))
             }
@@ -119,7 +135,10 @@ impl<S> PayloadDisperser<S> {
     pub async fn build_eigenda_cert(
         &self,
         status: &BlobStatusReply,
-    ) -> Result<EigenDACert, EigenClientError> {
+    ) -> Result<EigenDACert, EigenClientError>
+    where
+        S: Sign,
+    {
         let signed_batch = match status.clone().signed_batch {
             Some(batch) => batch,
             None => {
@@ -143,7 +162,7 @@ impl<S> PayloadDisperser<S> {
         Ok(cert)
     }
 
-    /// Returns the Max size of a blob that can be dispersed
+    /// Returns the max size of a blob that can be dispersed.
     pub fn blob_size_limit() -> Option<usize> {
         Some(Self::BLOB_SIZE_LIMIT)
     }
