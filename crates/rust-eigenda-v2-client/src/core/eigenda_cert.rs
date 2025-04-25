@@ -518,9 +518,12 @@ mod test {
 
     use crate::{
         cert_verifier::CertVerifier,
-        core::eigenda_cert::{
-            build_cert_from_reply, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
-            BlobInclusionInfo, PaymentHeader,
+        core::{
+            eigenda_cert::{
+                build_cert_from_reply, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
+                BlobInclusionInfo, PaymentHeader,
+            },
+            BlobKey,
         },
         generated::{
             common::{
@@ -535,7 +538,6 @@ mod test {
             },
         },
         tests::{get_test_holesky_rpc_url, get_test_private_key, CERT_VERIFIER_ADDRESS},
-        utils::get_blob_key,
     };
 
     use super::{BlobStatusReply, EigenDACert, NonSignerStakesAndSignature};
@@ -999,7 +1001,7 @@ mod test {
             payment_header_hash: payment_header.hash().unwrap(),
         };
 
-        let blob_key = get_blob_key(&blob_header).unwrap();
+        let blob_key = BlobKey::compute_blob_key(&blob_header).unwrap();
         // e2fc52cb6213041838c20164eac05a7660b741518d5c14060e47c89ed3dd175b has verified in solidity  with chisel
         assert_eq!(
             hex::encode(blob_key.to_bytes()),

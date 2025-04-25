@@ -40,24 +40,22 @@ pub enum ConversionError {
     BlobInclusion(String),
     #[error("Failed to parse batch header: {0}")]
     BatchHeader(String),
-    // #[error("Failed to parse blob key: {0}")]
-    // BlobKey(String),
-    // #[error("Failed to convert U256: {0}")]
-    // U256Conversion(String),
+    #[error("Failed to parse blob key: {0}")]
+    BlobKey(String),
     #[error(transparent)]
     ArkSerializationError(#[from] ark_serialize::SerializationError),
     #[error("Failed to parse signed batch: {0}")]
     SignedBatch(String),
     #[error("Private Key Error")]
     PrivateKey,
-    // #[error("Invalid ETH rpc: {0}")]
-    // InvalidEthRpc(String),
     #[error(transparent)]
     UrlParse(#[from] url::ParseError),
     #[error(transparent)]
     Wallet(#[from] WalletError),
     #[error(transparent)]
     EigenDACert(#[from] rust_eigenda_cert::ConversionError),
+    #[error("Failed to convert U256: {0}")]
+    U256Conversion(String),
 }
 
 /// Errors specific to the [`RelayPayloadRetriever`].

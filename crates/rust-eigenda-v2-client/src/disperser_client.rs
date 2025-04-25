@@ -4,17 +4,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ethers::utils::to_checksum;
 use hex::ToHex;
-use rust_eigenda_cert::{
-    BlobKey, {BlobCommitments, BlobHeader},
-};
+use rust_eigenda_cert::{BlobCommitments, BlobHeader};
 use secrecy::ExposeSecret;
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
 use crate::core::eigenda_cert::PaymentHeader;
-use crate::core::{BlobRequestSigner, LocalBlobRequestSigner, OnDemandPayment, ReservedPayment};
-use crate::errors::{ConversionError, DisperseError};
+use crate::core::{
+    BlobKey, BlobRequestSigner, LocalBlobRequestSigner, OnDemandPayment, ReservedPayment,
+};
+use crate::errors::DisperseError;
 use crate::generated::common::v2::{
     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
 };
@@ -22,7 +22,7 @@ use crate::generated::disperser::v2::{
     disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus, BlobStatusReply,
     BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply, GetPaymentStateRequest,
 };
-use crate::utils::{get_blob_key, PrivateKey};
+use crate::utils::PrivateKey;
 
 const BYTES_PER_SYMBOL: usize = 32;
 
@@ -177,18 +177,13 @@ impl DisperserClient {
             .map(|response| response.into_inner())
             .map_err(DisperseError::FailedRPC)?;
 
-        if get_blob_key(&blob_header)
-            .map_err(ConversionError::EigenDACert)?
-            .to_bytes()
-            .to_vec()
-            != reply.blob_key
-        {
+        if BlobKey::compute_blob_key(&blob_header)?.to_bytes().to_vec() != reply.blob_key {
             return Err(DisperseError::BlobKeyMismatch);
         }
 
         Ok((
             BlobStatus::try_from(reply.result)?,
-            get_blob_key(&blob_header).map_err(ConversionError::EigenDACert)?,
+            BlobKey::compute_blob_key(&blob_header)?,
         ))
     }
 

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use ethabi::Address;
-use rust_eigenda_cert::BlobKey;
 use tonic::transport::Channel;
 
 use crate::{
+    core::BlobKey,
     errors::RelayClientError,
     generated::relay::{
         relay_client::{self, RelayClient as RpcRelayClient},

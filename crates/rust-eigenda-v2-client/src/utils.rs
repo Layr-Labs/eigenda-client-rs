@@ -7,7 +7,6 @@ use crate::{
 use ark_bn254::Fr;
 use ark_ff::fields::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use rust_eigenda_cert::{BlobHeader, BlobKey};
 use secrecy::{ExposeSecret, Secret};
 use url::Url;
 
@@ -115,10 +114,4 @@ pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Vec<Fr> {
         output_elements.push(Fr::from_be_bytes_mod_order(&bytes[start_idx..end_idx]))
     }
     output_elements
-}
-
-pub(crate) fn get_blob_key(
-    blob_header: &BlobHeader,
-) -> Result<BlobKey, rust_eigenda_cert::ConversionError> {
-    BlobKey::compute_blob_key(blob_header)
 }

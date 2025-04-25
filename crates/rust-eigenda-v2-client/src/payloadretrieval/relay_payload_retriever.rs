@@ -1,21 +1,19 @@
 use std::time::Duration;
 
 use rand::seq::SliceRandom;
-use rust_eigenda_cert::{BlobKey, EigenDACert};
+use rust_eigenda_cert::EigenDACert;
 use rust_kzg_bn254_prover::srs::SRS;
 use tokio::time::timeout;
 
 use crate::{
     commitment_utils::generate_and_compare_blob_commitment,
-    core::{Blob, Payload, PayloadForm},
+    core::{Blob, BlobKey, Payload, PayloadForm},
     errors::{ConversionError, RelayPayloadRetrieverError},
     relay_client::{RelayClient, RelayKey},
 };
 
 /// Computes the blob_key of the blob that belongs to the EigenDACert
-fn compute_blob_key(
-    eigenda_cert: &EigenDACert,
-) -> Result<BlobKey, rust_eigenda_cert::ConversionError> {
+fn compute_blob_key(eigenda_cert: &EigenDACert) -> Result<BlobKey, ConversionError> {
     let blob_header = eigenda_cert
         .blob_inclusion_info
         .blob_certificate
@@ -77,7 +75,7 @@ impl RelayPayloadRetriever {
         &mut self,
         eigenda_cert: EigenDACert,
     ) -> Result<Payload, RelayPayloadRetrieverError> {
-        let blob_key = compute_blob_key(&eigenda_cert).map_err(ConversionError::EigenDACert)?;
+        let blob_key = compute_blob_key(&eigenda_cert)?;
 
         let relay_keys = eigenda_cert.blob_inclusion_info.blob_certificate.relay_keys;
         if relay_keys.is_empty() {

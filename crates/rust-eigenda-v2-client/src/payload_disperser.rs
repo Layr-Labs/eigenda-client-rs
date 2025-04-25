@@ -1,9 +1,9 @@
 use ethereum_types::H160;
-use rust_eigenda_cert::{BlobKey, EigenDACert};
+use rust_eigenda_cert::EigenDACert;
 
 use crate::{
     cert_verifier::CertVerifier,
-    core::{eigenda_cert::build_cert_from_reply, Payload, PayloadForm},
+    core::{eigenda_cert::build_cert_from_reply, BlobKey, Payload, PayloadForm},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply},

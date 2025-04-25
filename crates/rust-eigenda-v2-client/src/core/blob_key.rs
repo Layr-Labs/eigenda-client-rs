@@ -1,8 +1,9 @@
 use ethabi::Token;
 use ethereum_types::U256;
+use rust_eigenda_cert::BlobHeader;
 use tiny_keccak::{Hasher, Keccak};
 
-use crate::{eigenda_cert::BlobHeader, errors::ConversionError};
+use crate::errors::ConversionError;
 
 /// [`BlobKey`] is the unique identifier for a blob dispersal.
 ///
