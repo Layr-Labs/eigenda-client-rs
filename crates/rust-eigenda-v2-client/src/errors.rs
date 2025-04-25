@@ -23,8 +23,6 @@ pub enum EigenClientError {
 pub enum ConversionError {
     #[error("Failed to parse payload: {0}")]
     Payload(String),
-    // #[error("Failed to parse payment header: {0}")]
-    // PaymentHeader(String),
     #[error("Failed to parse encoded payload: {0}")]
     EncodedPayload(String),
     #[error("Failed to convert polynomial: {0}")]

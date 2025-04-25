@@ -165,3 +165,22 @@ impl BlobKey {
         Ok(BlobKey(blob_key))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_blob_key_from_hex() {
+        let hex = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        let blob_key = BlobKey::from_hex(hex).unwrap();
+        assert_eq!(blob_key.to_hex(), hex);
+    }
+
+    #[test]
+    fn test_blob_key_from_bytes() {
+        let bytes = [1; 32];
+        let blob_key = BlobKey::from_bytes(bytes);
+        assert_eq!(blob_key.to_bytes(), bytes);
+    }
+}
