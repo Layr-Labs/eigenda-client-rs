@@ -44,7 +44,7 @@ impl BlobRequestSigner for LocalBlobRequestSigner {
     fn sign(&self, blob_header: BlobHeader) -> Result<Vec<u8>, SignerError> {
         let blob_key = blob_header
             .blob_key()
-            .map_err(ConversionError::EigenDACertConversion)?;
+            .map_err(ConversionError::EigenDACert)?;
         let message = Message::from_slice(&blob_key.to_bytes())?;
         let sig = SECP256K1.sign_ecdsa_recoverable(&message, &self.private_key);
 

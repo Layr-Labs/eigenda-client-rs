@@ -66,7 +66,7 @@ impl RelayPayloadRetriever {
     ) -> Result<Payload, RelayPayloadRetrieverError> {
         let blob_key = eigenda_cert
             .compute_blob_key()
-            .map_err(ConversionError::EigenDACertConversion)?;
+            .map_err(ConversionError::EigenDACert)?;
 
         let relay_keys = eigenda_cert.blob_inclusion_info.blob_certificate.relay_keys;
         if relay_keys.is_empty() {

@@ -144,7 +144,7 @@ impl DisperserClient {
                 cumulative_payment: payment.cumulative_payment.to_signed_bytes_be(),
             }
             .hash()
-            .map_err(ConversionError::EigenDACertConversion)?,
+            .map_err(ConversionError::EigenDACert)?,
         };
 
         let signature = self.signer.sign(blob_header.clone())?;
@@ -174,7 +174,7 @@ impl DisperserClient {
 
         if blob_header
             .blob_key()
-            .map_err(ConversionError::EigenDACertConversion)?
+            .map_err(ConversionError::EigenDACert)?
             .to_bytes()
             .to_vec()
             != reply.blob_key
@@ -186,7 +186,7 @@ impl DisperserClient {
             BlobStatus::try_from(reply.result)?,
             blob_header
                 .blob_key()
-                .map_err(ConversionError::EigenDACertConversion)?,
+                .map_err(ConversionError::EigenDACert)?,
         ))
     }
 

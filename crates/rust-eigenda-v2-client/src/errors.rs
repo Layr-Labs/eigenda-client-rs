@@ -49,8 +49,6 @@ pub enum ConversionError {
     ArkSerializationError(#[from] ark_serialize::SerializationError),
     #[error("Failed to parse signed batch: {0}")]
     SignedBatch(String),
-    #[error("Failed to parse eigenda cert: {0}")]
-    EigenDACert(String), // TODO: REMOVE?
     #[error("Private Key Error")]
     PrivateKey,
     #[error("Invalid ETH rpc: {0}")]
@@ -60,7 +58,7 @@ pub enum ConversionError {
     #[error(transparent)]
     Wallet(#[from] WalletError),
     #[error(transparent)]
-    EigenDACertConversion(#[from] rust_eigenda_cert::ConversionError),
+    EigenDACert(#[from] rust_eigenda_cert::ConversionError),
 }
 
 /// Errors specific to the Blob type
