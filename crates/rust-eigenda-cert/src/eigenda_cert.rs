@@ -85,12 +85,6 @@ pub struct BlobHeader {
     pub payment_header_hash: [u8; 32],
 }
 
-impl BlobHeader {
-    pub fn blob_key(&self) -> Result<BlobKey, ConversionError> {
-        BlobKey::compute_blob_key(self)
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 /// BlobCertificate contains a full description of a blob and how it is dispersed. Part of the certificate
 /// is provided by the blob submitter (i.e. the blob header), and part is provided by the disperser (i.e. the relays).

@@ -22,7 +22,7 @@ use crate::generated::disperser::v2::{
     disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus, BlobStatusReply,
     BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply, GetPaymentStateRequest,
 };
-use crate::utils::PrivateKey;
+use crate::utils::{get_blob_key, PrivateKey};
 
 const BYTES_PER_SYMBOL: usize = 32;
 
@@ -177,8 +177,7 @@ impl DisperserClient {
             .map(|response| response.into_inner())
             .map_err(DisperseError::FailedRPC)?;
 
-        if blob_header
-            .blob_key()
+        if get_blob_key(&blob_header)
             .map_err(ConversionError::EigenDACert)?
             .to_bytes()
             .to_vec()
@@ -189,9 +188,7 @@ impl DisperserClient {
 
         Ok((
             BlobStatus::try_from(reply.result)?,
-            blob_header
-                .blob_key()
-                .map_err(ConversionError::EigenDACert)?,
+            get_blob_key(&blob_header).map_err(ConversionError::EigenDACert)?,
         ))
     }
 

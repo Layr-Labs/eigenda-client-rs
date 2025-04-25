@@ -520,6 +520,7 @@ mod test {
             },
         },
         tests::{get_test_holesky_rpc_url, get_test_private_key, CERT_VERIFIER_ADDRESS},
+        utils::get_blob_key,
     };
 
     use super::{BlobStatusReply, EigenDACert, NonSignerStakesAndSignature};
@@ -983,7 +984,7 @@ mod test {
             payment_header_hash: payment_header.hash().unwrap(),
         };
 
-        let blob_key = blob_header.blob_key().unwrap();
+        let blob_key = get_blob_key(&blob_header).unwrap();
         // e2fc52cb6213041838c20164eac05a7660b741518d5c14060e47c89ed3dd175b has verified in solidity  with chisel
         assert_eq!(
             hex::encode(blob_key.to_bytes()),

@@ -6,7 +6,7 @@ use tiny_keccak::{Hasher, Keccak};
 
 use crate::{
     errors::{ConversionError, SignerError},
-    utils::PrivateKey,
+    utils::{get_blob_key, PrivateKey},
 };
 
 use rust_eigenda_cert::BlobHeader;
@@ -44,9 +44,7 @@ impl LocalBlobRequestSigner {
 impl BlobRequestSigner for LocalBlobRequestSigner {
     /// Signs the blob header using the private key.
     fn sign(&self, blob_header: BlobHeader) -> Result<Vec<u8>, SignerError> {
-        let blob_key = blob_header
-            .blob_key()
-            .map_err(ConversionError::EigenDACert)?;
+        let blob_key = get_blob_key(&blob_header).map_err(ConversionError::EigenDACert)?;
         let message = Message::from_slice(&blob_key.to_bytes())?;
         let sig = SECP256K1.sign_ecdsa_recoverable(&message, &self.private_key);
 

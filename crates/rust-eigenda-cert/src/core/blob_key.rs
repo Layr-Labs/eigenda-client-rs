@@ -50,7 +50,7 @@ impl BlobKey {
     }
 
     /// Computes a new [`BlobKey`] from the given [`BlobHeader`].
-    pub(crate) fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
+    pub fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
         let mut sorted_quorums = blob_header.quorum_numbers.clone();
         sorted_quorums.sort();
 
