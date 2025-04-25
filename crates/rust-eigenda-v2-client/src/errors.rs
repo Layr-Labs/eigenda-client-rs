@@ -171,6 +171,7 @@ pub enum SignerError {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
 }
+
 /// Errors specific to the [`PayloadDisperser`].
 #[derive(Debug, thiserror::Error)]
 pub enum PayloadDisperserError {
