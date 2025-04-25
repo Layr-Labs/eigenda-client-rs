@@ -26,4 +26,4 @@ rust-eigenda-signers = { workspace = true, features = [
   "default",
   "ethers-signer",
 ] }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt"] }

@@ -149,6 +149,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{Signer, *};
+    use crate::signers::private_key::Signer as PrivateKeySigner;
     use ethers::core::rand::thread_rng;
     use ethers::middleware::SignerMiddleware;
     use ethers::providers::{Http, Middleware, Provider};
@@ -160,9 +161,6 @@ mod tests {
     use secp256k1::SecretKey;
     use std::str::FromStr;
     use tokio;
-
-    // TODO: segfault this is problematic because feature flag not enabled
-    use crate::signers::private_key::Signer as PrivateKeySigner;
 
     #[tokio::test]
     async fn test_chain_id_and_address() {
