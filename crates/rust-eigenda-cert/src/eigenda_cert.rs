@@ -9,8 +9,6 @@ use crate::{
     errors::{ConversionError, EigenDACertError},
 };
 
-use crate::core::BlobKey;
-
 #[derive(Debug, PartialEq, Clone)]
 /// BlomCommitments contains the blob's commitment, degree proof, and the actual degree.
 pub struct BlobCommitments {
@@ -218,17 +216,6 @@ pub struct EigenDACert {
 }
 
 impl EigenDACert {
-    /// Computes the blob_key of the blob that belongs to the EigenDACert
-    pub fn compute_blob_key(&self) -> Result<BlobKey, ConversionError> {
-        let blob_header = self
-            .blob_inclusion_info
-            .blob_certificate
-            .blob_header
-            .clone();
-
-        BlobKey::compute_blob_key(&blob_header)
-    }
-
     /// Transforms the EigenDACert into bytes using bincode
     pub fn to_bytes(&self) -> Result<Vec<u8>, EigenDACertError> {
         bincode::serialize(self).map_err(|e| EigenDACertError::SerializationError(e.to_string()))

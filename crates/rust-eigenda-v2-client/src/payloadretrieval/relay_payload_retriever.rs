@@ -12,6 +12,19 @@ use crate::{
     relay_client::{RelayClient, RelayKey},
 };
 
+/// Computes the blob_key of the blob that belongs to the EigenDACert
+fn compute_blob_key(
+    eigenda_cert: &EigenDACert,
+) -> Result<BlobKey, rust_eigenda_cert::ConversionError> {
+    let blob_header = eigenda_cert
+        .blob_inclusion_info
+        .blob_certificate
+        .blob_header
+        .clone();
+
+    BlobKey::compute_blob_key(&blob_header)
+}
+
 pub struct SRSConfig {
     pub source_path: String,
     pub order: u32,
@@ -64,9 +77,7 @@ impl RelayPayloadRetriever {
         &mut self,
         eigenda_cert: EigenDACert,
     ) -> Result<Payload, RelayPayloadRetrieverError> {
-        let blob_key = eigenda_cert
-            .compute_blob_key()
-            .map_err(ConversionError::EigenDACert)?;
+        let blob_key = compute_blob_key(&eigenda_cert).map_err(ConversionError::EigenDACert)?;
 
         let relay_keys = eigenda_cert.blob_inclusion_info.blob_certificate.relay_keys;
         if relay_keys.is_empty() {
