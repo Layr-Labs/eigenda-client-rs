@@ -16,9 +16,6 @@ ethabi = { workspace = true }
 ethereum-types = { workspace = true }
 serde = { workspace = true }
 tiny-keccak = { workspace = true }
-tonic = { workspace = true }
-prost = { workspace = true }
-ark-ec = { workspace = true }
 ark-serialize = { workspace = true }
 rust-kzg-bn254-primitives = { workspace = true }
 hex = { workspace = true }
