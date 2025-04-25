@@ -261,9 +261,9 @@ pub struct Attestation {
     pub quorum_numbers: Vec<u32>,
 }
 
-// EigenDACert contains all data necessary to retrieve and validate a blob
-//
-// This struct represents the composition of a eigenDA blob certificate, as it would exist in a rollup inbox.
+/// Contains all data necessary to retrieve and validate a [`Blob`]
+///
+/// This struct represents the composition of a EigenDA blob certificate, as it would exist in a rollup inbox.
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EigenDACert {
     pub blob_inclusion_info: BlobInclusionInfo,

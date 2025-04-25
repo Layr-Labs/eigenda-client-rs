@@ -3,7 +3,7 @@ use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, Fp2, PrimeField};
 use ethereum_types::U256;
 
-use crate::errors::{BlobError, ConversionError, EigenClientError};
+use crate::errors::{ConversionError, EigenClientError};
 use crate::generated::disperser::v2::{
     Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
 };
@@ -30,8 +30,8 @@ use crate::generated::{
 };
 
 use rust_eigenda_cert::{
-    Attestation, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
-    EigenDACert, NonSignerStakesAndSignature, PaymentHeader, SignedBatch,
+    Attestation, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobError, BlobHeader,
+    BlobInclusionInfo, EigenDACert, NonSignerStakesAndSignature, PaymentHeader, SignedBatch,
 };
 
 impl From<ProtoPaymentHeader> for PaymentHeader {

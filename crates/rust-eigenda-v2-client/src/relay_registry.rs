@@ -3,7 +3,10 @@ use secrecy::ExposeSecret;
 use std::sync::Arc;
 
 use crate::{
-    errors::{ConversionError, RelayClientError}, generated::i_relay_registry::IRelayRegistry, relay_client::RelayKey, utils::{PrivateKey, SecretUrl}
+    errors::{ConversionError, RelayClientError},
+    generated::i_relay_registry::IRelayRegistry,
+    relay_client::RelayKey,
+    utils::{PrivateKey, SecretUrl},
 };
 
 /// Provides methods for interacting with the EigenDA RelayRegistry contract.

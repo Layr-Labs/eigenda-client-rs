@@ -1,4 +1,3 @@
-use ark_bn254::{Fr, G1Affine};
 use ethereum_types::H160;
 use ethers::signers::WalletError;
 use rust_kzg_bn254_primitives::errors::KzgError;
@@ -13,7 +12,7 @@ pub enum EigenClientError {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
     #[error(transparent)]
-    Blob(#[from] BlobError),
+    Blob(#[from] rust_eigenda_cert::BlobError),
     #[error(transparent)]
     PayloadDisperser(#[from] PayloadDisperserError),
 }
@@ -23,8 +22,8 @@ pub enum EigenClientError {
 pub enum ConversionError {
     #[error("Failed to parse payload: {0}")]
     Payload(String),
-    #[error("Failed to parse payment header: {0}")]
-    PaymentHeader(String),
+    // #[error("Failed to parse payment header: {0}")]
+    // PaymentHeader(String),
     #[error("Failed to parse encoded payload: {0}")]
     EncodedPayload(String),
     #[error("Failed to convert polynomial: {0}")]
@@ -41,18 +40,18 @@ pub enum ConversionError {
     BlobInclusion(String),
     #[error("Failed to parse batch header: {0}")]
     BatchHeader(String),
-    #[error("Failed to parse blob key: {0}")]
-    BlobKey(String),
-    #[error("Failed to convert U256: {0}")]
-    U256Conversion(String),
+    // #[error("Failed to parse blob key: {0}")]
+    // BlobKey(String),
+    // #[error("Failed to convert U256: {0}")]
+    // U256Conversion(String),
     #[error(transparent)]
     ArkSerializationError(#[from] ark_serialize::SerializationError),
     #[error("Failed to parse signed batch: {0}")]
     SignedBatch(String),
     #[error("Private Key Error")]
     PrivateKey,
-    #[error("Invalid ETH rpc: {0}")]
-    InvalidEthRpc(String),
+    // #[error("Invalid ETH rpc: {0}")]
+    // InvalidEthRpc(String),
     #[error(transparent)]
     UrlParse(#[from] url::ParseError),
     #[error(transparent)]
@@ -61,34 +60,13 @@ pub enum ConversionError {
     EigenDACert(#[from] rust_eigenda_cert::ConversionError),
 }
 
-/// Errors specific to the Blob type
-#[derive(Debug, thiserror::Error)]
-pub enum BlobError {
-    #[error("Invalid blob length: {0}")]
-    InvalidBlobLength(usize),
-    #[error("Blob length is zero")]
-    InvalidBlobLengthZero,
-    #[error("Blob length is not a power of two")]
-    InvalidBlobLengthNotPowerOfTwo(usize),
-    #[error("Mismatch between commitment ({0}) and blob ({1})")]
-    CommitmentAndBlobLengthMismatch(usize, usize),
-    #[error("Invalid data length: {0}")]
-    InvalidDataLength(usize),
-    #[error("Invalid quorum number: {0}")]
-    InvalidQuorumNumber(u32),
-    #[error("Missing field: {0}")]
-    MissingField(String),
-    #[error(transparent)]
-    Bn254(#[from] Bn254Error),
-}
-
 /// Errors specific to the [`RelayPayloadRetriever`].
 #[derive(Debug, thiserror::Error)]
 pub enum RelayPayloadRetrieverError {
     #[error(transparent)]
     RelayClient(#[from] RelayClientError),
     #[error(transparent)]
-    Blob(#[from] BlobError),
+    Blob(#[from] rust_eigenda_cert::BlobError),
     #[error(transparent)]
     Conversion(#[from] ConversionError),
     #[error(transparent)]
@@ -139,15 +117,6 @@ pub enum EthClientError {
     EthAbi(#[from] ethabi::Error),
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
-}
-
-/// Errors related to the BN254 and its points
-#[derive(Debug, thiserror::Error)]
-pub enum Bn254Error {
-    #[error("Insufficient SRS in memory: have {0}, need {1}")]
-    InsufficientSrsInMemory(usize, usize),
-    #[error("Failed calculating multi scalar multiplication on base {:?} with scalars {:?}", .0, .1)]
-    FailedComputingMSM(Vec<G1Affine>, Vec<Fr>),
 }
 
 /// Errors specific to the Accountant
