@@ -2,7 +2,7 @@
 # This is named with the rust- prefix to match https://github.com/Layr-Labs/rust-kzg-bn254
 # We will remove the prefix and publish as new crates once we combine all of these repos
 # and move them into the eigenda monorepo.
-name = "rust-eigenda-cert"
+name = "rust-eigenda-v2-cert"
 version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/Layr-Labs/eigenda-client-rs"

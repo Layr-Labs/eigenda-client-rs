@@ -2,7 +2,7 @@ use ethers::prelude::*;
 use std::sync::Arc;
 
 use ethereum_types::H160;
-use rust_eigenda_cert::{EigenDACert, NonSignerStakesAndSignature};
+use rust_eigenda_v2_cert::{EigenDACert, NonSignerStakesAndSignature};
 use secrecy::ExposeSecret;
 
 use crate::{
@@ -106,7 +106,7 @@ mod tests {
 
     use ark_bn254::{G1Affine, G2Affine};
     use ark_ff::{BigInt, Fp2};
-    use rust_eigenda_cert::{
+    use rust_eigenda_v2_cert::{
         BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
         EigenDACert, NonSignerStakesAndSignature,
     };
