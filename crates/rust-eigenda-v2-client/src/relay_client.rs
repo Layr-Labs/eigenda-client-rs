@@ -35,10 +35,7 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
-    pub async fn new<S>(
-        config: RelayClientConfig,
-        signer: S,
-    ) -> Result<Self, RelayClientError>
+    pub async fn new<S>(config: RelayClientConfig, signer: S) -> Result<Self, RelayClientError>
     where
         EthersSigner<S>: Signer,
     {
@@ -55,8 +52,8 @@ impl RelayClient {
         let mut rpc_clients = HashMap::new();
         for relay_key in config.relay_clients_keys.iter() {
             let url = relay_registry.get_url_from_relay_key(*relay_key).await?;
-            let endpoint = Channel::from_shared(url.clone())
-                .map_err(|_| RelayClientError::InvalidURI(url))?;
+            let endpoint =
+                Channel::from_shared(url.clone()).map_err(|_| RelayClientError::InvalidURI(url))?;
             let channel = endpoint.connect().await?;
             let rpc_client = relay_client::RelayClient::new(channel);
             rpc_clients.insert(*relay_key, rpc_client);
@@ -92,8 +89,7 @@ mod tests {
     use crate::{
         relay_client::RelayClient,
         tests::{
-            get_test_holesky_rpc_url, get_test_private_key_signer,
-            HOLESKY_RELAY_REGISTRY_ADDRESS,
+            get_test_holesky_rpc_url, get_test_private_key_signer, HOLESKY_RELAY_REGISTRY_ADDRESS,
         },
     };
 
@@ -116,10 +112,9 @@ mod tests {
         .await
         .unwrap();
 
-        let blob_key = BlobKey::from_hex(
-            "625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4",
-        )
-        .unwrap();
+        let blob_key =
+            BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")
+                .unwrap();
         let relay_key = 2;
         let result = client.get_blob(relay_key, &blob_key).await;
         assert!(result.is_ok());

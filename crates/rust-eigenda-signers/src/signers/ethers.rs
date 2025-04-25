@@ -40,8 +40,8 @@ impl<S> Signer<S> {
     where
         S: Sign,
     {
-        let msg = Message::from_slice(&digest.to_fixed_bytes())
-            .map_err(|_| Error::InvalidDigest)?;
+        let msg =
+            Message::from_slice(&digest.to_fixed_bytes()).map_err(|_| Error::InvalidDigest)?;
 
         let sig = self
             .inner_signer
@@ -87,10 +87,7 @@ where
     }
 
     /// Signs the transaction
-    async fn sign_transaction(
-        &self,
-        tx: &TypedTransaction,
-    ) -> Result<Signature, Self::Error> {
+    async fn sign_transaction(&self, tx: &TypedTransaction) -> Result<Signature, Self::Error> {
         let mut tx_with_chain = tx.clone();
         let chain_id = tx_with_chain
             .chain_id()
@@ -112,8 +109,7 @@ where
             .encode_eip712()
             .map_err(|e| Error::Eip712Encoding(e.to_string()))?;
 
-        let msg =
-            Message::from_slice(digest.as_slice()).map_err(|_| Error::InvalidDigest)?;
+        let msg = Message::from_slice(digest.as_slice()).map_err(|_| Error::InvalidDigest)?;
 
         let sig = self
             .inner_signer
@@ -213,8 +209,7 @@ mod tests {
         let pk_signer = PrivateKeySigner::random(&mut thread_rng());
         let chain_id = 1u64;
         let signer = Signer::new(pk_signer.clone(), chain_id);
-        let to_address =
-            Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
+        let to_address = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
         let tx = TypedTransaction::Eip1559(ethers::types::Eip1559TransactionRequest {
             to: Some(to_address.into()),
             from: Some(signer.address()),
@@ -246,8 +241,7 @@ mod tests {
             .unwrap()
             .interval(std::time::Duration::from_millis(10u64));
 
-        let private_key_hex =
-            SecretKey::from_slice(anvil.keys()[0].to_bytes().as_slice()).unwrap();
+        let private_key_hex = SecretKey::from_slice(anvil.keys()[0].to_bytes().as_slice()).unwrap();
         let pk_signer = PrivateKeySigner::new(private_key_hex);
 
         let our_signer = Signer::new(pk_signer, anvil.chain_id());

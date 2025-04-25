@@ -29,10 +29,7 @@ pub trait Sign: Send + Sync + std::fmt::Debug {
     type Error: Error + Send + Sync + 'static;
 
     /// Signs a digest using the signer's key.
-    async fn sign_digest(
-        &self,
-        message: &Message,
-    ) -> Result<RecoverableSignature, Self::Error>;
+    async fn sign_digest(&self, message: &Message) -> Result<RecoverableSignature, Self::Error>;
 
     /// Returns the public key associated with this signer.
     fn public_key(&self) -> PublicKey;
@@ -45,10 +42,7 @@ where
 {
     type Error = T::Error;
 
-    async fn sign_digest(
-        &self,
-        message: &Message,
-    ) -> Result<RecoverableSignature, Self::Error> {
+    async fn sign_digest(&self, message: &Message) -> Result<RecoverableSignature, Self::Error> {
         (*self).sign_digest(message).await
     }
 
@@ -64,10 +58,7 @@ where
 {
     type Error = T::Error;
 
-    async fn sign_digest(
-        &self,
-        message: &Message,
-    ) -> Result<RecoverableSignature, Self::Error> {
+    async fn sign_digest(&self, message: &Message) -> Result<RecoverableSignature, Self::Error> {
         (**self).sign_digest(message).await
     }
 
@@ -83,10 +74,7 @@ where
 {
     type Error = T::Error;
 
-    async fn sign_digest(
-        &self,
-        message: &Message,
-    ) -> Result<RecoverableSignature, Self::Error> {
+    async fn sign_digest(&self, message: &Message) -> Result<RecoverableSignature, Self::Error> {
         (**self).sign_digest(message).await
     }
 

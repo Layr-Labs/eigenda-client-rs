@@ -11,24 +11,18 @@ use crate::{
 
 /// Provides methods for interacting with the EigenDA RelayRegistry contract.
 pub struct RelayRegistry<S> {
-    relay_registry_contract:
-        IRelayRegistry<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    relay_registry_contract: IRelayRegistry<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
 impl<S> RelayRegistry<S> {
     /// Creates a new instance of RelayRegistry receiving the address of the contract and the ETH RPC url.
-    pub fn new(
-        address: H160,
-        rpc_url: SecretUrl,
-        signer: S,
-    ) -> Result<Self, ConversionError>
+    pub fn new(address: H160, rpc_url: SecretUrl, signer: S) -> Result<Self, ConversionError>
     where
         EthersSigner<S>: Signer,
     {
         let url: String = rpc_url.try_into()?;
 
-        let provider =
-            Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
+        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
         // ethers wallet hard code the chain id to 1
         let signer = EthersSigner::new(signer, 1);
         let client = SignerMiddleware::new(provider, signer);

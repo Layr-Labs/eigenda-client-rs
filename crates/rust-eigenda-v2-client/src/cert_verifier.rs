@@ -20,24 +20,18 @@ use crate::{
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier<S> {
-    cert_verifier_contract:
-        IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    cert_verifier_contract: IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
 impl<S> CertVerifier<S> {
     /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
-    pub fn new(
-        address: H160,
-        rpc_url: SecretUrl,
-        signer: S,
-    ) -> Result<Self, CertVerifierError>
+    pub fn new(address: H160, rpc_url: SecretUrl, signer: S) -> Result<Self, CertVerifierError>
     where
         EthersSigner<S>: Signer,
     {
         let url: String = rpc_url.try_into()?;
 
-        let provider =
-            Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
+        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
         // ethers hard codes 1 when constructing wallets
         let chain_id = 1;
         let signer = EthersSigner::new(signer, chain_id);
@@ -83,19 +77,14 @@ impl<S> CertVerifier<S> {
             .quorum_numbers_required()
             .call()
             .await
-            .map_err(|_| {
-                CertVerifierError::Contract("quorum_numbers_required".to_string())
-            })?;
+            .map_err(|_| CertVerifierError::Contract("quorum_numbers_required".to_string()))?;
         Ok(quorums.to_vec())
     }
 
     /// Calls the VerifyCertV2 view function on the EigenDACertVerifier contract.
     ///
     /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a [`CertVerifierError`].
-    pub async fn verify_cert_v2(
-        &self,
-        eigenda_cert: &EigenDACert,
-    ) -> Result<(), CertVerifierError>
+    pub async fn verify_cert_v2(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError>
     where
         EthersSigner<S>: Signer,
     {
@@ -124,12 +113,10 @@ mod tests {
     use crate::{
         cert_verifier::CertVerifier,
         core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
-            BlobInclusionInfo, EigenDACert, NonSignerStakesAndSignature,
+            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
+            EigenDACert, NonSignerStakesAndSignature,
         },
-        tests::{
-            get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL,
-        },
+        tests::{get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
         utils::SecretUrl,
     };
 
@@ -281,17 +268,16 @@ mod tests {
                             length: 64,
                         },
                         payment_header_hash: [
-                            29, 146, 146, 30, 199, 36, 31, 25, 135, 92, 123, 219, 227,
-                            120, 149, 42, 90, 132, 47, 17, 6, 243, 38, 190, 6, 161, 62,
-                            59, 163, 217, 173, 131,
+                            29, 146, 146, 30, 199, 36, 31, 25, 135, 92, 123, 219, 227, 120, 149,
+                            42, 90, 132, 47, 17, 6, 243, 38, 190, 6, 161, 62, 59, 163, 217, 173,
+                            131,
                         ],
                     },
                     signature: vec![
-                        92, 83, 82, 196, 28, 254, 190, 62, 52, 229, 80, 45, 61, 171, 85,
-                        81, 181, 12, 175, 28, 208, 16, 84, 89, 8, 216, 93, 17, 233, 157,
-                        220, 238, 91, 218, 254, 142, 201, 178, 65, 198, 103, 157, 13,
-                        105, 11, 39, 141, 231, 36, 67, 58, 22, 227, 215, 132, 147, 146,
-                        75, 172, 140, 72, 119, 222, 170, 0,
+                        92, 83, 82, 196, 28, 254, 190, 62, 52, 229, 80, 45, 61, 171, 85, 81, 181,
+                        12, 175, 28, 208, 16, 84, 89, 8, 216, 93, 17, 233, 157, 220, 238, 91, 218,
+                        254, 142, 201, 178, 65, 198, 103, 157, 13, 105, 11, 39, 141, 231, 36, 67,
+                        58, 22, 227, 215, 132, 147, 146, 75, 172, 140, 72, 119, 222, 170, 0,
                     ],
                     relay_keys: vec![1, 0], // breaks when changes
                 },
@@ -300,9 +286,8 @@ mod tests {
             },
             batch_header: BatchHeaderV2 {
                 batch_root: [
-                    179, 157, 140, 16, 70, 67, 200, 196, 172, 175, 23, 7, 232, 98, 121,
-                    153, 195, 200, 53, 38, 173, 110, 102, 121, 6, 124, 187, 124, 64, 41,
-                    132, 28,
+                    179, 157, 140, 16, 70, 67, 200, 196, 172, 175, 23, 7, 232, 98, 121, 153, 195,
+                    200, 53, 38, 173, 110, 102, 121, 6, 124, 187, 124, 64, 41, 132, 28,
                 ], // breaks when changed
                 reference_block_number: 3672938, // breaks when changed
             },
