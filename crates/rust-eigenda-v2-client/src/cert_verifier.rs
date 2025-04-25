@@ -2,10 +2,11 @@ use ethers::prelude::*;
 use std::sync::Arc;
 
 use ethereum_types::H160;
-use rust_eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch};
+use rust_eigenda_cert::{EigenDACert, NonSignerStakesAndSignature};
 use secrecy::ExposeSecret;
 
 use crate::{
+    core::eigenda_cert::SignedBatch,
     errors::{CertVerifierError, ConversionError},
     generated::{
         disperser::v2::SignedBatch as SignedBatchProto,

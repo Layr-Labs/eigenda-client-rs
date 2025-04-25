@@ -104,12 +104,6 @@ pub struct BlobInclusionInfo {
     pub inclusion_proof: Vec<u8>,
 }
 
-/// SignedBatch is a batch of blobs with a signature.
-pub struct SignedBatch {
-    pub header: BatchHeaderV2,
-    pub attestation: Attestation,
-}
-
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BatchHeaderV2 {
     pub batch_root: [u8; 32],
@@ -210,15 +204,6 @@ impl<'de> serde::Deserialize<'de> for NonSignerStakesAndSignature {
         let helper = NonSignerStakesAndSignatureHelper::deserialize(deserializer)?;
         Self::try_from(helper).map_err(serde::de::Error::custom)
     }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Attestation {
-    pub non_signer_pubkeys: Vec<G1Affine>,
-    pub quorum_apks: Vec<G1Affine>,
-    pub sigma: G1Affine,
-    pub apk_g2: G2Affine,
-    pub quorum_numbers: Vec<u32>,
 }
 
 /// Contains all data necessary to retrieve and validate a [`Blob`]

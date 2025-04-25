@@ -32,8 +32,8 @@ use crate::generated::{
 };
 
 use rust_eigenda_cert::{
-    Attestation, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobError, BlobHeader,
-    BlobInclusionInfo, EigenDACert, NonSignerStakesAndSignature, SignedBatch,
+    BatchHeaderV2, BlobCertificate, BlobCommitments, BlobError, BlobHeader, BlobInclusionInfo,
+    EigenDACert, NonSignerStakesAndSignature,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -202,6 +202,21 @@ impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
             inclusion_proof: value.inclusion_proof,
         })
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Attestation {
+    pub non_signer_pubkeys: Vec<G1Affine>,
+    pub quorum_apks: Vec<G1Affine>,
+    pub sigma: G1Affine,
+    pub apk_g2: G2Affine,
+    pub quorum_numbers: Vec<u32>,
+}
+
+/// SignedBatch is a batch of blobs with a signature.
+pub struct SignedBatch {
+    pub header: BatchHeaderV2,
+    pub attestation: Attestation,
 }
 
 impl From<SignedBatch> for SignedBatchContract {
