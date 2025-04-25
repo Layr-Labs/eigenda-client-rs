@@ -1,8 +1,5 @@
 use ark_bn254::{G1Affine, G2Affine};
-use ethabi::Token;
-use ethereum_types::U256;
 use serde::ser::Error;
-use tiny_keccak::{Hasher, Keccak};
 
 use crate::{
     commitment_utils::{
@@ -13,37 +10,6 @@ use crate::{
 };
 
 use crate::core::BlobKey;
-
-#[derive(Debug, PartialEq, Clone)]
-/// PaymentHeader represents the header information for a blob
-pub struct PaymentHeader {
-    /// account_id is the ETH account address for the payer
-    pub account_id: String,
-    /// Timestamp represents the nanosecond of the dispersal request creation
-    pub timestamp: i64,
-    /// cumulative_payment represents the total amount of payment (in wei) made by the user up to this point
-    pub cumulative_payment: Vec<u8>,
-}
-
-impl PaymentHeader {
-    pub fn hash(&self) -> Result<[u8; 32], ConversionError> {
-        let cumulative_payment = U256::from(self.cumulative_payment.as_slice());
-        let token = Token::Tuple(vec![
-            Token::String(self.account_id.clone()),
-            Token::Int(self.timestamp.into()),
-            Token::Uint(cumulative_payment),
-        ]);
-
-        let encoded = ethabi::encode(&[token]);
-
-        let mut hasher = Keccak::v256();
-        hasher.update(&encoded);
-        let mut hash = [0u8; 32];
-        hasher.finalize(&mut hash);
-
-        Ok(hash)
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 /// BlomCommitments contains the blob's commitment, degree proof, and the actual degree.

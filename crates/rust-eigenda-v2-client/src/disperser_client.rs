@@ -5,13 +5,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ethers::utils::to_checksum;
 use hex::ToHex;
 use rust_eigenda_cert::{
-    BlobKey, {BlobCommitments, BlobHeader, PaymentHeader},
+    BlobKey, {BlobCommitments, BlobHeader},
 };
 use secrecy::ExposeSecret;
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
+use crate::core::eigenda_cert::PaymentHeader;
 use crate::core::{BlobRequestSigner, LocalBlobRequestSigner, OnDemandPayment, ReservedPayment};
 use crate::errors::{ConversionError, DisperseError};
 use crate::generated::common::v2::{
@@ -148,8 +149,7 @@ impl DisperserClient {
                 timestamp: payment.timestamp,
                 cumulative_payment: payment.cumulative_payment.to_signed_bytes_be(),
             }
-            .hash()
-            .map_err(ConversionError::EigenDACert)?,
+            .hash()?,
         };
 
         let signature = self.signer.sign(blob_header.clone())?;
