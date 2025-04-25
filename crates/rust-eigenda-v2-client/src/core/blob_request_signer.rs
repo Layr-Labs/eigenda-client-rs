@@ -4,9 +4,12 @@ use secrecy::ExposeSecret;
 use sha2::{Digest, Sha256};
 use tiny_keccak::{Hasher, Keccak};
 
-use crate::{errors::SignerError, utils::PrivateKey};
+use crate::{
+    errors::{ConversionError, SignerError},
+    utils::PrivateKey,
+};
 
-use super::eigenda_cert::BlobHeader;
+use rust_eigenda_cert::BlobHeader;
 
 pub trait BlobRequestSigner {
     fn sign(&self, blob_header: BlobHeader) -> Result<Vec<u8>, SignerError>;
@@ -39,7 +42,9 @@ impl LocalBlobRequestSigner {
 
 impl BlobRequestSigner for LocalBlobRequestSigner {
     fn sign(&self, blob_header: BlobHeader) -> Result<Vec<u8>, SignerError> {
-        let blob_key = blob_header.blob_key()?;
+        let blob_key = blob_header
+            .blob_key()
+            .map_err(ConversionError::EigenDACertConversion)?;
         let message = Message::from_slice(&blob_key.to_bytes())?;
         let sig = SECP256K1.sign_ecdsa_recoverable(&message, &self.private_key);
 

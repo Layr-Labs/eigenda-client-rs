@@ -30,6 +30,8 @@ pub enum ConversionError {
     BlobHeader(String),
     #[error("Failed to parse blob key: {0}")]
     BlobKey(String),
+    #[error("Failed to convert U256: {0}")]
+    U256Conversion(String),
 }
 
 /// Errors specific to the Blob type

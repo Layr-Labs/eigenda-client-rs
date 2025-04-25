@@ -4,16 +4,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ethers::utils::to_checksum;
 use hex::ToHex;
+use rust_eigenda_cert::{
+    BlobKey, {BlobCommitments, BlobHeader, PaymentHeader},
+};
 use secrecy::ExposeSecret;
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
-use crate::core::eigenda_cert::{BlobCommitments, BlobHeader, PaymentHeader};
-use crate::core::{
-    BlobKey, BlobRequestSigner, LocalBlobRequestSigner, OnDemandPayment, ReservedPayment,
-};
-use crate::errors::DisperseError;
+use crate::core::{BlobRequestSigner, LocalBlobRequestSigner, OnDemandPayment, ReservedPayment};
+use crate::errors::{ConversionError, DisperseError};
 use crate::generated::common::v2::{
     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
 };
@@ -143,7 +143,8 @@ impl DisperserClient {
                 timestamp: payment.timestamp,
                 cumulative_payment: payment.cumulative_payment.to_signed_bytes_be(),
             }
-            .hash()?,
+            .hash()
+            .map_err(ConversionError::EigenDACertConversion)?,
         };
 
         let signature = self.signer.sign(blob_header.clone())?;
@@ -171,11 +172,22 @@ impl DisperserClient {
             .map(|response| response.into_inner())
             .map_err(DisperseError::FailedRPC)?;
 
-        if blob_header.blob_key()?.to_bytes().to_vec() != reply.blob_key {
+        if blob_header
+            .blob_key()
+            .map_err(ConversionError::EigenDACertConversion)?
+            .to_bytes()
+            .to_vec()
+            != reply.blob_key
+        {
             return Err(DisperseError::BlobKeyMismatch);
         }
 
-        Ok((BlobStatus::try_from(reply.result)?, blob_header.blob_key()?))
+        Ok((
+            BlobStatus::try_from(reply.result)?,
+            blob_header
+                .blob_key()
+                .map_err(ConversionError::EigenDACertConversion)?,
+        ))
     }
 
     /// Populates the accountant with the payment state from the disperser.

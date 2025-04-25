@@ -50,6 +50,7 @@ ark-ec = { workspace = true }
 sha2 = { workspace = true }
 bincode = { workspace = true }
 ethers = { workspace = true }
+rust-eigenda-cert = { path = "../rust-eigenda-cert" }
 
 [dev-dependencies]
 dotenv = { workspace = true }

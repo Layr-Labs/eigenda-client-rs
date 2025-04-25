@@ -1,4 +1,8 @@
 mod commitment_utils;
-pub mod core;
-pub mod eigenda_cert;
-pub mod errors;
+mod core;
+mod eigenda_cert;
+mod errors;
+
+pub use core::BlobKey;
+pub use eigenda_cert::*;
+pub use errors::*;

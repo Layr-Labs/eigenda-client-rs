@@ -1,6 +1,5 @@
-use ark_bn254::{G1Affine, G1Projective, G2Affine};
-use ark_ec::{CurveGroup, VariableBaseMSM};
-use ark_ff::{AdditiveGroup, BigInteger, Fp, Fp2, PrimeField, Zero};
+use ark_bn254::{G1Affine, G2Affine};
+use ark_ff::{AdditiveGroup, Fp, Fp2, PrimeField, Zero};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
 

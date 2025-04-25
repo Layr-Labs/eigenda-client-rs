@@ -9,7 +9,7 @@ use crate::{
         g1_commitment_from_bytes, g1_commitment_to_bytes, g2_commitment_from_bytes,
         g2_commitment_to_bytes,
     },
-    errors::{BlobError, ConversionError, EigenDACertError},
+    errors::{ConversionError, EigenDACertError},
 };
 
 use crate::core::BlobKey;
@@ -113,14 +113,14 @@ impl<'de> serde::Deserialize<'de> for BlobCommitments {
 
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BlobHeader {
-    pub(crate) version: u16,
-    pub(crate) quorum_numbers: Vec<u8>,
-    pub(crate) commitment: BlobCommitments,
-    pub(crate) payment_header_hash: [u8; 32],
+    pub version: u16,
+    pub quorum_numbers: Vec<u8>,
+    pub commitment: BlobCommitments,
+    pub payment_header_hash: [u8; 32],
 }
 
 impl BlobHeader {
-    pub fn blob_key(&self) -> Result<BlobKey, String> {
+    pub fn blob_key(&self) -> Result<BlobKey, ConversionError> {
         BlobKey::compute_blob_key(self)
     }
 }
@@ -274,7 +274,7 @@ pub struct EigenDACert {
 
 impl EigenDACert {
     /// Computes the blob_key of the blob that belongs to the EigenDACert
-    pub fn compute_blob_key(&self) -> Result<BlobKey, String> {
+    pub fn compute_blob_key(&self) -> Result<BlobKey, ConversionError> {
         let blob_header = self
             .blob_inclusion_info
             .blob_certificate

@@ -1,10 +1,11 @@
 use dotenv::dotenv;
 use ethereum_types::H160;
+use rust_eigenda_cert::{BlobKey, EigenDACert};
 use std::{env, str::FromStr, time::Duration};
 use url::Url;
 
 use crate::{
-    core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
+    core::{Payload, PayloadForm},
     payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
     payloadretrieval::relay_payload_retriever::{
         RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig,
