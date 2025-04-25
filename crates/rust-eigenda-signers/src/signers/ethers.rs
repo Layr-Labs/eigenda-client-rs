@@ -237,6 +237,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires Anvil on the system"]
     async fn test_integration_send_transaction_anvil() {
         // given
         let anvil = Anvil::new().spawn();
