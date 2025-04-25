@@ -3,7 +3,7 @@ use ark_ff::{AdditiveGroup, Fp, Fp2, PrimeField, Zero};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
 
-use crate::errors::ConversionError;
+use crate::ConversionError;
 
 const COMPRESSED_SMALLEST: u8 = 0b10 << 6;
 const COMPRESSED_LARGEST: u8 = 0b11 << 6;

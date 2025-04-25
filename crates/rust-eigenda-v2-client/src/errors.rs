@@ -1,3 +1,4 @@
+use ark_bn254::{Fr, G1Affine};
 use ethereum_types::H160;
 use ethers::signers::WalletError;
 use rust_kzg_bn254_primitives::errors::KzgError;
@@ -12,7 +13,7 @@ pub enum EigenClientError {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
     #[error(transparent)]
-    Blob(#[from] rust_eigenda_cert::BlobError),
+    Blob(#[from] BlobError),
     #[error(transparent)]
     PayloadDisperser(#[from] PayloadDisperserError),
 }
@@ -64,7 +65,7 @@ pub enum RelayPayloadRetrieverError {
     #[error(transparent)]
     RelayClient(#[from] RelayClientError),
     #[error(transparent)]
-    Blob(#[from] rust_eigenda_cert::BlobError),
+    Blob(#[from] BlobError),
     #[error(transparent)]
     Conversion(#[from] ConversionError),
     #[error(transparent)]
@@ -75,6 +76,36 @@ pub enum RelayPayloadRetrieverError {
     InvalidCertificate(String),
     #[error("Retrieval request to relay timed out")]
     RetrievalTimeout,
+}
+
+/// Errors specific to the Blob type
+#[derive(Debug, thiserror::Error)]
+pub enum BlobError {
+    #[error("Invalid blob length: {0}")]
+    InvalidBlobLength(usize),
+    #[error("Blob length is zero")]
+    InvalidBlobLengthZero,
+    #[error("Blob length is not a power of two")]
+    InvalidBlobLengthNotPowerOfTwo(usize),
+    #[error("Mismatch between commitment ({0}) and blob ({1})")]
+    CommitmentAndBlobLengthMismatch(usize, usize),
+    #[error("Invalid data length: {0}")]
+    InvalidDataLength(usize),
+    #[error("Invalid quorum number: {0}")]
+    InvalidQuorumNumber(u32),
+    #[error("Missing field: {0}")]
+    MissingField(String),
+    #[error(transparent)]
+    Bn254(#[from] Bn254Error),
+}
+
+/// Errors related to the BN254 and its points
+#[derive(Debug, thiserror::Error)]
+pub enum Bn254Error {
+    #[error("Insufficient SRS in memory: have {0}, need {1}")]
+    InsufficientSrsInMemory(usize, usize),
+    #[error("Failed calculating multi scalar multiplication on base {:?} with scalars {:?}", .0, .1)]
+    FailedComputingMSM(Vec<G1Affine>, Vec<Fr>),
 }
 
 /// Errors specific to the [`RelayClient`].

@@ -1,7 +1,6 @@
 use ark_bn254::Fr;
-use rust_eigenda_cert::BlobError;
 
-use crate::errors::EigenClientError;
+use crate::errors::{BlobError, EigenClientError};
 use crate::utils::coeff_to_eval_poly;
 
 use crate::core::{EncodedPayload, Payload, PayloadForm, BYTES_PER_SYMBOL};

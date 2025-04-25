@@ -6,7 +6,7 @@ use crate::{
         g1_commitment_from_bytes, g1_commitment_to_bytes, g2_commitment_from_bytes,
         g2_commitment_to_bytes,
     },
-    errors::{ConversionError, EigenDACertError},
+    ConversionError, EigenDACertError,
 };
 
 #[derive(Debug, PartialEq, Clone)]

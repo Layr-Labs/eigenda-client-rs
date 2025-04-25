@@ -5,7 +5,7 @@ use ethabi::Token;
 use ethereum_types::U256;
 use tiny_keccak::{Hasher, Keccak};
 
-use crate::errors::{ConversionError, EigenClientError};
+use crate::errors::{BlobError, ConversionError, EigenClientError};
 use crate::generated::disperser::v2::{
     Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
 };
@@ -32,8 +32,8 @@ use crate::generated::{
 };
 
 use rust_eigenda_cert::{
-    BatchHeaderV2, BlobCertificate, BlobCommitments, BlobError, BlobHeader, BlobInclusionInfo,
-    EigenDACert, NonSignerStakesAndSignature,
+    BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo, EigenDACert,
+    NonSignerStakesAndSignature,
 };
 
 #[derive(Debug, PartialEq, Clone)]
