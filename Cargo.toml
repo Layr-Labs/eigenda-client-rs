@@ -1,7 +1,11 @@
 [workspace]
 resolver = "2"
 
-members = ["crates/rust-eigenda-client", "crates/rust-eigenda-v2-client"]
+members = [
+    "crates/rust-eigenda-client",
+    "crates/rust-eigenda-v2-client",
+    "crates/rust-eigenda-cert",
+]
 
 [workspace.package]
 authors = ["Layr Labs"]
