@@ -10,19 +10,6 @@ use crate::{
         g2_commitment_to_bytes,
     },
     errors::{BlobError, ConversionError, EigenDACertError},
-    generated::{
-        common::{
-            v2::{
-                BatchHeader as ProtoBatchHeader, BlobCertificate as ProtoBlobCertificate,
-                BlobHeader as ProtoBlobHeader, PaymentHeader as ProtoPaymentHeader,
-            },
-            BlobCommitment as ProtoBlobCommitment,
-        },
-        disperser::v2::{
-            Attestation as ProtoAttestation, BlobInclusionInfo as ProtoBlobInclusionInfo,
-            BlobStatusReply, SignedBatch as SignedBatchProto,
-        },
-    },
 };
 
 use crate::core::BlobKey;
@@ -36,16 +23,6 @@ pub struct PaymentHeader {
     pub timestamp: i64,
     /// cumulative_payment represents the total amount of payment (in wei) made by the user up to this point
     pub cumulative_payment: Vec<u8>,
-}
-
-impl From<ProtoPaymentHeader> for PaymentHeader {
-    fn from(value: ProtoPaymentHeader) -> Self {
-        PaymentHeader {
-            account_id: value.account_id,
-            timestamp: value.timestamp,
-            cumulative_payment: value.cumulative_payment,
-        }
-    }
 }
 
 impl PaymentHeader {
@@ -134,24 +111,6 @@ impl<'de> serde::Deserialize<'de> for BlobCommitments {
     }
 }
 
-impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
-    type Error = ConversionError;
-
-    fn try_from(value: ProtoBlobCommitment) -> Result<Self, Self::Error> {
-        let commitment = g1_commitment_from_bytes(&value.commitment)?;
-        let length_commitment = g2_commitment_from_bytes(&value.length_commitment)?;
-        let length_proof = g2_commitment_from_bytes(&value.length_proof)?;
-        let length = value.length;
-
-        Ok(Self {
-            commitment,
-            length_commitment,
-            length_proof,
-            length,
-        })
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BlobHeader {
     pub(crate) version: u16,
@@ -166,45 +125,6 @@ impl BlobHeader {
     }
 }
 
-impl TryFrom<ProtoBlobHeader> for BlobHeader {
-    type Error = ConversionError;
-
-    fn try_from(value: ProtoBlobHeader) -> Result<Self, Self::Error> {
-        let version: u16 = match value.version.try_into() {
-            Ok(version) => version,
-            Err(_) => {
-                return Err(ConversionError::BlobHeader(format!(
-                    "Invalid version {}",
-                    value.version
-                )))
-            }
-        };
-
-        let mut quorum_numbers: Vec<u8> = Vec::new();
-        for number in value.quorum_numbers.iter() {
-            quorum_numbers.push((*number).try_into().map_err(|_| {
-                ConversionError::BlobHeader(format!("Invalid quorum number {}", number))
-            })?);
-        }
-
-        let commitment = BlobCommitments::try_from(value.commitment.ok_or(
-            ConversionError::BlobHeader("Missing commitment".to_string()),
-        )?)?;
-
-        let payment_header_hash = PaymentHeader::from(value.payment_header.ok_or(
-            ConversionError::BlobHeader("Missing payment header".to_string()),
-        )?)
-        .hash()?;
-
-        Ok(Self {
-            version,
-            quorum_numbers,
-            commitment,
-            payment_header_hash,
-        })
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 /// BlobCertificate contains a full description of a blob and how it is dispersed. Part of the certificate
 /// is provided by the blob submitter (i.e. the blob header), and part is provided by the disperser (i.e. the relays).
@@ -216,20 +136,6 @@ pub struct BlobCertificate {
     pub relay_keys: Vec<u32>,
 }
 
-impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
-    type Error = ConversionError;
-
-    fn try_from(value: ProtoBlobCertificate) -> Result<Self, Self::Error> {
-        Ok(Self {
-            blob_header: BlobHeader::try_from(value.blob_header.ok_or(
-                ConversionError::BlobCertificate("Missing blob header".to_string()),
-            )?)?,
-            signature: value.signature,
-            relay_keys: value.relay_keys,
-        })
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 /// BlobInclusionInfo is the information needed to verify the inclusion of a blob in a batch.
 pub struct BlobInclusionInfo {
@@ -238,90 +144,16 @@ pub struct BlobInclusionInfo {
     pub inclusion_proof: Vec<u8>,
 }
 
-impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
-    type Error = ConversionError;
-
-    fn try_from(value: ProtoBlobInclusionInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
-            blob_certificate: BlobCertificate::try_from(value.blob_certificate.ok_or(
-                ConversionError::BlobInclusion("Missing blob certificate".to_string()),
-            )?)?,
-            blob_index: value.blob_index,
-            inclusion_proof: value.inclusion_proof,
-        })
-    }
-}
-
 /// SignedBatch is a batch of blobs with a signature.
 pub struct SignedBatch {
     pub header: BatchHeaderV2,
     pub attestation: Attestation,
 }
 
-impl TryFrom<SignedBatchProto> for SignedBatch {
-    type Error = ConversionError;
-
-    fn try_from(value: SignedBatchProto) -> Result<Self, Self::Error> {
-        let header = match value.header {
-            Some(header) => BatchHeaderV2 {
-                batch_root: header.batch_root.try_into().map_err(|_| {
-                    ConversionError::SignedBatch("Failed parsing batch root".to_string())
-                })?,
-                reference_block_number: header.reference_block_number.try_into().map_err(|_| {
-                    ConversionError::SignedBatch(
-                        "Failed parsing reference block number".to_string(),
-                    )
-                })?,
-            },
-            None => return Err(ConversionError::SignedBatch("Header is None".to_string())),
-        };
-
-        let attestation = match value.attestation {
-            Some(value) => value.try_into()?,
-            None => {
-                return Err(ConversionError::SignedBatch(
-                    "Attestation is None".to_string(),
-                ))
-            }
-        };
-
-        Ok(Self {
-            header,
-            attestation,
-        })
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BatchHeaderV2 {
     pub batch_root: [u8; 32],
     pub reference_block_number: u32,
-}
-
-impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
-    type Error = ConversionError;
-
-    fn try_from(value: ProtoBatchHeader) -> Result<Self, Self::Error> {
-        let batch_root: [u8; 32] = match value.batch_root.clone().try_into() {
-            Ok(root) => root,
-            Err(_) => {
-                return Err(ConversionError::BatchHeader(format!(
-                    "Invalid batch root: {}",
-                    hex::encode(value.batch_root)
-                )))
-            }
-        };
-        let reference_block_number = value.reference_block_number.try_into().map_err(|_| {
-            ConversionError::BatchHeader(format!(
-                "Invalid reference block number: {}",
-                value.reference_block_number
-            ))
-        })?;
-        Ok(Self {
-            batch_root,
-            reference_block_number,
-        })
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -429,28 +261,6 @@ pub struct Attestation {
     pub quorum_numbers: Vec<u32>,
 }
 
-impl TryFrom<ProtoAttestation> for Attestation {
-    type Error = ConversionError;
-
-    fn try_from(value: ProtoAttestation) -> Result<Self, Self::Error> {
-        Ok(Self {
-            non_signer_pubkeys: value
-                .non_signer_pubkeys
-                .iter()
-                .map(|p| g1_commitment_from_bytes(p))
-                .collect::<Result<Vec<_>, _>>()?,
-            quorum_apks: value
-                .quorum_apks
-                .iter()
-                .map(|p| g1_commitment_from_bytes(p))
-                .collect::<Result<Vec<_>, _>>()?,
-            sigma: g1_commitment_from_bytes(&value.sigma)?,
-            apk_g2: g2_commitment_from_bytes(&value.apk_g2)?,
-            quorum_numbers: value.quorum_numbers,
-        })
-    }
-}
-
 // EigenDACert contains all data necessary to retrieve and validate a blob
 //
 // This struct represents the composition of a eigenDA blob certificate, as it would exist in a rollup inbox.
@@ -463,48 +273,6 @@ pub struct EigenDACert {
 }
 
 impl EigenDACert {
-    /// creates a new EigenDACert from a BlobStatusReply, and NonSignerStakesAndSignature
-    pub fn new(
-        blob_status_reply: &BlobStatusReply,
-        non_signer_stakes_and_signature: NonSignerStakesAndSignature,
-    ) -> Result<Self, EigenDACertError> {
-        let binding_inclusion_info = BlobInclusionInfo::try_from(
-            blob_status_reply
-                .blob_inclusion_info
-                .clone()
-                .ok_or(BlobError::MissingField("blob_inclusion_info".to_string()))?,
-        )?;
-
-        let signed_batch = blob_status_reply
-            .signed_batch
-            .clone()
-            .ok_or(BlobError::MissingField("signed_batch".to_string()))?;
-        let binding_batch_header = BatchHeaderV2::try_from(
-            signed_batch
-                .header
-                .ok_or(BlobError::MissingField("header".to_string()))?,
-        )?;
-
-        let mut signed_quorum_numbers: Vec<u8> = Vec::new();
-        for q in signed_batch
-            .attestation
-            .ok_or(BlobError::MissingField("attestation".to_string()))?
-            .quorum_numbers
-        {
-            signed_quorum_numbers.push(
-                q.try_into()
-                    .map_err(|_| BlobError::InvalidQuorumNumber(q))?,
-            );
-        }
-
-        Ok(Self {
-            blob_inclusion_info: binding_inclusion_info,
-            batch_header: binding_batch_header,
-            non_signer_stakes_and_signature,
-            signed_quorum_numbers,
-        })
-    }
-
     /// Computes the blob_key of the blob that belongs to the EigenDACert
     pub fn compute_blob_key(&self) -> Result<BlobKey, String> {
         let blob_header = self

@@ -4,45 +4,12 @@ use ark_ff::{AdditiveGroup, BigInteger, Fp, Fp2, PrimeField, Zero};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
 
-use crate::{
-    // errors::{BlobError, Bn254Error, ConversionError},
-    errors::ConversionError,
-    generated::common::G1Commitment, // utils::fr_array_from_bytes,
-};
+use crate::errors::ConversionError;
 
 const COMPRESSED_SMALLEST: u8 = 0b10 << 6;
 const COMPRESSED_LARGEST: u8 = 0b11 << 6;
 const COMPRESSED_INFINITY: u8 = 0b01 << 6;
 const G2_COMPRESSED_SIZE: usize = 64;
-
-// fn generate_blob_commitment(
-//     g1_srs: Vec<G1Affine>,
-//     blob_bytes: &[u8],
-// ) -> Result<G1Affine, BlobError> {
-//     let input_fr = fr_array_from_bytes(blob_bytes);
-
-//     if g1_srs.len() < input_fr.len() {
-//         return Err(Bn254Error::InsufficientSrsInMemory(g1_srs.len(), input_fr.len()).into());
-//     }
-
-//     let bases = g1_srs[0..input_fr.len()].to_vec();
-//     let commitment = G1Projective::msm(&bases, &input_fr)
-//         .map_err(|_| Bn254Error::FailedComputingMSM(bases, input_fr))?
-//         .into_affine();
-//     Ok(commitment)
-// }
-
-// // generate_and_compare_blob_commitment generates the kzg-bn254 commitment of the blob, and compares it with a claimed
-// // commitment. An error is returned if there is a problem generating the commitment. True is returned if the commitment
-// // is successfully generated, and is equal to the claimed commitment, otherwise false.
-// pub fn generate_and_compare_blob_commitment(
-//     g1_srs: Vec<G1Affine>,
-//     blob_bytes: Vec<u8>,
-//     claimed_commitment: G1Affine,
-// ) -> Result<bool, BlobError> {
-//     let computed_commitment = generate_blob_commitment(g1_srs, &blob_bytes)?;
-//     Ok(claimed_commitment == computed_commitment)
-// }
 
 /// g1_commitment_from_bytes converts a byte slice to a G1Affine point.
 /// The points received are in compressed form.
