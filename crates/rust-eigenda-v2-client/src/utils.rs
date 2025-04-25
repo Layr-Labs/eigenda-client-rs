@@ -1,8 +1,4 @@
-
-use crate::{
-    core::BYTES_PER_SYMBOL,
-    errors::ConversionError,
-};
+use crate::{core::BYTES_PER_SYMBOL, errors::ConversionError};
 use ark_bn254::Fr;
 use ark_ff::fields::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
