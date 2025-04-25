@@ -3,17 +3,18 @@ use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, Fp2, PrimeField};
 use ethereum_types::U256;
 
-use crate::contracts_bindings::{
+use crate::errors::{BlobError, ConversionError, EigenClientError};
+use crate::generated::disperser::v2::{
+    Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
+};
+use crate::generated::i_cert_verifier::{
     Attestation as AttestationContract, BatchHeaderV2 as BatchHeaderV2Contract,
     BlobCertificate as BlobCertificateContract, BlobCommitment as BlobCommitmentContract,
     BlobHeaderV2 as BlobHeaderV2Contract, BlobInclusionInfo as BlobInclusionInfoContract,
     NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
     SignedBatch as SignedBatchContract,
 };
-use crate::contracts_bindings::{G1Point as G1PointContract, G2Point as G2PointContract};
-use crate::generated::disperser::v2::{
-    Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
-};
+use crate::generated::i_cert_verifier::{G1Point as G1PointContract, G2Point as G2PointContract};
 
 use crate::commitment_utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
 
@@ -32,8 +33,6 @@ use rust_eigenda_cert::{
     Attestation, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
     EigenDACert, NonSignerStakesAndSignature, PaymentHeader, SignedBatch,
 };
-
-use crate::errors::{BlobError, ConversionError, EigenClientError};
 
 impl From<ProtoPaymentHeader> for PaymentHeader {
     fn from(value: ProtoPaymentHeader) -> Self {

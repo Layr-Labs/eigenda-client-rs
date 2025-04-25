@@ -57,16 +57,20 @@ impl DisperserClientConfig {
     }
 }
 
+/// DisperserClient is a client for the entire disperser subsystem.
+///
+/// This struct is a low level implementation and should not be used directly,
+/// use a higher level client to interact with it (like [`PayloadDisperser`]).
 #[derive(Debug, Clone)]
-pub(crate) struct DisperserClient {
+pub struct DisperserClient {
     signer: LocalBlobRequestSigner,
     rpc_client: Arc<Mutex<disperser_client::DisperserClient<tonic::transport::Channel>>>,
     accountant: Arc<Mutex<Accountant>>,
 }
 
-// todo: add locks
 impl DisperserClient {
-    pub(crate) async fn new(config: DisperserClientConfig) -> Result<Self, DisperseError> {
+    /// Creates a new disperser client from a configuration.
+    pub async fn new(config: DisperserClientConfig) -> Result<Self, DisperseError> {
         let mut endpoint = Channel::from_shared(config.disperser_rpc.clone())
             .map_err(|_| DisperseError::InvalidURI(config.disperser_rpc.clone()))?;
         if config.use_secure_grpc_flag {
@@ -94,7 +98,8 @@ impl DisperserClient {
         Ok(disperser)
     }
 
-    pub(crate) async fn disperse_blob(
+    /// Disperse a sequence of bytes to the disperser.
+    pub async fn disperse_blob(
         &self,
         data: &[u8],
         blob_version: u16,
@@ -202,10 +207,7 @@ impl DisperserClient {
     }
 
     /// Returns the status of a blob with the given blob key.
-    pub(crate) async fn blob_status(
-        &self,
-        blob_key: &BlobKey,
-    ) -> Result<BlobStatusReply, DisperseError> {
+    pub async fn blob_status(&self, blob_key: &BlobKey) -> Result<BlobStatusReply, DisperseError> {
         let request = BlobStatusRequest {
             blob_key: blob_key.to_bytes().to_vec(),
         };
@@ -220,7 +222,7 @@ impl DisperserClient {
     }
 
     /// Returns the payment state of the disperser client
-    pub(crate) async fn payment_state(&self) -> Result<GetPaymentStateReply, DisperseError> {
+    pub async fn payment_state(&self) -> Result<GetPaymentStateReply, DisperseError> {
         let account_id = self.signer.account_id().encode_hex();
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let signature = self.signer.sign_payment_state_request(timestamp as u64)?;
@@ -239,10 +241,7 @@ impl DisperserClient {
             .map_err(DisperseError::FailedRPC)
     }
 
-    pub(crate) async fn blob_commitment(
-        &self,
-        data: &[u8],
-    ) -> Result<BlobCommitmentReply, DisperseError> {
+    pub async fn blob_commitment(&self, data: &[u8]) -> Result<BlobCommitmentReply, DisperseError> {
         let request = BlobCommitmentRequest {
             blob: data.to_vec(),
         };
@@ -259,7 +258,6 @@ impl DisperserClient {
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         disperser_client::DisperserClient,
         tests::{get_test_private_key, HOLESKY_DISPERSER_RPC_URL},

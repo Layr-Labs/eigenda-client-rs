@@ -6,23 +6,25 @@ use rust_eigenda_cert::{EigenDACert, NonSignerStakesAndSignature, SignedBatch};
 use secrecy::ExposeSecret;
 
 use crate::{
-    contracts_bindings::{
-        IEigenDACertVerifier::{self},
-        NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
-    },
     errors::{CertVerifierError, ConversionError},
-    generated::disperser::v2::SignedBatch as SignedBatchProto,
+    generated::{
+        disperser::v2::SignedBatch as SignedBatchProto,
+        i_cert_verifier::{
+            IEigenDACertVerifier,
+            NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
+        },
+    },
     utils::{PrivateKey, SecretUrl},
 };
 
 #[derive(Debug, Clone)]
-/// CertVerifier is a struct that provides methods for interacting with the EigenDA CertVerifier contract.
+/// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier {
     cert_verifier_contract: IEigenDACertVerifier<SignerMiddleware<Provider<Http>, LocalWallet>>,
 }
 
 impl CertVerifier {
-    /// Creates a new instance of CertVerifier receiving the address of the contract and the ETH RPC url.
+    /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
     pub fn new(
         address: H160,
         rpc_url: SecretUrl,
@@ -45,7 +47,7 @@ impl CertVerifier {
     }
 
     /// Calls the getNonSignerStakesAndSignature view function on the EigenDACertVerifier
-    /// contract, and returns the resulting NonSignerStakesAndSignature object.
+    /// contract, and returns the resulting [`NonSignerStakesAndSignature`] object.
     pub async fn get_non_signer_stakes_and_signature(
         &self,
         signed_batch: SignedBatchProto,
@@ -78,7 +80,7 @@ impl CertVerifier {
 
     /// Calls the VerifyCertV2 view function on the EigenDACertVerifier contract.
     ///
-    /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a CertVerifierError.
+    /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a [`CertVerifierError`].
     pub async fn verify_cert_v2(
         &self,
         eigenda_cert: &EigenDACert,

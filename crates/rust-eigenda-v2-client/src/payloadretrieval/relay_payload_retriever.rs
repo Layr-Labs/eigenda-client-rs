@@ -23,7 +23,7 @@ pub struct RelayPayloadRetrieverConfig {
     pub retrieval_timeout_secs: Duration,
 }
 
-// RelayPayloadRetriever provides the ability to get payloads from the relay subsystem.
+/// Provides the ability to get payloads from the relay subsystem.
 pub struct RelayPayloadRetriever {
     srs: SRS,
     config: RelayPayloadRetrieverConfig,
@@ -51,14 +51,14 @@ impl RelayPayloadRetriever {
         })
     }
 
-    // get_payload iteratively attempts to fetch a given blob with key blobKey from relays that have it, as claimed by the
+    // Iteratively attempts to fetch a given blob with key blobKey from relays that have it, as claimed by the
     // blob certificate. The relays are attempted in random order.
     //
     // If the blob is successfully retrieved, then the blob is verified against the certificate. If the verification
     // succeeds, the blob is decoded to yield the payload (the original user data, with no padding or any modification),
     // and the payload is returned.
     //
-    // This method does NOT verify the eigenDACert on chain: it is assumed that the input eigenDACert has already been
+    // This method does NOT verify the [`EigenDACert`] on chain: it is assumed that the input [`EigenDACert`] has already been
     // verified prior to calling this method.
     pub async fn get_payload(
         &mut self,
@@ -142,7 +142,11 @@ impl RelayPayloadRetriever {
         Err(RelayPayloadRetrieverError::UnableToRetrievePayload)
     }
 
-    /// Attempts to retrieve a blob from a given relay, and times out based on config.FetchTimeout
+    /// Attempts to retrieve a [`Blob`] from a given [`RelayKey`].
+    ///
+    /// Times out based on config's `retrieval_timeout_secs`.
+    ///
+    /// Returns [`RelayPayloadRetrieverError::RetrievalTimeout`] if the timeout is exceeded.
     async fn retrieve_blob_with_timeout(
         &mut self,
         relay_key: RelayKey,

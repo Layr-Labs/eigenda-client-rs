@@ -19,6 +19,7 @@ pub trait BlobRequestSigner {
     fn account_id(&self) -> Address;
 }
 
+/// Signer implementation that uses a Private key.
 #[derive(Debug, Clone)]
 pub struct LocalBlobRequestSigner {
     private_key: SecretKey,
@@ -41,6 +42,7 @@ impl LocalBlobRequestSigner {
 }
 
 impl BlobRequestSigner for LocalBlobRequestSigner {
+    /// Signs the blob header using the private key.
     fn sign(&self, blob_header: BlobHeader) -> Result<Vec<u8>, SignerError> {
         let blob_key = blob_header
             .blob_key()

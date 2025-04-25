@@ -4,16 +4,16 @@ use tiny_keccak::{Hasher, Keccak};
 
 use crate::{eigenda_cert::BlobHeader, errors::ConversionError};
 
-// BlobKey is the unique identifier for a blob dispersal.
-//
-// It is computed as the Keccak256 hash of some serialization of the blob header
-// where the PaymentHeader has been replaced with Hash(PaymentHeader), in order
-// to be easily verifiable onchain.
-//
-// It can be used to retrieve a blob from relays.
-//
-// Note that two blobs can have the same content but different headers,
-// so they are allowed to both exist in the system.
+/// [`BlobKey`] is the unique identifier for a blob dispersal.
+///
+/// It is computed as the Keccak256 hash of some serialization of the blob header
+/// where the [`PaymentHeader`] has been replaced with `Hash(PaymentHeader)`, in order
+/// to be easily verifiable onchain.
+///
+/// It can be used to retrieve a blob from relays.
+///
+/// Note that two blobs can have the same content but different headers,
+/// so they are allowed to both exist in the system.
 #[derive(Debug)]
 pub struct BlobKey([u8; 32]);
 

@@ -21,7 +21,7 @@ pub struct PayloadDisperserConfig {
 }
 
 #[derive(Debug, Clone)]
-/// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
+/// Provides the ability to disperse payloads to EigenDA via a Disperser GRPC service.
 pub struct PayloadDisperser {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient,
@@ -31,7 +31,7 @@ pub struct PayloadDisperser {
 
 impl PayloadDisperser {
     const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 16; // 16 MB
-    /// Creates a PayloadDisperser from the specified configs.
+    /// Creates a [`PayloadDisperser`] from the specified configuration.
     pub async fn new(
         payload_config: PayloadDisperserConfig,
         private_key: PrivateKey,
@@ -139,7 +139,7 @@ impl PayloadDisperser {
         Ok(cert)
     }
 
-    /// Returns the Max size of a blob that can be dispersed
+    /// Returns the max size of a blob that can be dispersed.
     pub fn blob_size_limit() -> Option<usize> {
         Some(Self::BLOB_SIZE_LIMIT)
     }

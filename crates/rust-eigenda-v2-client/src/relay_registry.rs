@@ -3,13 +3,10 @@ use secrecy::ExposeSecret;
 use std::sync::Arc;
 
 use crate::{
-    contracts_bindings::IRelayRegistry::{self},
-    errors::{ConversionError, RelayClientError},
-    relay_client::RelayKey,
-    utils::{PrivateKey, SecretUrl},
+    errors::{ConversionError, RelayClientError}, generated::i_relay_registry::IRelayRegistry, relay_client::RelayKey, utils::{PrivateKey, SecretUrl}
 };
 
-/// RelayRegistry is a struct that provides methods for interacting with the EigenDA RelayRegistry contract.
+/// Provides methods for interacting with the EigenDA RelayRegistry contract.
 pub struct RelayRegistry {
     relay_registry_contract: IRelayRegistry<SignerMiddleware<Provider<Http>, LocalWallet>>,
 }
