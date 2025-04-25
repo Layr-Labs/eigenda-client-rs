@@ -27,5 +27,3 @@ rust-eigenda-signers = { workspace = true, features = [
   "ethers-signer",
 ] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-hex-literal = { workspace = true }
-serde_json = { workspace = true }
