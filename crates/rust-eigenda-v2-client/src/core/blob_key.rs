@@ -33,14 +33,12 @@ impl BlobKey {
     ///
     /// Note: The hex string should not include the 0x prefix.
     pub fn from_hex(hex: &str) -> Result<Self, ConversionError> {
-        let bytes = hex::decode(hex)
-            .map_err(|_| ConversionError::BlobKey("Invalid hex string".to_string()))?;
-        if bytes.len() != 32 {
-            return Err(ConversionError::BlobKey(
-                "Invalid hex string length".to_string(),
-            ));
-        }
-        Ok(BlobKey::from_bytes(bytes.try_into().unwrap())) // Safe unwrap as we checked the length
+        let bytes: [u8; 32] = hex::decode(hex)
+            .map_err(|_| ConversionError::BlobKey("Invalid hex string".to_string()))?
+            .try_into()
+            .map_err(|_| ConversionError::BlobKey("Invalid hex string length".to_string()))?;
+
+        Ok(BlobKey(bytes))
     }
 
     /// Converts the [`BlobKey`] to a hex string.
