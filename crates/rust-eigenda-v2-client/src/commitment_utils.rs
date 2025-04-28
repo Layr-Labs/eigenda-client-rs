@@ -51,6 +51,7 @@ pub(crate) fn g1_commitment_from_bytes(bytes: &[u8]) -> Result<G1Affine, Convers
 
 /// Serialize a G1Affine point applying necessary flags.
 /// https://github.com/Consensys/gnark-crypto/blob/5fd6610ac2a1d1b10fae06c5e552550bf43f4d44/ecc/bn254/marshal.go#L790-L801
+#[cfg(test)]
 pub(crate) fn g1_commitment_to_bytes(point: &G1Affine) -> Result<Vec<u8>, ConversionError> {
     let mut bytes = vec![0u8; 32];
 

@@ -59,11 +59,12 @@ pub(crate) mod generated {
 mod tests {
     use dotenv::dotenv;
     use ethereum_types::H160;
+    use rust_eigenda_v2_common::EigenDACert;
     use std::{env, str::FromStr, time::Duration};
     use url::Url;
 
     use crate::{
-        core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
+        core::{BlobKey, Payload, PayloadForm},
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         payloadretrieval::relay_payload_retriever::{
             RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig,

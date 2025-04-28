@@ -1,8 +1,9 @@
 use ethereum_types::H160;
+use rust_eigenda_v2_common::EigenDACert;
 
 use crate::{
     cert_verifier::CertVerifier,
-    core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm, Sign},
+    core::{eigenda_cert::build_cert_from_reply, BlobKey, Payload, PayloadForm, Sign},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply},
@@ -59,7 +60,10 @@ impl<S> PayloadDisperser<S> {
     }
 
     /// Executes the dispersal of a payload, returning the associated blob key
-    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError>
+    pub async fn send_payload(
+        &self,
+        payload: Payload,
+    ) -> Result<BlobKey, PayloadDisperserError>
     where
         S: Sign,
     {
@@ -99,20 +103,29 @@ impl<S> PayloadDisperser<S> {
             .disperser_client
             .blob_status(blob_key)
             .await
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Disperser(e)))?;
+            .map_err(|e| {
+                EigenClientError::PayloadDisperser(PayloadDisperserError::Disperser(e))
+            })?;
 
-        let blob_status = BlobStatus::try_from(status.status)
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Decode(e)))?;
+        let blob_status = BlobStatus::try_from(status.status).map_err(|e| {
+            EigenClientError::PayloadDisperser(PayloadDisperserError::Decode(e))
+        })?;
         match blob_status {
-            BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
-            BlobStatus::Encoded | BlobStatus::GatheringSignatures | BlobStatus::Queued => Ok(None),
+            BlobStatus::Unknown | BlobStatus::Failed => {
+                Err(PayloadDisperserError::BlobStatus)?
+            }
+            BlobStatus::Encoded
+            | BlobStatus::GatheringSignatures
+            | BlobStatus::Queued => Ok(None),
             BlobStatus::Complete => {
                 let eigenda_cert = self.build_eigenda_cert(&status).await?;
                 self.cert_verifier
                     .verify_cert_v2(&eigenda_cert)
                     .await
                     .map_err(|e| {
-                        EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                        EigenClientError::PayloadDisperser(
+                            PayloadDisperserError::CertVerifier(e),
+                        )
                     })?;
                 Ok(Some(eigenda_cert))
             }
@@ -145,7 +158,7 @@ impl<S> PayloadDisperser<S> {
                 EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
             })?;
 
-        let cert = EigenDACert::new(status, non_signer_stakes_and_signature)?;
+        let cert = build_cert_from_reply(status, non_signer_stakes_and_signature)?;
 
         Ok(cert)
     }

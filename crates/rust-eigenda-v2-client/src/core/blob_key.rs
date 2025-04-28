@@ -1,10 +1,9 @@
 use ethabi::Token;
 use ethereum_types::U256;
+use rust_eigenda_v2_common::BlobHeader;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::errors::ConversionError;
-
-use super::eigenda_cert::BlobHeader;
 
 /// [`BlobKey`] is the unique identifier for a blob dispersal.
 ///
@@ -34,14 +33,12 @@ impl BlobKey {
     ///
     /// Note: The hex string should not include the 0x prefix.
     pub fn from_hex(hex: &str) -> Result<Self, ConversionError> {
-        let bytes = hex::decode(hex)
-            .map_err(|_| ConversionError::BlobKey("Invalid hex string".to_string()))?;
-        if bytes.len() != 32 {
-            return Err(ConversionError::BlobKey(
-                "Invalid hex string length".to_string(),
-            ));
-        }
-        Ok(BlobKey(bytes.try_into().unwrap()))
+        let bytes: [u8; 32] = hex::decode(hex)
+            .map_err(|_| ConversionError::BlobKey("Invalid hex string".to_string()))?
+            .try_into()
+            .map_err(|_| ConversionError::BlobKey("Invalid hex string length".to_string()))?;
+
+        Ok(BlobKey(bytes))
     }
 
     /// Converts the [`BlobKey`] to a hex string.
@@ -52,7 +49,7 @@ impl BlobKey {
     }
 
     /// Computes a new [`BlobKey`] from the given [`BlobHeader`].
-    pub(crate) fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
+    pub fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
         let mut sorted_quorums = blob_header.quorum_numbers.clone();
         sorted_quorums.sort();
 

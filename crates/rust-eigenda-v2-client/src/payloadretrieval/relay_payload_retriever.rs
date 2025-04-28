@@ -1,15 +1,27 @@
 use std::time::Duration;
 
 use rand::seq::SliceRandom;
+use rust_eigenda_v2_common::EigenDACert;
 use rust_kzg_bn254_prover::srs::SRS;
 use tokio::time::timeout;
 
 use crate::{
     commitment_utils::generate_and_compare_blob_commitment,
-    core::{eigenda_cert::EigenDACert, Blob, BlobKey, Payload, PayloadForm},
-    errors::RelayPayloadRetrieverError,
+    core::{Blob, BlobKey, Payload, PayloadForm},
+    errors::{ConversionError, RelayPayloadRetrieverError},
     relay_client::{RelayClient, RelayKey},
 };
+
+/// Computes the blob_key of the blob that belongs to the EigenDACert
+fn compute_blob_key(eigenda_cert: &EigenDACert) -> Result<BlobKey, ConversionError> {
+    let blob_header = eigenda_cert
+        .blob_inclusion_info
+        .blob_certificate
+        .blob_header
+        .clone();
+
+    BlobKey::compute_blob_key(&blob_header)
+}
 
 pub struct SRSConfig {
     pub source_path: String,
@@ -63,7 +75,7 @@ impl RelayPayloadRetriever {
         &mut self,
         eigenda_cert: EigenDACert,
     ) -> Result<Payload, RelayPayloadRetrieverError> {
-        let blob_key = eigenda_cert.compute_blob_key()?;
+        let blob_key = compute_blob_key(&eigenda_cert)?;
 
         let relay_keys = eigenda_cert.blob_inclusion_info.blob_certificate.relay_keys;
         if relay_keys.is_empty() {
@@ -164,12 +176,13 @@ impl RelayPayloadRetriever {
 
 #[cfg(test)]
 mod tests {
+    use rust_eigenda_v2_common::{
+        BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
+        NonSignerStakesAndSignature,
+    };
+
     use crate::{
         commitment_utils::{g1_commitment_from_bytes, g2_commitment_from_bytes},
-        core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
-            NonSignerStakesAndSignature,
-        },
         tests::{
             get_relay_payload_retriever_test_config, get_srs_test_config, get_test_relay_client,
         },

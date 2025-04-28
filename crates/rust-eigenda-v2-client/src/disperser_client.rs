@@ -5,11 +5,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ethers::utils::to_checksum;
 use hex::ToHex;
 use rust_eigenda_signers::{Message, Sign};
+use rust_eigenda_v2_common::{BlobCommitments, BlobHeader};
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
-use crate::core::eigenda_cert::{BlobCommitments, BlobHeader, PaymentHeader};
+use crate::core::eigenda_cert::PaymentHeader;
 use crate::core::{
     BlobKey, OnDemandPayment, PaymentStateRequest, PrivateKeySigner, ReservedPayment,
 };
@@ -18,8 +19,9 @@ use crate::generated::common::v2::{
     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
 };
 use crate::generated::disperser::v2::{
-    disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus, BlobStatusReply,
-    BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply, GetPaymentStateRequest,
+    disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus,
+    BlobStatusReply, BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply,
+    GetPaymentStateRequest,
 };
 
 const BYTES_PER_SYMBOL: usize = 32;
@@ -125,7 +127,8 @@ impl<S> DisperserClient<S> {
         let Some(blob_commitments) = blob_commitment_reply.blob_commitment else {
             return Err(DisperseError::EmptyBlobCommitment);
         };
-        let core_blob_commitments: BlobCommitments = blob_commitments.clone().try_into()?;
+        let core_blob_commitments: BlobCommitments =
+            blob_commitments.clone().try_into()?;
         if core_blob_commitments.length != symbol_length as u32 {
             return Err(DisperseError::CommitmentLengthMismatch(
                 core_blob_commitments.length,
@@ -135,7 +138,8 @@ impl<S> DisperserClient<S> {
         let account_id: String = payment.account_id.encode_hex();
 
         let account_id = to_checksum(
-            &ethers::types::Address::from_str(&account_id).map_err(|_| DisperseError::AccountID)?,
+            &ethers::types::Address::from_str(&account_id)
+                .map_err(|_| DisperseError::AccountID)?,
             None,
         );
 
@@ -151,10 +155,10 @@ impl<S> DisperserClient<S> {
             .hash()?,
         };
 
-        let digest = Message::new(blob_header.blob_key()?.to_bytes());
+        let blob_key = BlobKey::compute_blob_key(&blob_header)?;
         let signature = self
             .signer
-            .sign_digest(&digest)
+            .sign_digest(&Message::new(blob_key.to_bytes()))
             .await
             .map_err(|e| DisperseError::Signer(Box::new(e)))?
             .to_bytes()
@@ -184,11 +188,15 @@ impl<S> DisperserClient<S> {
             .map(|response| response.into_inner())
             .map_err(DisperseError::FailedRPC)?;
 
-        if blob_header.blob_key()?.to_bytes().to_vec() != reply.blob_key {
+        if BlobKey::compute_blob_key(&blob_header)?.to_bytes().to_vec() != reply.blob_key
+        {
             return Err(DisperseError::BlobKeyMismatch);
         }
 
-        Ok((BlobStatus::try_from(reply.result)?, blob_header.blob_key()?))
+        Ok((
+            BlobStatus::try_from(reply.result)?,
+            BlobKey::compute_blob_key(&blob_header)?,
+        ))
     }
 
     /// Populates the accountant with the payment state from the disperser.
@@ -206,7 +214,10 @@ impl<S> DisperserClient<S> {
     }
 
     /// Returns the status of a blob with the given blob key.
-    pub async fn blob_status(&self, blob_key: &BlobKey) -> Result<BlobStatusReply, DisperseError> {
+    pub async fn blob_status(
+        &self,
+        blob_key: &BlobKey,
+    ) -> Result<BlobStatusReply, DisperseError> {
         let request = BlobStatusRequest {
             blob_key: blob_key.to_bytes().to_vec(),
         };
@@ -221,7 +232,9 @@ impl<S> DisperserClient<S> {
     }
 
     /// Returns the payment state of the disperser client
-    pub(crate) async fn payment_state(&mut self) -> Result<GetPaymentStateReply, DisperseError>
+    pub(crate) async fn payment_state(
+        &mut self,
+    ) -> Result<GetPaymentStateReply, DisperseError>
     where
         S: Sign,
     {
@@ -252,7 +265,10 @@ impl<S> DisperserClient<S> {
             .map_err(DisperseError::FailedRPC)
     }
 
-    pub async fn blob_commitment(&self, data: &[u8]) -> Result<BlobCommitmentReply, DisperseError> {
+    pub async fn blob_commitment(
+        &self,
+        data: &[u8],
+    ) -> Result<BlobCommitmentReply, DisperseError> {
         let request = BlobCommitmentRequest {
             blob: data.to_vec(),
         };
