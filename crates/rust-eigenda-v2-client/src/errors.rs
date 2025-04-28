@@ -58,8 +58,6 @@ pub enum ConversionError {
     UrlParse(#[from] url::ParseError),
     #[error(transparent)]
     Wallet(#[from] WalletError),
-    #[error("hash digest was not 32B as expected. This is a bug, please report it")]
-    InvalidDigest,
 }
 
 /// Errors specific to the Blob type

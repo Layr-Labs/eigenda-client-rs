@@ -8,8 +8,7 @@ use crate::{
     blob_info,
     client::BlobProvider,
     errors::{
-        BlobStatusError, CommunicationError, ConfigError, ConversionError, EigenClientError,
-        VerificationError,
+        BlobStatusError, CommunicationError, ConfigError, EigenClientError, VerificationError,
     },
     generated::disperser::{
         self,
@@ -20,7 +19,7 @@ use crate::{
     PrivateKeySigner,
 };
 use byteorder::{BigEndian, ByteOrder};
-use rust_eigenda_signers::{secp256k1::Message, PublicKey, Sign};
+use rust_eigenda_signers::{Message, Sign};
 use tiny_keccak::{Hasher, Keccak};
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
@@ -272,7 +271,7 @@ impl<S> RawEigenClient<S> {
             payload: Some(DisperseRequest(disperser::DisperseBlobRequest {
                 data,
                 custom_quorum_numbers,
-                account_id: get_account_id(&self.signer.public_key()),
+                account_id: self.signer.public_key().account_id(),
             })),
         };
 
@@ -301,14 +300,15 @@ impl<S> RawEigenClient<S> {
         BigEndian::write_u32(&mut buf, blob_auth_header.challenge_parameter);
         let digest = self.keccak256(&buf);
 
-        let msg = Message::from_slice(&digest).map_err(|_| ConversionError::InvalidDigest)?;
+        let msg = Message::new(digest);
 
         let authentication_data = self
             .signer
             .sign_digest(&msg)
             .await
             .map_err(|e| EigenClientError::Communication(CommunicationError::Signing(Box::new(e))))?
-            .encode_as_rsv();
+            .to_bytes()
+            .to_vec();
 
         let req = disperser::AuthenticatedRequest {
             payload: Some(AuthenticationData(disperser::AuthenticationData {
@@ -415,12 +415,6 @@ impl<S> RawEigenClient<S> {
         let data = remove_empty_byte_from_padded_bytes(&get_response.data);
         Ok(Some(data))
     }
-}
-
-fn get_account_id(public_key: &PublicKey) -> String {
-    let hex = hex::encode(public_key.0.serialize_uncompressed());
-
-    format!("0x{}", hex)
 }
 
 fn convert_by_padding_empty_byte(data: &[u8]) -> Vec<u8> {

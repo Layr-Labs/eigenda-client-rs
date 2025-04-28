@@ -4,8 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ethers::utils::to_checksum;
 use hex::ToHex;
-use rust_eigenda_signers::secp256k1::Message;
-use rust_eigenda_signers::Sign;
+use rust_eigenda_signers::{Message, Sign};
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
@@ -14,7 +13,7 @@ use crate::core::eigenda_cert::{BlobCommitments, BlobHeader, PaymentHeader};
 use crate::core::{
     BlobKey, OnDemandPayment, PaymentStateRequest, PrivateKeySigner, ReservedPayment,
 };
-use crate::errors::{ConversionError, DisperseError};
+use crate::errors::DisperseError;
 use crate::generated::common::v2::{
     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
 };
@@ -152,14 +151,14 @@ impl<S> DisperserClient<S> {
             .hash()?,
         };
 
-        let digest = Message::from_slice(&blob_header.blob_key()?.to_bytes())
-            .map_err(|_| ConversionError::InvalidDigest)?;
+        let digest = Message::new(blob_header.blob_key()?.to_bytes());
         let signature = self
             .signer
             .sign_digest(&digest)
             .await
             .map_err(|e| DisperseError::Signer(Box::new(e)))?
-            .encode_as_rsv();
+            .to_bytes()
+            .to_vec();
 
         let disperse_request = DisperseBlobRequest {
             blob: data.to_vec(),
@@ -229,14 +228,15 @@ impl<S> DisperserClient<S> {
         let account_id = self.signer.public_key().address().encode_hex();
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let digest = PaymentStateRequest::new(timestamp as u64)
-            .prepare_for_signing_by(&self.signer.public_key().address())?;
+            .prepare_for_signing_by(&self.signer.public_key().address());
 
         let signature = self
             .signer
             .sign_digest(&digest)
             .await
             .map_err(|e| DisperseError::Signer(Box::new(e)))?
-            .encode_as_rsv();
+            .to_bytes()
+            .to_vec();
         let request = GetPaymentStateRequest {
             account_id,
             signature,

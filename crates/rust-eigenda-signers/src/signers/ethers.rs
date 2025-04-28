@@ -3,10 +3,9 @@ use ethers::types::{
     transaction::{eip2718::TypedTransaction, eip712::Eip712},
     Signature,
 };
-use secp256k1::Message;
 use thiserror::Error;
 
-use crate::Sign;
+use crate::{Message, RecoverableSignature, Sign};
 
 #[derive(Debug, Clone)]
 pub struct Signer<S> {
@@ -16,8 +15,6 @@ pub struct Signer<S> {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Failed to create message from digest")]
-    InvalidDigest,
     #[error("Failed to encode EIP712")]
     Eip712Encoding(String),
     #[error("failed to sign")]
@@ -40,19 +37,18 @@ impl<S> Signer<S> {
     where
         S: Sign,
     {
-        let msg =
-            Message::from_slice(&digest.to_fixed_bytes()).map_err(|_| Error::InvalidDigest)?;
+        let msg = Message::new(digest.to_fixed_bytes());
 
-        let sig = self
+        let sig: RecoverableSignature = self
             .inner_signer
             .sign_digest(&msg)
             .await
             .map_err(|e| Error::Signer(Box::new(e)))?;
 
-        let mut ethers_sig = Signature {
-            r: sig.r().into(),
-            s: sig.s().into(),
-            v: sig.v().into(),
+        let mut ethers_sig = ethers::types::Signature {
+            r: sig.r.into(),
+            s: sig.s.into(),
+            v: sig.v.to_byte().into(),
         };
 
         apply_eip155(&mut ethers_sig, chain_id);
@@ -109,7 +105,7 @@ where
             .encode_eip712()
             .map_err(|e| Error::Eip712Encoding(e.to_string()))?;
 
-        let msg = Message::from_slice(digest.as_slice()).map_err(|_| Error::InvalidDigest)?;
+        let msg = Message::new(digest);
 
         let sig = self
             .inner_signer
@@ -117,10 +113,10 @@ where
             .await
             .map_err(|e| Error::Signer(Box::new(e)))?;
 
-        Ok(Signature {
-            r: sig.r().into(),
-            s: sig.s().into(),
-            v: sig.v().into(),
+        Ok(ethers::types::Signature {
+            r: sig.r.into(),
+            s: sig.s.into(),
+            v: sig.v.to_byte().into(),
         })
     }
 
@@ -144,19 +140,20 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Signer, *};
-    use crate::signers::private_key::Signer as PrivateKeySigner;
-    use ethers::core::rand::thread_rng;
-    use ethers::middleware::SignerMiddleware;
-    use ethers::providers::{Http, Middleware, Provider};
-    use ethers::signers::Signer as EthersSignerTrait; // Alias to avoid naming conflict
-    use ethers::types::TransactionRequest;
-    use ethers::types::{Address, U256};
-    use ethers::utils::parse_ether;
-    use ethers::utils::Anvil;
-    use secp256k1::SecretKey;
     use std::str::FromStr;
+
+    use ethers::signers::Signer as EthersSignerTrait; /* Alias to avoid naming conflict */
+    use ethers::{
+        core::rand::thread_rng,
+        middleware::SignerMiddleware,
+        providers::{Http, Middleware, Provider},
+        types::{Address, TransactionRequest, U256},
+        utils::{parse_ether, Anvil},
+    };
     use tokio;
+
+    use super::{Signer, *};
+    use crate::{signers::private_key::Signer as PrivateKeySigner, SecretKey};
 
     #[tokio::test]
     async fn test_chain_id_and_address() {
@@ -241,7 +238,7 @@ mod tests {
             .unwrap()
             .interval(std::time::Duration::from_millis(10u64));
 
-        let private_key_hex = SecretKey::from_slice(anvil.keys()[0].to_bytes().as_slice()).unwrap();
+        let private_key_hex = SecretKey::new(anvil.keys()[0].to_bytes().into()).unwrap();
         let pk_signer = PrivateKeySigner::new(private_key_hex);
 
         let our_signer = Signer::new(pk_signer, anvil.chain_id());
