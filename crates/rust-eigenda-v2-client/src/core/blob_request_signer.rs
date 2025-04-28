@@ -6,7 +6,7 @@ use tiny_keccak::{Hasher, Keccak};
 
 use crate::{errors::SignerError, utils::PrivateKey};
 
-use rust_eigenda_v2_cert::BlobHeader;
+use rust_eigenda_v2_common::BlobHeader;
 
 use super::BlobKey;
 

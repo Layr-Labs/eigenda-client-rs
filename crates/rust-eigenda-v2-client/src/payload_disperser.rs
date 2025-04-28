@@ -1,5 +1,5 @@
 use ethereum_types::H160;
-use rust_eigenda_v2_cert::EigenDACert;
+use rust_eigenda_v2_common::EigenDACert;
 
 use crate::{
     cert_verifier::CertVerifier,

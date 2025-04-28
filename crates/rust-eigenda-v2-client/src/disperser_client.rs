@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ethers::utils::to_checksum;
 use hex::ToHex;
-use rust_eigenda_v2_cert::{BlobCommitments, BlobHeader};
+use rust_eigenda_v2_common::{BlobCommitments, BlobHeader};
 use secrecy::ExposeSecret;
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};

@@ -31,7 +31,7 @@ use crate::generated::{
     disperser::v2::BlobInclusionInfo as ProtoBlobInclusionInfo,
 };
 
-use rust_eigenda_v2_cert::{
+use rust_eigenda_v2_common::{
     BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo, EigenDACert,
     NonSignerStakesAndSignature,
 };

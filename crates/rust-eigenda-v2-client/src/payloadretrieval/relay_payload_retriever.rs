@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use rand::seq::SliceRandom;
-use rust_eigenda_v2_cert::EigenDACert;
+use rust_eigenda_v2_common::EigenDACert;
 use rust_kzg_bn254_prover::srs::SRS;
 use tokio::time::timeout;
 
@@ -176,7 +176,7 @@ impl RelayPayloadRetriever {
 
 #[cfg(test)]
 mod tests {
-    use rust_eigenda_v2_cert::{
+    use rust_eigenda_v2_common::{
         BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
         NonSignerStakesAndSignature,
     };

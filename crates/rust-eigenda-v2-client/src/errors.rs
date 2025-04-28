@@ -52,7 +52,7 @@ pub enum ConversionError {
     #[error(transparent)]
     Wallet(#[from] WalletError),
     #[error(transparent)]
-    EigenDACert(#[from] rust_eigenda_v2_cert::ConversionError),
+    EigenDACert(#[from] rust_eigenda_v2_common::ConversionError),
     #[error("Failed to convert U256: {0}")]
     U256Conversion(String),
 }
