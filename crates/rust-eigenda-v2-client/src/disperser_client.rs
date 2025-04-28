@@ -19,9 +19,8 @@ use crate::generated::common::v2::{
     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
 };
 use crate::generated::disperser::v2::{
-    disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus,
-    BlobStatusReply, BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply,
-    GetPaymentStateRequest,
+    disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus, BlobStatusReply,
+    BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply, GetPaymentStateRequest,
 };
 
 const BYTES_PER_SYMBOL: usize = 32;
@@ -127,8 +126,7 @@ impl<S> DisperserClient<S> {
         let Some(blob_commitments) = blob_commitment_reply.blob_commitment else {
             return Err(DisperseError::EmptyBlobCommitment);
         };
-        let core_blob_commitments: BlobCommitments =
-            blob_commitments.clone().try_into()?;
+        let core_blob_commitments: BlobCommitments = blob_commitments.clone().try_into()?;
         if core_blob_commitments.length != symbol_length as u32 {
             return Err(DisperseError::CommitmentLengthMismatch(
                 core_blob_commitments.length,
@@ -138,8 +136,7 @@ impl<S> DisperserClient<S> {
         let account_id: String = payment.account_id.encode_hex();
 
         let account_id = to_checksum(
-            &ethers::types::Address::from_str(&account_id)
-                .map_err(|_| DisperseError::AccountID)?,
+            &ethers::types::Address::from_str(&account_id).map_err(|_| DisperseError::AccountID)?,
             None,
         );
 
@@ -188,8 +185,7 @@ impl<S> DisperserClient<S> {
             .map(|response| response.into_inner())
             .map_err(DisperseError::FailedRPC)?;
 
-        if BlobKey::compute_blob_key(&blob_header)?.to_bytes().to_vec() != reply.blob_key
-        {
+        if BlobKey::compute_blob_key(&blob_header)?.to_bytes().to_vec() != reply.blob_key {
             return Err(DisperseError::BlobKeyMismatch);
         }
 
@@ -214,10 +210,7 @@ impl<S> DisperserClient<S> {
     }
 
     /// Returns the status of a blob with the given blob key.
-    pub async fn blob_status(
-        &self,
-        blob_key: &BlobKey,
-    ) -> Result<BlobStatusReply, DisperseError> {
+    pub async fn blob_status(&self, blob_key: &BlobKey) -> Result<BlobStatusReply, DisperseError> {
         let request = BlobStatusRequest {
             blob_key: blob_key.to_bytes().to_vec(),
         };
@@ -232,9 +225,7 @@ impl<S> DisperserClient<S> {
     }
 
     /// Returns the payment state of the disperser client
-    pub(crate) async fn payment_state(
-        &mut self,
-    ) -> Result<GetPaymentStateReply, DisperseError>
+    pub(crate) async fn payment_state(&mut self) -> Result<GetPaymentStateReply, DisperseError>
     where
         S: Sign,
     {
@@ -265,10 +256,7 @@ impl<S> DisperserClient<S> {
             .map_err(DisperseError::FailedRPC)
     }
 
-    pub async fn blob_commitment(
-        &self,
-        data: &[u8],
-    ) -> Result<BlobCommitmentReply, DisperseError> {
+    pub async fn blob_commitment(&self, data: &[u8]) -> Result<BlobCommitmentReply, DisperseError> {
         let request = BlobCommitmentRequest {
             blob: data.to_vec(),
         };
