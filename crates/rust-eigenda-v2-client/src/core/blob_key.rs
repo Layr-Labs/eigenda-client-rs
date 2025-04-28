@@ -40,7 +40,7 @@ impl BlobKey {
                 "Invalid hex string length".to_string(),
             ));
         }
-        Ok(BlobKey(bytes.try_into().unwrap()))
+        Ok(BlobKey::from_bytes(bytes.try_into().unwrap())) // Safe unwrap as we checked the length
     }
 
     /// Converts the [`BlobKey`] to a hex string.
