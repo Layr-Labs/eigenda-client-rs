@@ -5,8 +5,8 @@ pub mod core;
 pub mod disperser_client;
 pub mod errors;
 pub mod payload_disperser;
-pub mod payloadretrieval;
 pub mod relay_client;
+pub mod relay_payload_retriever;
 pub mod relay_registry;
 pub mod utils;
 
@@ -66,10 +66,8 @@ mod tests {
     use crate::{
         core::{BlobKey, Payload, PayloadForm},
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
-        payloadretrieval::relay_payload_retriever::{
-            RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig,
-        },
         relay_client::RelayClient,
+        relay_payload_retriever::{RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig},
         utils::{PrivateKey, SecretUrl},
     };
 
