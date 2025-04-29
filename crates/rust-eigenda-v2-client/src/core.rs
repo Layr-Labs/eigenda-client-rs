@@ -11,9 +11,6 @@ pub use encoded_payload::EncodedPayload;
 pub use payload::Payload;
 pub use payment::{OnDemandPayment, PaymentMetadata, PaymentStateRequest, ReservedPayment};
 
-// So users can achieve some functionality without having to depend on the signers crate as well.
-pub use rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign};
-
 pub(crate) const BYTES_PER_SYMBOL: usize = 32;
 
 /// Payload encoding version

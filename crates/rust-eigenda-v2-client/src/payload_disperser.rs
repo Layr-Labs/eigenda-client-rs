@@ -3,10 +3,11 @@ use rust_eigenda_v2_common::EigenDACert;
 
 use crate::{
     cert_verifier::CertVerifier,
-    core::{eigenda_cert::build_cert_from_reply, BlobKey, Payload, PayloadForm, Sign},
+    core::{eigenda_cert::build_cert_from_reply, BlobKey, Payload, PayloadForm},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply},
+    rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign},
     utils::SecretUrl,
 };
 
@@ -22,7 +23,7 @@ pub struct PayloadDisperserConfig {
 
 #[derive(Debug, Clone)]
 /// Provides the ability to disperse payloads to EigenDA via a Disperser GRPC service.
-pub struct PayloadDisperser<S = crate::core::PrivateKeySigner> {
+pub struct PayloadDisperser<S = PrivateKeySigner> {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient<S>,
     cert_verifier: CertVerifier<S>,

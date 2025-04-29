@@ -1,7 +1,7 @@
 use crate::errors::EigenClientError;
 
 use super::{config::EigenConfig, sdk::RawEigenClient};
-use crate::{PrivateKeySigner, Sign};
+use crate::rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign};
 use async_trait::async_trait;
 use std::error::Error;
 use std::sync::Arc;

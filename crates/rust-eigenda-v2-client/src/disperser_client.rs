@@ -11,9 +11,8 @@ use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
 use crate::core::eigenda_cert::PaymentHeader;
-use crate::core::{
-    BlobKey, OnDemandPayment, PaymentStateRequest, PrivateKeySigner, ReservedPayment,
-};
+use crate::core::{BlobKey, OnDemandPayment, PaymentStateRequest, ReservedPayment};
+
 use crate::errors::DisperseError;
 use crate::generated::common::v2::{
     BlobHeader as BlobHeaderProto, PaymentHeader as PaymentHeaderProto,
@@ -22,6 +21,7 @@ use crate::generated::disperser::v2::{
     disperser_client, BlobCommitmentReply, BlobCommitmentRequest, BlobStatus, BlobStatusReply,
     BlobStatusRequest, DisperseBlobRequest, GetPaymentStateReply, GetPaymentStateRequest,
 };
+use crate::rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner;
 
 const BYTES_PER_SYMBOL: usize = 32;
 

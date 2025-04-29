@@ -9,6 +9,8 @@ pub mod payloadretrieval;
 pub mod relay_client;
 pub mod relay_registry;
 pub mod utils;
+// So users can use the client without having to depend on the signers crate as well.
+pub use rust_eigenda_signers;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {

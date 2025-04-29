@@ -16,7 +16,7 @@ use crate::{
         disperser_client::DisperserClient,
         AuthenticatedReply, BlobAuthHeader,
     },
-    PrivateKeySigner,
+    rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner,
 };
 use byteorder::{BigEndian, ByteOrder};
 use rust_eigenda_signers::{Message, Sign};

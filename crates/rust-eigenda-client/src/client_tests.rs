@@ -6,7 +6,7 @@
 mod tests {
     use std::{sync::Arc, time::Duration};
 
-    use crate::PrivateKeySigner;
+    use crate::rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner;
     use crate::{
         client::BlobProvider,
         config::EigenConfig,
