@@ -18,7 +18,7 @@ ethereum-types = { workspace = true }
 ethers = { workspace = true, optional = true }
 hex = { workspace = true }
 rand = { workspace = true }
-secp256k1 = { workspace = true, features = ["global-context"] }
+secp256k1 = { workspace = true, features = ["global-context", "rand"] }
 thiserror = { workspace = true }
 tiny-keccak = { workspace = true }
 
