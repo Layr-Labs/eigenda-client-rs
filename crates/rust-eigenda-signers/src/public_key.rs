@@ -36,8 +36,12 @@ impl PublicKey {
 
     /// Computes the Ethereum address associated with this public key.
     pub fn address(&self) -> H160 {
-        // Ethereum address is the last 20 bytes of the Keccak256 hash
-        // of the uncompressed public key (excluding the prefix 0x04)
+        // An Ethereum address is derived from the last 20 bytes of the Keccak256 hash
+        // of the uncompressed public key (excluding the 0x04 prefix).
+        //
+        // For details on uncompressed public key encoding, see:
+        // [SEC1: Elliptic Curve Cryptography, §2.3.3 - Elliptic-Curve-Point-to-Octet-String Conversion]
+        // (https://web.archive.org/web/20250427213839/https://www.secg.org/sec1-v2.pdf#page=16)
         let hash = keccak256(&self.serialize_uncompressed()[1..]);
         let mut address = [0u8; 20];
         address.copy_from_slice(&hash[12..]);
