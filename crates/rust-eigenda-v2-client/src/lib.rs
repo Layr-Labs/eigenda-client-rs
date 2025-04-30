@@ -87,6 +87,10 @@ mod tests {
         0xfe, 0x52, 0xfe, 0x19, 0x40, 0x85, 0x8d, 0xcb, 0x6e, 0x12, 0x15, 0x3e, 0x21, 0x04, 0xad,
         0x0f, 0xdf, 0xbe, 0x11, 0x62,
     ]);
+    pub const OPERATOR_ID: &str =
+        "5f3ffea1cc62a99c393a3142c506a66b45c9f480089417bd2c78ed78b5d0a369";
+    pub const BLS_PRIVATE_KEY: &str =
+        "9916764219151117667167203807916266868666753293698287155896417529461918285694";
 
     pub fn get_test_private_key_signer() -> PrivateKeySigner {
         dotenv().ok();
@@ -129,6 +133,8 @@ mod tests {
             relay_clients_keys: vec![0, 1, 2],
             relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
             eth_rpc_url: get_test_holesky_rpc_url(),
+            operator_id: OPERATOR_ID.to_string(),
+            bls_private_key: BLS_PRIVATE_KEY.to_string(),
         }
     }
 
