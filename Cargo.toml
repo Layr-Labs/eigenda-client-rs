@@ -2,9 +2,10 @@
 resolver = "2"
 
 members = [
-  "crates/rust-eigenda-client",
-  "crates/rust-eigenda-signers",
-  "crates/rust-eigenda-v2-client",
+    "crates/rust-eigenda-client",
+    "crates/rust-eigenda-signers",
+    "crates/rust-eigenda-v2-client",
+    "crates/rust-eigenda-v2-common",
 ]
 
 [workspace.package]
