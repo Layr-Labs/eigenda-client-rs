@@ -1,7 +1,11 @@
-use crate::{core::BYTES_PER_SYMBOL, errors::ConversionError};
+use std::str::FromStr;
+
+use crate::{
+    core::BYTES_PER_SYMBOL,
+    errors::{ConversionError, EigenClientError},
+};
 use ark_bn254::Fr;
 use ark_ff::fields::PrimeField;
-use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use secrecy::{ExposeSecret, Secret};
 use url::Url;
 
@@ -36,29 +40,24 @@ impl PartialEq for SecretUrl {
     }
 }
 
-/// Converts an eval_poly to a coeff_poly, using the IFFT operation
-///
-/// blob_length_symbols is required, to be able to choose the correct parameters when performing FFT
-pub(crate) fn eval_to_coeff_poly(
-    eval_poly: Vec<Fr>,
-    blob_length_symbols: usize,
-) -> Result<Vec<Fr>, ConversionError> {
-    Ok(GeneralEvaluationDomain::<Fr>::new(blob_length_symbols)
-        .ok_or(ConversionError::Poly("Failed to create domain".to_string()))?
-        .ifft(&eval_poly))
+/// Secretly enclosed Private Key
+#[derive(Debug, Clone)]
+pub struct PrivateKey(pub Secret<String>);
+
+impl PartialEq for PrivateKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret().eq(other.0.expose_secret())
+    }
 }
 
-/// coeff_to_eval_poly converts a polynomial in coefficient form to one in evaluation form, using the FFT operation.
-pub(crate) fn coeff_to_eval_poly(
-    coeff_poly: Vec<Fr>,
-    blob_length_symbols: usize,
-) -> Result<Vec<Fr>, ConversionError> {
-    let evals = GeneralEvaluationDomain::<Fr>::new(blob_length_symbols)
-        .ok_or(ConversionError::Poly(
-            "Failed to construct domain for FFT".to_string(),
-        ))?
-        .fft(&coeff_poly);
-    Ok(evals)
+impl FromStr for PrivateKey {
+    type Err = EigenClientError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(PrivateKey(
+            s.parse().map_err(|_| ConversionError::PrivateKey)?,
+        ))
+    }
 }
 
 pub(crate) fn pad_to_bytes_per_symbol(input_bytes: &[u8]) -> Vec<u8> {

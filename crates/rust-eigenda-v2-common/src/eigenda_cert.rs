@@ -2,7 +2,7 @@ use ark_bn254::{G1Affine, G2Affine};
 use serde::ser::Error;
 
 use crate::{
-    commitment_utils::{
+    utils::{
         g1_commitment_from_bytes, g1_commitment_to_bytes, g2_commitment_from_bytes,
         g2_commitment_to_bytes,
     },

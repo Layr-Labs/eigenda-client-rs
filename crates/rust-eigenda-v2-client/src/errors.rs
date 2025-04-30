@@ -24,8 +24,6 @@ pub enum ConversionError {
     Payload(String),
     #[error("Failed to parse encoded payload: {0}")]
     EncodedPayload(String),
-    #[error("Failed to convert polynomial: {0}")]
-    Poly(String),
     #[error("Failed to parse G1 point: {0}")]
     G1Point(String),
     #[error("Failed to parse G2 point: {0}")]
@@ -51,7 +49,7 @@ pub enum ConversionError {
     #[error(transparent)]
     Wallet(#[from] WalletError),
     #[error(transparent)]
-    EigenDACert(#[from] rust_eigenda_v2_common::ConversionError),
+    EigenDACommon(#[from] rust_eigenda_v2_common::ConversionError),
     #[error("Failed to convert U256: {0}")]
     U256Conversion(String),
 }
@@ -78,22 +76,14 @@ pub enum RelayPayloadRetrieverError {
 /// Errors specific to the Blob type
 #[derive(Debug, thiserror::Error)]
 pub enum BlobError {
-    #[error("Invalid blob length: {0}")]
-    InvalidBlobLength(usize),
-    #[error("Blob length is zero")]
-    InvalidBlobLengthZero,
-    #[error("Blob length is not a power of two")]
-    InvalidBlobLengthNotPowerOfTwo(usize),
-    #[error("Mismatch between commitment ({0}) and blob ({1})")]
-    CommitmentAndBlobLengthMismatch(usize, usize),
-    #[error("Invalid data length: {0}")]
-    InvalidDataLength(usize),
     #[error("Invalid quorum number: {0}")]
     InvalidQuorumNumber(u32),
     #[error("Missing field: {0}")]
     MissingField(String),
     #[error(transparent)]
     Bn254(#[from] Bn254Error),
+    #[error(transparent)]
+    CommonBlob(#[from] rust_eigenda_v2_common::BlobError),
 }
 
 /// Errors related to the BN254 and its points

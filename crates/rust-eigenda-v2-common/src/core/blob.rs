@@ -1,9 +1,8 @@
 use ark_bn254::Fr;
 
-use crate::errors::{BlobError, EigenClientError};
-use crate::utils::coeff_to_eval_poly;
-
 use crate::core::{EncodedPayload, Payload, PayloadForm, BYTES_PER_SYMBOL};
+use crate::errors::BlobError;
+use crate::utils::coeff_to_eval_poly;
 
 /// [`Blob`] is data that is dispersed on EigenDA.
 ///
@@ -53,11 +52,10 @@ impl Blob {
     ///
     /// The payload_form indicates how payloads are interpreted. The way that payloads are interpreted dictates what
     /// conversion, if any, must be performed when creating a payload from the blob.
-    pub fn to_payload(&self, payload_form: PayloadForm) -> Result<Payload, EigenClientError> {
+    pub fn to_payload(&self, payload_form: PayloadForm) -> Result<Payload, BlobError> {
         let encoded_payload = self.to_encoded_payload(payload_form)?;
-        encoded_payload
-            .decode()
-            .map_err(EigenClientError::Conversion)
+        let payload = encoded_payload.decode()?;
+        Ok(payload)
     }
 
     /// Accepts the length of an array that has been padded with pad_payload
@@ -97,7 +95,7 @@ impl Blob {
     pub fn to_encoded_payload(
         &self,
         payload_form: PayloadForm,
-    ) -> Result<EncodedPayload, EigenClientError> {
+    ) -> Result<EncodedPayload, BlobError> {
         let payload_elements = match payload_form {
             PayloadForm::Coeff => self.coeff_polynomial.clone(),
             PayloadForm::Eval => {

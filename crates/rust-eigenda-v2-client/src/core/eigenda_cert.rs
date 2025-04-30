@@ -18,7 +18,7 @@ use crate::generated::i_cert_verifier::{
 };
 use crate::generated::i_cert_verifier::{G1Point as G1PointContract, G2Point as G2PointContract};
 
-use crate::commitment_utils::{g1_commitment_from_bytes, g2_commitment_from_bytes};
+use crate::commitment_utils::g1_commitment_from_bytes;
 
 use crate::generated::{
     common::{
@@ -32,8 +32,8 @@ use crate::generated::{
 };
 
 use rust_eigenda_v2_common::{
-    BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo, EigenDACert,
-    NonSignerStakesAndSignature,
+    g2_commitment_from_bytes, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
+    BlobInclusionInfo, EigenDACert, NonSignerStakesAndSignature,
 };
 
 #[derive(Debug, PartialEq, Clone)]

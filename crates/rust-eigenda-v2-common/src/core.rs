@@ -1,9 +1,10 @@
-mod blob_key;
-pub mod eigenda_cert;
-mod payment;
+mod blob;
+mod encoded_payload;
+mod payload;
 
-pub use blob_key::BlobKey;
-pub use payment::{OnDemandPayment, PaymentMetadata, PaymentStateRequest, ReservedPayment};
+pub use blob::Blob;
+pub use encoded_payload::EncodedPayload;
+pub use payload::Payload;
 
 pub(crate) const BYTES_PER_SYMBOL: usize = 32;
 

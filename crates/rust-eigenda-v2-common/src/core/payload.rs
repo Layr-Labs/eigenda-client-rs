@@ -1,6 +1,8 @@
-use crate::core::{Blob, EncodedPayload, PayloadForm};
+use crate::core::{Blob, PayloadForm};
 use crate::errors::ConversionError;
 use crate::utils::eval_to_coeff_poly;
+
+use super::encoded_payload::EncodedPayload;
 
 /// Payload represents arbitrary user data, without any processing.
 #[derive(Debug, PartialEq)]
