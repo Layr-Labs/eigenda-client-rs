@@ -1,14 +1,10 @@
-use crate::errors::{ConfigError, EigenClientError};
+use crate::errors::EigenClientError;
 
-use super::{
-    config::{EigenConfig, EigenSecrets},
-    sdk::RawEigenClient,
-};
+use super::{config::EigenConfig, sdk::RawEigenClient};
+use crate::rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign};
 use async_trait::async_trait;
-use secp256k1::SecretKey;
-use secrecy::ExposeSecret;
 use std::error::Error;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 /// Provides a way of retrieving blobs.
 /// Some implementations may not need it. In that case, they can return None in the get_blob method.
@@ -25,28 +21,28 @@ pub trait BlobProvider: std::fmt::Debug + Send + Sync {
 
 /// EigenClient is a client for the Eigen DA service.
 #[derive(Debug, Clone)]
-pub struct EigenClient {
-    pub(crate) client: Arc<RawEigenClient>,
+pub struct EigenClient<S = PrivateKeySigner> {
+    pub(crate) client: Arc<RawEigenClient<S>>,
 }
 
-impl EigenClient {
+impl<S> EigenClient<S> {
     /// Creates a new EigenClient
     pub async fn new(
         config: EigenConfig,
-        secrets: EigenSecrets,
+        signer: S,
         blob_provider: Arc<dyn BlobProvider>,
     ) -> Result<Self, EigenClientError> {
-        let private_key = SecretKey::from_str(secrets.private_key.0.expose_secret().as_str())
-            .map_err(ConfigError::Secp)?;
-
-        let client = RawEigenClient::new(private_key, config, blob_provider).await?;
+        let client = RawEigenClient::new(signer, config, blob_provider).await?;
         Ok(Self {
             client: Arc::new(client),
         })
     }
 
     /// Dispatches a blob to the Eigen DA service
-    pub async fn dispatch_blob(&self, data: Vec<u8>) -> Result<String, EigenClientError> {
+    pub async fn dispatch_blob(&self, data: Vec<u8>) -> Result<String, EigenClientError>
+    where
+        S: Sign,
+    {
         let blob_id = self.client.dispatch_blob(data).await?;
 
         Ok(blob_id)
@@ -63,7 +59,7 @@ impl EigenClient {
 
     /// Returns the blob size limit
     pub fn blob_size_limit(&self) -> Option<usize> {
-        Some(RawEigenClient::blob_size_limit())
+        Some(RawEigenClient::<S>::blob_size_limit())
     }
 
     /// Returns the blob

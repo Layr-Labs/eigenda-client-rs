@@ -1,35 +1,31 @@
 use ethers::prelude::*;
-use secrecy::ExposeSecret;
+use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
 use std::sync::Arc;
 
 use crate::{
-    contracts_bindings::IRelayRegistry::{self},
     errors::{ConversionError, RelayClientError},
+    generated::i_relay_registry::IRelayRegistry,
     relay_client::RelayKey,
-    utils::{PrivateKey, SecretUrl},
+    utils::SecretUrl,
 };
 
-/// RelayRegistry is a struct that provides methods for interacting with the EigenDA RelayRegistry contract.
-pub struct RelayRegistry {
-    relay_registry_contract: IRelayRegistry<SignerMiddleware<Provider<Http>, LocalWallet>>,
+/// Provides methods for interacting with the EigenDA RelayRegistry contract.
+pub struct RelayRegistry<S> {
+    relay_registry_contract: IRelayRegistry<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
-impl RelayRegistry {
+impl<S> RelayRegistry<S> {
     /// Creates a new instance of RelayRegistry receiving the address of the contract and the ETH RPC url.
-    pub fn new(
-        address: H160,
-        rpc_url: SecretUrl,
-        private_key: PrivateKey,
-    ) -> Result<Self, ConversionError> {
+    pub fn new(address: H160, rpc_url: SecretUrl, signer: S) -> Result<Self, ConversionError>
+    where
+        EthersSigner<S>: Signer,
+    {
         let url: String = rpc_url.try_into()?;
 
         let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
-        let wallet: LocalWallet = private_key
-            .0
-            .expose_secret()
-            .parse()
-            .map_err(ConversionError::Wallet)?;
-        let client = SignerMiddleware::new(provider, wallet);
+        // ethers wallet hard code the chain id to 1
+        let signer = EthersSigner::new(signer, 1);
+        let client = SignerMiddleware::new(provider, signer);
         let client = Arc::new(client);
         let relay_registry_contract = IRelayRegistry::new(address, client);
         Ok(RelayRegistry {
@@ -42,7 +38,10 @@ impl RelayRegistry {
     pub async fn get_url_from_relay_key(
         &self,
         relay_key: RelayKey,
-    ) -> Result<String, RelayClientError> {
+    ) -> Result<String, RelayClientError>
+    where
+        EthersSigner<S>: Signer,
+    {
         let url = format!(
             "https://{}",
             self.relay_registry_contract

@@ -1,6 +1,8 @@
-use crate::core::{Blob, EncodedPayload, PayloadForm};
+use crate::core::{Blob, PayloadForm};
 use crate::errors::ConversionError;
 use crate::utils::eval_to_coeff_poly;
+
+use super::encoded_payload::EncodedPayload;
 
 /// Payload represents arbitrary user data, without any processing.
 #[derive(Debug, PartialEq)]
@@ -14,9 +16,9 @@ impl Payload {
         Self { bytes }
     }
 
-    /// Converts the Payload bytes into a Blob
+    /// Converts the [`Payload`] bytes into a [`Blob`].
     ///
-    /// The payload_form indicates how payloads are interpreted. The form of a payload dictates what conversion, if any, must
+    /// The `payload_form` indicates how payloads are interpreted. The form of a payload dictates what conversion, if any, must
     /// be performed when creating a blob from the payload.
     pub fn to_blob(&self, payload_form: PayloadForm) -> Result<Blob, ConversionError> {
         let encoded_payload = EncodedPayload::new(self)?;
@@ -43,7 +45,7 @@ impl Payload {
         })
     }
 
-    /// Returns the bytes that underlie the payload, i.e. the unprocessed user data
+    /// Returns the bytes that underlie the payload, i.e. the unprocessed user data.
     pub fn serialize(&self) -> Vec<u8> {
         self.bytes.clone()
     }

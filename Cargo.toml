@@ -1,7 +1,12 @@
 [workspace]
 resolver = "2"
 
-members = ["crates/rust-eigenda-client", "crates/rust-eigenda-v2-client"]
+members = [
+    "crates/rust-eigenda-client",
+    "crates/rust-eigenda-signers",
+    "crates/rust-eigenda-v2-client",
+    "crates/rust-eigenda-v2-common",
+]
 
 [workspace.package]
 authors = ["Layr Labs"]
@@ -13,6 +18,7 @@ edition = "2021"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["fs"] }
+rust-eigenda-signers = { path = "./crates/rust-eigenda-signers" }
 tokio-stream = "0.1.16"
 rust-kzg-bn254 = "0.2.1"
 ark-bn254 = "0.5.0"

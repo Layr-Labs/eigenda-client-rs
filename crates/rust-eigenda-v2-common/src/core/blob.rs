@@ -1,13 +1,12 @@
 use ark_bn254::Fr;
 
-use crate::errors::{BlobError, EigenClientError};
+use crate::core::{EncodedPayload, Payload, PayloadForm, BYTES_PER_SYMBOL};
+use crate::errors::BlobError;
 use crate::utils::coeff_to_eval_poly;
 
-use crate::core::{EncodedPayload, Payload, PayloadForm, BYTES_PER_SYMBOL};
-
-/// Blob is data that is dispersed on eigenDA.
+/// [`Blob`] is data that is dispersed on EigenDA.
 ///
-/// A Blob is represented under the hood by an array of field elements, which represent a polynomial in coefficient form
+/// A Blob is represented under the hood by an array of field elements, which represent a polynomial in coefficient form.
 #[derive(Debug, PartialEq)]
 pub struct Blob {
     pub coeff_polynomial: Vec<Fr>,
@@ -22,7 +21,7 @@ pub struct Blob {
 }
 
 impl Blob {
-    /// deserialize_blob initializes a Blob from bytes
+    /// Initializes a [`Blob`]` from bytes
     pub fn deserialize_blob(bytes: Vec<u8>, blob_length_symbols: usize) -> Result<Blob, BlobError> {
         // we check that length of bytes is <= blob length, rather than checking for equality, because it's possible
         // that the bytes being deserialized have had trailing 0s truncated.
@@ -41,7 +40,7 @@ impl Blob {
         })
     }
 
-    /// Serialize gets the raw bytes of the Blob
+    /// Gets the raw bytes of the [`Blob`].
     pub fn serialize(&self) -> Vec<u8> {
         rust_kzg_bn254_primitives::helpers::to_byte_array(
             &self.coeff_polynomial,
@@ -49,18 +48,17 @@ impl Blob {
         )
     }
 
-    /// to_payload converts the Blob into a Payload
+    /// Converts the [`Blob`] into a [`Payload`].
     ///
     /// The payload_form indicates how payloads are interpreted. The way that payloads are interpreted dictates what
     /// conversion, if any, must be performed when creating a payload from the blob.
-    pub fn to_payload(&self, payload_form: PayloadForm) -> Result<Payload, EigenClientError> {
+    pub fn to_payload(&self, payload_form: PayloadForm) -> Result<Payload, BlobError> {
         let encoded_payload = self.to_encoded_payload(payload_form)?;
-        encoded_payload
-            .decode()
-            .map_err(EigenClientError::Conversion)
+        let payload = encoded_payload.decode()?;
+        Ok(payload)
     }
 
-    /// get_unpadded_data_length accepts the length of an array that has been padded with pad_payload
+    /// Accepts the length of an array that has been padded with pad_payload
     ///
     /// It returns what the length of the output array would be, if you called remove_internal_padding on it.
     fn get_unpadded_data_length(&self, input_len: usize) -> Result<usize, BlobError> {
@@ -73,8 +71,7 @@ impl Blob {
         Ok(chunck_count * bytes_per_chunk)
     }
 
-    /// get_max_permissible_payloadlength accepts a blob length, and returns the size IN BYTES of the largest payload
-    /// that could fit inside the blob.
+    /// Gets the size in bytes of the largest payload that could fit inside the blob.
     fn get_max_permissible_payloadlength(
         &self,
         blob_length_symbols: usize,
@@ -91,14 +88,14 @@ impl Blob {
         self.get_unpadded_data_length(blob_length_symbols * BYTES_PER_SYMBOL - 32)
     }
 
-    /// to_encoded_payload creates an encoded_payload from the blob
+    /// Creates an [`EncodedPayload`] from the blob.
     ///
     /// The payload_form indicates how payloads are interpreted. The way that payloads are interpreted dictates what
     /// conversion, if any, must be performed when creating an encoded payload from the blob.
     pub fn to_encoded_payload(
         &self,
         payload_form: PayloadForm,
-    ) -> Result<EncodedPayload, EigenClientError> {
+    ) -> Result<EncodedPayload, BlobError> {
         let payload_elements = match payload_form {
             PayloadForm::Coeff => self.coeff_polynomial.clone(),
             PayloadForm::Eval => {

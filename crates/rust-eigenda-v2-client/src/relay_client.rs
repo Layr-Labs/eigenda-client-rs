@@ -7,6 +7,7 @@ use ark_bn254::G1Affine;
 use ark_serialize::CanonicalSerialize;
 use eigensdk::crypto_bls::BlsKeyPair;
 use ethabi::Address;
+use ethers::signers::Signer;
 use tiny_keccak::{Hasher, Keccak};
 use tonic::transport::Channel;
 
@@ -21,8 +22,9 @@ use crate::{
         GetChunksRequest as GetChunksRequestProto,
     },
     relay_registry::RelayRegistry,
-    utils::{PrivateKey, SecretUrl},
+    utils::SecretUrl,
 };
+use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
 
 const RELAY_GET_CHUNKS_REQUEST_DOMAIN: &str = "relay.GetChunksRequest";
 const CHUNK_REQUEST_BY_RANGE: u8 = 0x72; // 'r'
@@ -107,9 +109,11 @@ pub struct RelayClientConfig {
     pub(crate) bls_private_key: String,
 }
 
-// RelayClient is a client for the entire relay subsystem.
-//
-// It is a wrapper around a collection of grpc relay clients, which are used to interact with individual relays.
+/// [`RelayClient`] is a client for the entire relay subsystem.
+///
+/// It is a wrapper around a collection of GRPC clients, which are used to interact with individual relays.
+/// This struct is a low level implementation and should not be used directly,
+/// use a high level abstraction to interact with it ([`RelayPayloadRetriever`]).
 pub struct RelayClient {
     rpc_clients: HashMap<RelayKey, RpcRelayClient<tonic::transport::Channel>>,
     config: RelayClientConfig,
@@ -117,10 +121,10 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
-    pub async fn new(
-        config: RelayClientConfig,
-        private_key: PrivateKey,
-    ) -> Result<Self, RelayClientError> {
+    pub async fn new<S>(config: RelayClientConfig, signer: S) -> Result<Self, RelayClientError>
+    where
+        EthersSigner<S>: Signer,
+    {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
@@ -128,7 +132,7 @@ impl RelayClient {
         let relay_registry = RelayRegistry::new(
             config.relay_registry_address,
             config.eth_rpc_url.clone(),
-            private_key,
+            signer,
         )?;
 
         let mut rpc_clients = HashMap::new();
@@ -152,7 +156,7 @@ impl RelayClient {
         })
     }
 
-    // get_blob retrieves a blob from a relay.
+    /// Retrieves a blob from a relay.
     pub async fn get_blob(
         &mut self,
         relay_key: RelayKey,
@@ -288,7 +292,7 @@ mod tests {
         generated::relay::ChunkRequestByRange,
         relay_client::RelayClient,
         tests::{
-            get_test_holesky_rpc_url, get_test_private_key, BLS_PRIVATE_KEY,
+            get_test_holesky_rpc_url, get_test_private_key_signer, BLS_PRIVATE_KEY,
             HOLESKY_RELAY_REGISTRY_ADDRESS, OPERATOR_ID,
         },
     };
@@ -418,7 +422,7 @@ mod tests {
             "18959225578362426315950880151265128588967843516032712394056671181174645903587"
                 .to_string();
 
-        let client = RelayClient::new(config, get_test_private_key())
+        let client = RelayClient::new(config, get_test_private_key_signer())
             .await
             .unwrap();
 
@@ -471,9 +475,12 @@ mod tests {
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_retrieve_single_blob() {
-        let mut client = RelayClient::new(get_test_relay_client_config(), get_test_private_key())
-            .await
-            .unwrap();
+        let mut client = RelayClient::new(
+            get_test_relay_client_config(),
+            get_test_private_key_signer(),
+        )
+        .await
+        .unwrap();
 
         let blob_key =
             BlobKey::from_hex("625eaa1a5695b260e0caab1c4d4ec97a5211455e8eee0e4fe9464fe8300cf1c4")

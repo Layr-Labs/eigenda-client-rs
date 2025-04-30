@@ -1,12 +1,14 @@
 use ethereum_types::H160;
+use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
 
 use crate::{
     cert_verifier::CertVerifier,
-    core::{eigenda_cert::EigenDACert, BlobKey, Payload, PayloadForm},
+    core::{eigenda_cert::build_cert_from_reply, BlobKey},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply},
-    utils::{PrivateKey, SecretUrl},
+    rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign},
+    utils::SecretUrl,
 };
 
 #[derive(Clone, Debug)]
@@ -20,31 +22,34 @@ pub struct PayloadDisperserConfig {
 }
 
 #[derive(Debug, Clone)]
-/// PayloadDisperser provides the ability to disperse payloads to EigenDA via a Disperser grpc service.
-pub struct PayloadDisperser {
+/// Provides the ability to disperse payloads to EigenDA via a Disperser GRPC service.
+pub struct PayloadDisperser<S = PrivateKeySigner> {
     config: PayloadDisperserConfig,
-    disperser_client: DisperserClient,
-    cert_verifier: CertVerifier,
+    disperser_client: DisperserClient<S>,
+    cert_verifier: CertVerifier<S>,
     required_quorums: Vec<u8>,
 }
 
-impl PayloadDisperser {
+impl<S> PayloadDisperser<S> {
     const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 16; // 16 MB
-    /// Creates a PayloadDisperser from the specified configs.
+    /// Creates a [`PayloadDisperser`] from the specified configuration.
     pub async fn new(
         payload_config: PayloadDisperserConfig,
-        private_key: PrivateKey,
-    ) -> Result<Self, PayloadDisperserError> {
+        signer: S,
+    ) -> Result<Self, PayloadDisperserError>
+    where
+        S: Sign + Clone,
+    {
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
-            private_key: private_key.clone(),
+            signer: signer.clone(),
             use_secure_grpc_flag: payload_config.use_secure_grpc_flag,
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
             payload_config.cert_verifier_address,
             payload_config.eth_rpc_url.clone(),
-            private_key,
+            signer,
         )?;
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {
@@ -56,8 +61,13 @@ impl PayloadDisperser {
     }
 
     /// Executes the dispersal of a payload, returning the associated blob key
-    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError> {
-        let blob = payload.to_blob(self.config.polynomial_form)?;
+    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError>
+    where
+        S: Sign,
+    {
+        let blob = payload
+            .to_blob(self.config.polynomial_form)
+            .map_err(ConversionError::EigenDACommon)?;
 
         let (blob_status, blob_key) = self
             .disperser_client
@@ -85,7 +95,10 @@ impl PayloadDisperser {
     pub async fn get_inclusion_data(
         &self,
         blob_key: &BlobKey,
-    ) -> Result<Option<EigenDACert>, EigenClientError> {
+    ) -> Result<Option<EigenDACert>, EigenClientError>
+    where
+        S: Sign,
+    {
         let status = self
             .disperser_client
             .blob_status(blob_key)
@@ -114,7 +127,10 @@ impl PayloadDisperser {
     pub async fn build_eigenda_cert(
         &self,
         status: &BlobStatusReply,
-    ) -> Result<EigenDACert, EigenClientError> {
+    ) -> Result<EigenDACert, EigenClientError>
+    where
+        S: Sign,
+    {
         let signed_batch = match status.clone().signed_batch {
             Some(batch) => batch,
             None => {
@@ -133,12 +149,12 @@ impl PayloadDisperser {
                 EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
             })?;
 
-        let cert = EigenDACert::new(status, non_signer_stakes_and_signature)?;
+        let cert = build_cert_from_reply(status, non_signer_stakes_and_signature)?;
 
         Ok(cert)
     }
 
-    /// Returns the Max size of a blob that can be dispersed
+    /// Returns the max size of a blob that can be dispersed.
     pub fn blob_size_limit() -> Option<usize> {
         Some(Self::BLOB_SIZE_LIMIT)
     }
@@ -146,11 +162,12 @@ impl PayloadDisperser {
 
 #[cfg(test)]
 mod tests {
+    use rust_eigenda_v2_common::{Payload, PayloadForm};
+
     use crate::{
-        core::{Payload, PayloadForm},
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         tests::{
-            get_test_holesky_rpc_url, get_test_private_key, CERT_VERIFIER_ADDRESS,
+            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS,
             HOLESKY_DISPERSER_RPC_URL,
         },
     };
@@ -169,9 +186,10 @@ mod tests {
             use_secure_grpc_flag: false,
         };
 
-        let payload_disperser = PayloadDisperser::new(payload_config, get_test_private_key())
-            .await
-            .unwrap();
+        let payload_disperser =
+            PayloadDisperser::new(payload_config, get_test_private_key_signer())
+                .await
+                .unwrap();
 
         let payload = Payload::new(vec![1, 2, 3, 4, 5]);
         let blob_key = payload_disperser.send_payload(payload).await.unwrap();

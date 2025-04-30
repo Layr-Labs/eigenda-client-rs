@@ -9,15 +9,16 @@ version = "0.1.4"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 exclude = [
-    # Excluded because g1.point is 32MiB and max crates.io package size is 10MiB.
-    # Users should download the SRS points themselves from the repo or elsewhere.
-    "../../resources/*",
+  # Excluded because g1.point is 32MiB and max crates.io package size is 10MiB.
+  # Users should download the SRS points themselves from the repo or elsewhere.
+  "../../resources/*",
 ]
 
 [dependencies]
+rust-eigenda-signers = { workspace = true }
 tokio-stream = { workspace = true }
 rust-kzg-bn254 = { workspace = true }
-ark-bn254 = {workspace = true }
+ark-bn254 = { workspace = true }
 num-bigint = { workspace = true }
 rand = { workspace = true }
 sha3 = { workspace = true }
@@ -27,8 +28,7 @@ thiserror = { workspace = true }
 ethereum-types = { workspace = true }
 prost = { workspace = true }
 tonic = { workspace = true }
-secp256k1 = { workspace = true}
-bytes = { workspace = true}
+bytes = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

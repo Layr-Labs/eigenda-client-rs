@@ -1,15 +1,27 @@
 use std::time::Duration;
 
 use rand::seq::SliceRandom;
+use rust_eigenda_v2_common::{Blob, EigenDACert, Payload, PayloadForm};
 use rust_kzg_bn254_prover::srs::SRS;
 use tokio::time::timeout;
 
 use crate::{
     commitment_utils::generate_and_compare_blob_commitment,
-    core::{eigenda_cert::EigenDACert, Blob, BlobKey, Payload, PayloadForm},
-    errors::RelayPayloadRetrieverError,
+    core::BlobKey,
+    errors::{BlobError, ConversionError, RelayPayloadRetrieverError},
     relay_client::{RelayClient, RelayKey},
 };
+
+/// Computes the blob_key of the blob that belongs to the EigenDACert
+fn compute_blob_key(eigenda_cert: &EigenDACert) -> Result<BlobKey, ConversionError> {
+    let blob_header = eigenda_cert
+        .blob_inclusion_info
+        .blob_certificate
+        .blob_header
+        .clone();
+
+    BlobKey::compute_blob_key(&blob_header)
+}
 
 pub struct SRSConfig {
     pub source_path: String,
@@ -22,7 +34,7 @@ pub struct RelayPayloadRetrieverConfig {
     pub retrieval_timeout_secs: Duration,
 }
 
-// RelayPayloadRetriever provides the ability to get payloads from the relay subsystem.
+/// Provides the ability to get payloads from the relay subsystem.
 pub struct RelayPayloadRetriever {
     srs: SRS,
     config: RelayPayloadRetrieverConfig,
@@ -50,20 +62,20 @@ impl RelayPayloadRetriever {
         })
     }
 
-    // get_payload iteratively attempts to fetch a given blob with key blobKey from relays that have it, as claimed by the
+    // Iteratively attempts to fetch a given blob with key blobKey from relays that have it, as claimed by the
     // blob certificate. The relays are attempted in random order.
     //
     // If the blob is successfully retrieved, then the blob is verified against the certificate. If the verification
     // succeeds, the blob is decoded to yield the payload (the original user data, with no padding or any modification),
     // and the payload is returned.
     //
-    // This method does NOT verify the eigenDACert on chain: it is assumed that the input eigenDACert has already been
+    // This method does NOT verify the [`EigenDACert`] on chain: it is assumed that the input [`EigenDACert`] has already been
     // verified prior to calling this method.
     pub async fn get_payload(
         &mut self,
         eigenda_cert: EigenDACert,
     ) -> Result<Payload, RelayPayloadRetrieverError> {
-        let blob_key = eigenda_cert.compute_blob_key()?;
+        let blob_key = compute_blob_key(&eigenda_cert)?;
 
         let relay_keys = eigenda_cert.blob_inclusion_info.blob_certificate.relay_keys;
         if relay_keys.is_empty() {
@@ -139,7 +151,11 @@ impl RelayPayloadRetriever {
         Err(RelayPayloadRetrieverError::UnableToRetrievePayload)
     }
 
-    /// Attempts to retrieve a blob from a given relay, and times out based on config.FetchTimeout
+    /// Attempts to retrieve a [`Blob`] from a given [`RelayKey`].
+    ///
+    /// Times out based on config's `retrieval_timeout_secs`.
+    ///
+    /// Returns [`RelayPayloadRetrieverError::RetrievalTimeout`] if the timeout is exceeded.
     async fn retrieve_blob_with_timeout(
         &mut self,
         relay_key: RelayKey,
@@ -153,19 +169,21 @@ impl RelayPayloadRetriever {
         .await
         .map_err(|_| RelayPayloadRetrieverError::RetrievalTimeout)??;
 
-        let blob = Blob::deserialize_blob(blob_bytes, blob_length_symbols as usize)?;
+        let blob = Blob::deserialize_blob(blob_bytes, blob_length_symbols as usize)
+            .map_err(BlobError::CommonBlob)?;
         Ok(blob)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use rust_eigenda_v2_common::{
+        g2_commitment_from_bytes, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
+        BlobInclusionInfo, NonSignerStakesAndSignature,
+    };
+
     use crate::{
-        commitment_utils::{g1_commitment_from_bytes, g2_commitment_from_bytes},
-        core::eigenda_cert::{
-            BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
-            NonSignerStakesAndSignature,
-        },
+        commitment_utils::g1_commitment_from_bytes,
         tests::{
             get_relay_payload_retriever_test_config, get_srs_test_config, get_test_relay_client,
         },

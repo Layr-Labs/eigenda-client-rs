@@ -4,10 +4,9 @@ use ethers::signers::WalletError;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
 use crate::relay_client::RelayKey;
-use hex::FromHexError;
 use prost::DecodeError;
 
-/// Errors returned by this crate
+/// Errors returned by the client.
 #[derive(Debug, thiserror::Error)]
 pub enum EigenClientError {
     #[error(transparent)]
@@ -23,12 +22,8 @@ pub enum EigenClientError {
 pub enum ConversionError {
     #[error("Failed to parse payload: {0}")]
     Payload(String),
-    #[error("Failed to parse payment header: {0}")]
-    PaymentHeader(String),
     #[error("Failed to parse encoded payload: {0}")]
     EncodedPayload(String),
-    #[error("Failed to convert polynomial: {0}")]
-    Poly(String),
     #[error("Failed to parse G1 point: {0}")]
     G1Point(String),
     #[error("Failed to parse G2 point: {0}")]
@@ -43,46 +38,23 @@ pub enum ConversionError {
     BatchHeader(String),
     #[error("Failed to parse blob key: {0}")]
     BlobKey(String),
-    #[error("Failed to convert U256: {0}")]
-    U256Conversion(String),
-    #[error(transparent)]
-    ArkSerializationError(#[from] ark_serialize::SerializationError),
+    #[error("Failed to serialize ark: {0}")]
+    ArkSerialization(String),
     #[error("Failed to parse signed batch: {0}")]
     SignedBatch(String),
-    #[error("Failed to parse eigenda cert: {0}")]
-    EigenDACert(String),
     #[error("Private Key Error")]
     PrivateKey,
-    #[error("Invalid ETH rpc: {0}")]
-    InvalidEthRpc(String),
     #[error(transparent)]
     UrlParse(#[from] url::ParseError),
     #[error(transparent)]
     Wallet(#[from] WalletError),
-}
-
-/// Errors specific to the Blob type
-#[derive(Debug, thiserror::Error)]
-pub enum BlobError {
-    #[error("Invalid blob length: {0}")]
-    InvalidBlobLength(usize),
-    #[error("Blob length is zero")]
-    InvalidBlobLengthZero,
-    #[error("Blob length is not a power of two")]
-    InvalidBlobLengthNotPowerOfTwo(usize),
-    #[error("Mismatch between commitment ({0}) and blob ({1})")]
-    CommitmentAndBlobLengthMismatch(usize, usize),
-    #[error("Invalid data length: {0}")]
-    InvalidDataLength(usize),
-    #[error("Invalid quorum number: {0}")]
-    InvalidQuorumNumber(u32),
-    #[error("Missing field: {0}")]
-    MissingField(String),
     #[error(transparent)]
-    Bn254(#[from] Bn254Error),
+    EigenDACommon(#[from] rust_eigenda_v2_common::ConversionError),
+    #[error("Failed to convert U256: {0}")]
+    U256Conversion(String),
 }
 
-/// Errors specific to the Relay Payload Retriever
+/// Errors specific to the [`RelayPayloadRetriever`].
 #[derive(Debug, thiserror::Error)]
 pub enum RelayPayloadRetrieverError {
     #[error(transparent)]
@@ -101,7 +73,29 @@ pub enum RelayPayloadRetrieverError {
     RetrievalTimeout,
 }
 
-/// Errors specific to the Relay Client
+/// Errors specific to the Blob type
+#[derive(Debug, thiserror::Error)]
+pub enum BlobError {
+    #[error("Invalid quorum number: {0}")]
+    InvalidQuorumNumber(u32),
+    #[error("Missing field: {0}")]
+    MissingField(String),
+    #[error(transparent)]
+    Bn254(#[from] Bn254Error),
+    #[error(transparent)]
+    CommonBlob(#[from] rust_eigenda_v2_common::BlobError),
+}
+
+/// Errors related to the BN254 and its points
+#[derive(Debug, thiserror::Error)]
+pub enum Bn254Error {
+    #[error("Insufficient SRS in memory: have {0}, need {1}")]
+    InsufficientSrsInMemory(usize, usize),
+    #[error("Failed calculating multi scalar multiplication on base {:?} with scalars {:?}", .0, .1)]
+    FailedComputingMSM(Vec<G1Affine>, Vec<Fr>),
+}
+
+/// Errors specific to the [`RelayClient`].
 #[derive(Debug, thiserror::Error)]
 pub enum RelayClientError {
     #[error("Max grpc message size must be greater than 0")]
@@ -147,15 +141,6 @@ pub enum EthClientError {
     InvalidResponse(String),
 }
 
-/// Errors related to the BN254 and its points
-#[derive(Debug, thiserror::Error)]
-pub enum Bn254Error {
-    #[error("Insufficient SRS in memory: have {0}, need {1}")]
-    InsufficientSrsInMemory(usize, usize),
-    #[error("Failed calculating multi scalar multiplication on base {:?} with scalars {:?}", .0, .1)]
-    FailedComputingMSM(Vec<G1Affine>, Vec<Fr>),
-}
-
 /// Errors specific to the Accountant
 #[derive(Debug, thiserror::Error)]
 pub enum AccountantError {
@@ -195,20 +180,10 @@ pub enum DisperseError {
     #[error("Failed to get current time")]
     SystemTime(#[from] std::time::SystemTimeError),
     #[error(transparent)]
-    Signer(#[from] SignerError),
+    Signer(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Errors specific to the Signer
-#[derive(Debug, thiserror::Error)]
-pub enum SignerError {
-    #[error("Failed to parse private key: {0}")]
-    PrivateKey(#[from] FromHexError),
-    #[error(transparent)]
-    Secp(#[from] secp256k1::Error),
-    #[error(transparent)]
-    Conversion(#[from] ConversionError),
-}
-/// Errors specific to the PayloadDisperser
+/// Errors specific to the [`PayloadDisperser`].
 #[derive(Debug, thiserror::Error)]
 pub enum PayloadDisperserError {
     #[error(transparent)]
@@ -232,4 +207,6 @@ pub enum CertVerifierError {
     InvalidCertVerifierAddress(H160),
     #[error("Error while calling contract function: {0}")]
     Contract(String),
+    #[error("Error while signing: {0}")]
+    Signing(String),
 }

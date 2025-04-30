@@ -28,8 +28,6 @@ pub enum ConfigError {
     #[error("ETH RPC URL not set")]
     NoEthRpcUrl,
     #[error(transparent)]
-    Secp(#[from] secp256k1::Error),
-    #[error(transparent)]
     Tonic(#[from] TonicError),
 }
 
@@ -48,7 +46,7 @@ pub enum CommunicationError {
     #[error("Error from server: {0}")]
     ErrorFromServer(String),
     #[error(transparent)]
-    Secp(#[from] secp256k1::Error),
+    Signing(Box<dyn std::error::Error + Send + Sync>),
     #[error(transparent)]
     Hex(#[from] hex::FromHexError),
     #[error(transparent)]
@@ -80,6 +78,8 @@ pub enum ConversionError {
     NotPresent(String),
     #[error("Failed to cast {0}")]
     Cast(String),
+    #[error("hash digest was not 32B as expected. This is a bug, please report it")]
+    InvalidDigest,
 }
 
 /// Errors for the EthClient

@@ -1,21 +1,20 @@
 use ethabi::Token;
 use ethereum_types::U256;
+use rust_eigenda_v2_common::BlobHeader;
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::errors::ConversionError;
 
-use super::eigenda_cert::BlobHeader;
-
-// BlobKey is the unique identifier for a blob dispersal.
-//
-// It is computed as the Keccak256 hash of some serialization of the blob header
-// where the PaymentHeader has been replaced with Hash(PaymentHeader), in order
-// to be easily verifiable onchain.
-//
-// It can be used to retrieve a blob from relays.
-//
-// Note that two blobs can have the same content but different headers,
-// so they are allowed to both exist in the system.
+/// [`BlobKey`] is the unique identifier for a blob dispersal.
+///
+/// It is computed as the Keccak256 hash of some serialization of the blob header
+/// where the [`PaymentHeader`] has been replaced with `Hash(PaymentHeader)`, in order
+/// to be easily verifiable onchain.
+///
+/// It can be used to retrieve a blob from relays.
+///
+/// Note that two blobs can have the same content but different headers,
+/// so they are allowed to both exist in the system.
 #[derive(Debug)]
 pub struct BlobKey([u8; 32]);
 
@@ -34,14 +33,12 @@ impl BlobKey {
     ///
     /// Note: The hex string should not include the 0x prefix.
     pub fn from_hex(hex: &str) -> Result<Self, ConversionError> {
-        let bytes = hex::decode(hex)
-            .map_err(|_| ConversionError::BlobKey("Invalid hex string".to_string()))?;
-        if bytes.len() != 32 {
-            return Err(ConversionError::BlobKey(
-                "Invalid hex string length".to_string(),
-            ));
-        }
-        Ok(BlobKey(bytes.try_into().unwrap()))
+        let bytes: [u8; 32] = hex::decode(hex)
+            .map_err(|_| ConversionError::BlobKey("Invalid hex string".to_string()))?
+            .try_into()
+            .map_err(|_| ConversionError::BlobKey("Invalid hex string length".to_string()))?;
+
+        Ok(BlobKey(bytes))
     }
 
     /// Converts the [`BlobKey`] to a hex string.
@@ -52,7 +49,7 @@ impl BlobKey {
     }
 
     /// Computes a new [`BlobKey`] from the given [`BlobHeader`].
-    pub(crate) fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
+    pub fn compute_blob_key(blob_header: &BlobHeader) -> Result<BlobKey, ConversionError> {
         let mut sorted_quorums = blob_header.quorum_numbers.clone();
         sorted_quorums.sort();
 
