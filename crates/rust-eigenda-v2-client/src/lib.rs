@@ -5,8 +5,8 @@ pub mod core;
 pub mod disperser_client;
 pub mod errors;
 pub mod payload_disperser;
-pub mod payloadretrieval;
 pub mod relay_client;
+pub mod relay_payload_retriever;
 pub mod relay_registry;
 pub mod utils;
 // So users can use the client without having to depend on the signers crate as well.
@@ -68,9 +68,6 @@ mod tests {
     use crate::{
         core::{BlobKey, Payload, PayloadForm},
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
-        payloadretrieval::relay_payload_retriever::{
-            RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig,
-        },
         relay_client::RelayClient,
         utils::SecretUrl,
     };
@@ -80,14 +77,15 @@ mod tests {
     const TEST_BLOB_FINALIZATION_TIMEOUT: u64 = 180;
     const TEST_PAYLOAD_DATA: &[u8] = &[1, 2, 3, 4, 5];
     pub const HOLESKY_ETH_RPC_URL: &str = "https://ethereum-holesky-rpc.publicnode.com";
-    pub const HOLESKY_DISPERSER_RPC_URL: &str = "https://disperser-testnet-holesky.eigenda.xyz";
+    pub const HOLESKY_DISPERSER_RPC_URL: &str =
+        "https://disperser-testnet-holesky.eigenda.xyz";
     pub const HOLESKY_RELAY_REGISTRY_ADDRESS: H160 = H160([
-        0xac, 0x8c, 0x6c, 0x7e, 0xe7, 0x57, 0x29, 0x75, 0x45, 0x4e, 0x2f, 0x0b, 0x5c, 0x72, 0x0f,
-        0x9e, 0x74, 0x98, 0x92, 0x54,
+        0xac, 0x8c, 0x6c, 0x7e, 0xe7, 0x57, 0x29, 0x75, 0x45, 0x4e, 0x2f, 0x0b, 0x5c,
+        0x72, 0x0f, 0x9e, 0x74, 0x98, 0x92, 0x54,
     ]);
     pub const CERT_VERIFIER_ADDRESS: H160 = H160([
-        0xfe, 0x52, 0xfe, 0x19, 0x40, 0x85, 0x8d, 0xcb, 0x6e, 0x12, 0x15, 0x3e, 0x21, 0x04, 0xad,
-        0x0f, 0xdf, 0xbe, 0x11, 0x62,
+        0xfe, 0x52, 0xfe, 0x19, 0x40, 0x85, 0x8d, 0xcb, 0x6e, 0x12, 0x15, 0x3e, 0x21,
+        0x04, 0xad, 0x0f, 0xdf, 0xbe, 0x11, 0x62,
     ]);
 
     pub fn get_test_private_key_signer() -> PrivateKeySigner {
@@ -189,7 +187,8 @@ mod tests {
 
         // Then we wait for the blob to be finalized and verified
         let eigenda_cert =
-            wait_for_blob_finalization_and_verification(&payload_disperser, &blob_key).await;
+            wait_for_blob_finalization_and_verification(&payload_disperser, &blob_key)
+                .await;
 
         // Finally we retrieve the blob using a Relay Payload Retriever
         let relay_config = get_relay_payload_retriever_test_config();
