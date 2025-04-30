@@ -69,6 +69,7 @@ mod tests {
         core::{BlobKey, Payload, PayloadForm},
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         relay_client::RelayClient,
+        relay_payload_retriever::{RelayPayloadRetriever, RelayPayloadRetrieverConfig, SRSConfig},
         utils::SecretUrl,
     };
 
