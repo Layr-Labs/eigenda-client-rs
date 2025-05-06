@@ -47,7 +47,20 @@ async fn main(){
     let blob_provider = Arc::new(SampleBlobProvider);
     let client = EigenClient::new(config.clone(), pk_signer, blob_provider).await.unwrap();
 
+    let data = vec![42];
+    let blob_id = client.dispatch_blob(data).await.unwrap();
 
+    // sleep so we let the dispersal process complete
+    tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;
+
+    let blob_info_bytes = client.get_blob_info(&blob_id).await.unwrap().unwrap();
+    let blob_info = todo!();
+    let blob = client.get_blob(
+        blob_info.blob_verification_proof.blob_index,
+        blob_info.blob_verification_proof.batch_medatada.batch_header_hash,
+    ).await.unwrap();
+
+    assert_eq!(data, payload);
 }
 ```
 

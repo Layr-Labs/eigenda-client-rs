@@ -15,9 +15,9 @@ use super::{
 /// Internal of BlobInfo (aka EigenDACertV1)
 /// Contains the KZG Commitment
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct G1Commitment {
-    pub(crate) x: Vec<u8>,
-    pub(crate) y: Vec<u8>,
+pub struct G1Commitment {
+    pub x: Vec<u8>,
+    pub y: Vec<u8>,
 }
 
 impl G1Commitment {
@@ -96,10 +96,10 @@ impl TryFrom<DisperserBlobQuorumParam> for BlobQuorumParam {
 /// Internal of BlobInfo (aka EigenDACertV1)
 /// Contains the blob header data
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobHeader {
-    pub(crate) commitment: G1Commitment,
-    pub(crate) data_length: u32,
-    pub(crate) blob_quorum_params: Vec<BlobQuorumParam>,
+pub struct BlobHeader {
+    pub commitment: G1Commitment,
+    pub data_length: u32,
+    pub blob_quorum_params: Vec<BlobQuorumParam>,
 }
 
 impl BlobHeader {
@@ -142,11 +142,11 @@ impl TryFrom<DisperserBlobHeader> for BlobHeader {
 
 /// Internal of BlobInfo (aka EigenDACertV1)
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BatchHeader {
-    pub(crate) batch_root: Vec<u8>,
-    pub(crate) quorum_numbers: Vec<u8>,
-    pub(crate) quorum_signed_percentages: Vec<u8>,
-    pub(crate) reference_block_number: u32,
+pub struct BatchHeader {
+    pub batch_root: Vec<u8>,
+    pub quorum_numbers: Vec<u8>,
+    pub quorum_signed_percentages: Vec<u8>,
+    pub reference_block_number: u32,
 }
 
 impl BatchHeader {
@@ -178,12 +178,12 @@ impl From<DisperserBatchHeader> for BatchHeader {
 
 /// Internal of BlobInfo (aka EigenDACertV1)
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BatchMetadata {
-    pub(crate) batch_header: BatchHeader,
-    pub(crate) signatory_record_hash: Vec<u8>,
-    pub(crate) fee: Vec<u8>,
-    pub(crate) confirmation_block_number: u32,
-    pub(crate) batch_header_hash: Vec<u8>,
+pub struct BatchMetadata {
+    pub batch_header: BatchHeader,
+    pub signatory_record_hash: Vec<u8>,
+    pub fee: Vec<u8>,
+    pub confirmation_block_number: u32,
+    pub batch_header_hash: Vec<u8>,
 }
 
 impl BatchMetadata {
@@ -223,12 +223,12 @@ impl TryFrom<DisperserBatchMetadata> for BatchMetadata {
 
 /// Internal of BlobInfo (aka EigenDACertV1)
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobVerificationProof {
-    pub(crate) batch_id: u32,
-    pub(crate) blob_index: u32,
-    pub(crate) batch_medatada: BatchMetadata,
-    pub(crate) inclusion_proof: Vec<u8>,
-    pub(crate) quorum_indexes: Vec<u8>,
+pub struct BlobVerificationProof {
+    pub batch_id: u32,
+    pub blob_index: u32,
+    pub batch_medatada: BatchMetadata,
+    pub inclusion_proof: Vec<u8>,
+    pub quorum_indexes: Vec<u8>,
 }
 
 impl BlobVerificationProof {
@@ -266,9 +266,9 @@ impl TryFrom<DisperserBlobVerificationProof> for BlobVerificationProof {
 
 /// Data returned by the disperser when a blob is dispersed (aka EigenDACertV1)
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct BlobInfo {
-    pub(crate) blob_header: BlobHeader,
-    pub(crate) blob_verification_proof: BlobVerificationProof,
+pub struct BlobInfo {
+    pub blob_header: BlobHeader,
+    pub blob_verification_proof: BlobVerificationProof,
 }
 
 impl BlobInfo {
