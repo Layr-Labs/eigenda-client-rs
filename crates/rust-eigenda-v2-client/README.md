@@ -8,7 +8,7 @@ Rust client for interacting with EigenDA V2.
 
 ### Dispersal and Retrieval
 
-This example uses the holesky ETH chain.
+This example uses the Holesky ETH chain.
 
 ```rs
 use std::str::FromStr;

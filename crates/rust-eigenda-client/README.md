@@ -6,7 +6,7 @@ Rust client for interacting with EigenDA (V1 implementation).
 
 ## Sample client instantiation
 
-This example uses the holesky ETH chain.
+This example uses the Holesky ETH chain.
 
 ```rs
 use std::{str::FromStr, sync::Arc};
