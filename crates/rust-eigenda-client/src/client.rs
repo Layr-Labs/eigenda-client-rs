@@ -8,7 +8,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 /// Provides a way of retrieving blobs.
-/// Some implementations may not need it. In that case, they can return None in the get_blob method.
+/// Some implementations may not need it. In that case, they can return `None` in the `get_blob` method.
 /// It can be used as extra verification if you also store the blob yourself.
 #[async_trait]
 pub trait BlobProvider: std::fmt::Debug + Send + Sync {

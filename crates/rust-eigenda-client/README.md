@@ -9,8 +9,14 @@ Rust client for interacting with EigenDA (V1 implementation).
 This example uses the holesky ETH chain.
 
 ```rs
+use std::{str::FromStr, sync::Arc};
+
+use rust_eigenda_client::{
+    EigenClient,
+    client::BlobProvider,
+    config::{EigenConfig, SecretUrl, SrsPointsSource},
+};
 use rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner;
-use rust_eigenda_client::{EigenClient, EigenConfig, config::{SecretUrl, SrsPointsSource}};
 
 #[derive(Debug, Clone)]
 struct SampleBlobProvider;
@@ -21,13 +27,13 @@ impl BlobProvider for SampleBlobProvider {
         &self,
         _blob_id: &str,
     ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-        // Implement your blob retrieval logic here
+        // Returning `None` means that inclusion data is not verified
         Ok(None)
     }
 }
 
 #[tokio::main]
-async fn main(){
+async fn main() {
     let config = EigenConfig {
         disperser_rpc: "https://disperser-holesky.eigenda.xyz:443".to_string(),
         settlement_layer_confirmation_depth: 0,
@@ -42,22 +48,33 @@ async fn main(){
         custom_quorum_numbers: vec![],
     };
 
-    let pk = "d08aa7ae1bb5ddd46c3c2d8cdb5894ab9f54dec467233686ca42629e826ac4c6".parse().unwrap();
+    let pk = "d08aa7ae1bb5ddd46c3c2d8cdb5894ab9f54dec467233686ca42629e826ac4c6"
+        .parse()
+        .unwrap();
     let pk_signer = PrivateKeySigner::new(pk);
     let blob_provider = Arc::new(SampleBlobProvider);
-    let client = EigenClient::new(config.clone(), pk_signer, blob_provider).await.unwrap();
+    let client = EigenClient::new(config.clone(), pk_signer, blob_provider)
+        .await
+        .unwrap();
 
     let data = vec![42];
-    let blob_id = client.dispatch_blob(data).await.unwrap();
+    let blob_id = client.dispatch_blob(data.clone()).await.unwrap();
 
     // sleep so we let the dispersal process complete
-    tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
 
     let blob_info = client.get_blob_info(&blob_id).await.unwrap().unwrap();
-    let blob = client.get_blob(
-        blob_info.blob_verification_proof.blob_index,
-        blob_info.blob_verification_proof.batch_medatada.batch_header_hash,
-    ).await.unwrap();
+    let blob = client
+        .get_blob(
+            blob_info.blob_verification_proof.blob_index,
+            blob_info
+                .blob_verification_proof
+                .batch_medatada
+                .batch_header_hash,
+        )
+        .await
+        .unwrap()
+        .unwrap();
 
     assert_eq!(data, blob);
 }
