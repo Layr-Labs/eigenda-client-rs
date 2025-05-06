@@ -12,11 +12,14 @@ use super::{
     },
 };
 
-/// Internal of BlobInfo (aka EigenDACertV1)
-/// Contains the KZG Commitment
+/// Represents the serialized coordinates of a G1 KZG commitment.
 #[derive(Debug, PartialEq, Clone)]
 pub struct G1Commitment {
+    /// The X coordinate of the KZG commitment. This is the raw byte representation of the field element.
+    /// x should contain 32 bytes.
     pub x: Vec<u8>,
+    /// The Y coordinate of the KZG commitment. This is the raw byte representation of the field element.
+    /// y should contain 32 bytes.
     pub y: Vec<u8>,
 }
 
@@ -94,7 +97,8 @@ impl TryFrom<DisperserBlobQuorumParam> for BlobQuorumParam {
 }
 
 /// Internal of BlobInfo (aka EigenDACertV1)
-/// Contains the blob header data
+/// Contains all metadata related to a blob including
+/// commitment and parameters for encoding
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlobHeader {
     pub commitment: G1Commitment,
@@ -140,7 +144,8 @@ impl TryFrom<DisperserBlobHeader> for BlobHeader {
     }
 }
 
-/// Internal of BlobInfo (aka EigenDACertV1)
+/// Contains the metadata associated with a Batch for which DA nodes must attest;
+/// DA nodes sign on the hash of the batch header
 #[derive(Debug, PartialEq, Clone)]
 pub struct BatchHeader {
     pub batch_root: Vec<u8>,
@@ -177,6 +182,7 @@ impl From<DisperserBatchHeader> for BatchHeader {
 }
 
 /// Internal of BlobInfo (aka EigenDACertV1)
+/// Metadata of a Batch
 #[derive(Debug, PartialEq, Clone)]
 pub struct BatchMetadata {
     pub batch_header: BatchHeader,
@@ -222,6 +228,7 @@ impl TryFrom<DisperserBatchMetadata> for BatchMetadata {
 }
 
 /// Internal of BlobInfo (aka EigenDACertV1)
+/// Proof of a blob certificate verification
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlobVerificationProof {
     pub batch_id: u32,
@@ -264,7 +271,9 @@ impl TryFrom<DisperserBlobVerificationProof> for BlobVerificationProof {
     }
 }
 
-/// Data returned by the disperser when a blob is dispersed (aka EigenDACertV1)
+/// Data returned by the disperser when a blob is dispersed
+/// It contains a header with blob metadata and the proof of
+/// the blob verification
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlobInfo {
     pub blob_header: BlobHeader,
