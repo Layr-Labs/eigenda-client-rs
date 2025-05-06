@@ -53,8 +53,7 @@ async fn main(){
     // sleep so we let the dispersal process complete
     tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;
 
-    let blob_info_bytes = client.get_blob_info(&blob_id).await.unwrap().unwrap();
-    let blob_info = todo!();
+    let blob_info = client.get_blob_info(&blob_id).await.unwrap().unwrap();
     let blob = client.get_blob(
         blob_info.blob_verification_proof.blob_index,
         blob_info.blob_verification_proof.batch_medatada.batch_header_hash,
