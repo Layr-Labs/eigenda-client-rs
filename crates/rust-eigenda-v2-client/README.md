@@ -84,9 +84,7 @@ async fn retrieve(eigenda_cert: EigenDACert) -> Vec<u8> {
         points_to_load: 9999999,
     };
 
-    let private_key = "d08aa7ae1bb5ddd46c3c2d8cdb5894ab9f54dec467233686ca42629e826ac4c6"
-        .parse()
-        .unwrap();
+    let private_key = ACCOUNTANT_PRIVATE_KEY.parse().unwrap();
     let signer = Signer::new(private_key);
     let relay_client = RelayClient::new(
         RelayClientConfig {
