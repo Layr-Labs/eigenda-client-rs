@@ -59,7 +59,7 @@ async fn main(){
         blob_info.blob_verification_proof.batch_medatada.batch_header_hash,
     ).await.unwrap();
 
-    assert_eq!(data, payload);
+    assert_eq!(data, blob);
 }
 ```
 
