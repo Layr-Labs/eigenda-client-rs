@@ -60,7 +60,7 @@ impl<S> EigenClient<S> {
 
     /// Gets the blob info for a dispersed blob
     pub async fn get_blob_info(&self, blob_id: &str) -> Result<Option<BlobInfo>, EigenClientError> {
-        self.client.get_commitment(blob_id).await
+        self.client.get_blob_info(blob_id).await
     }
 
     /// Returns the blob size limit

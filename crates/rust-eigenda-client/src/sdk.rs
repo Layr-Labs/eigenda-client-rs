@@ -177,7 +177,7 @@ impl<S> RawEigenClient<S> {
     }
 
     /// Gets the blob info for a given request id
-    pub(crate) async fn get_commitment(
+    pub(crate) async fn get_blob_info(
         &self,
         request_id: &str,
     ) -> Result<Option<BlobInfo>, EigenClientError> {
@@ -233,7 +233,7 @@ impl<S> RawEigenClient<S> {
         &self,
         request_id: &str,
     ) -> Result<Option<Vec<u8>>, EigenClientError> {
-        let blob_info = self.get_commitment(request_id).await?;
+        let blob_info = self.get_blob_info(request_id).await?;
         if let Some(blob_info) = blob_info {
             Ok(Some(ethabi::encode(&blob_info.to_tokens())))
         } else {
