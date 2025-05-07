@@ -34,8 +34,9 @@ const HOLESKY_RELAY_REGISTRY_ADDRESS: H160 = H160([
 const HOLESKY_ETH_RPC_URL: &str = "https://ethereum-holesky-rpc.publicnode.com";
 const HOLESKY_DISPERSER_RPC_URL: &str = "https://disperser-testnet-holesky.eigenda.xyz";
 // This private key won't work, you need to set up your own with a set
-const ACCOUNTANT_PRIVATE_KEY: &str =
-    "d08aa7ae1bb5ddd46c3c2d8cdb5894ab9f54dec467233686ca42629e826ac4c6";
+const ACCOUNTANT_PRIVATE_KEY: &str = "<YOUR_PRIVATE_KEY>";
+// You need to have a g1 point downloaded locally for this example
+const G1_POINT_FILE_PATH: &str = "../resources/g1.point";
 
 #[tokio::main]
 async fn main() {
@@ -79,7 +80,7 @@ async fn retrieve(eigenda_cert: EigenDACert) -> Vec<u8> {
         retrieval_timeout_secs: std::time::Duration::from_secs(10),
     };
     let srs_config = SRSConfig {
-        source_path: "../resources/g1.point".to_string(),
+        source_path: G1_POINT_FILE_PATH.to_string(),
         order: 9999999,
         points_to_load: 9999999,
     };

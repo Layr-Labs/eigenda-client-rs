@@ -193,10 +193,15 @@ impl From<DisperserBatchHeader> for BatchHeader {
 /// Metadata of a Batch
 #[derive(Debug, PartialEq, Clone)]
 pub struct BatchMetadata {
+    /// Contains the metadata associated with a Batch for which DA nodes must attest
     pub batch_header: BatchHeader,
+    /// The hash of all public keys of the operators that did not sign the batch
     pub signatory_record_hash: Vec<u8>,
+    /// The fee payment paid by users for dispersing this batch
     pub fee: Vec<u8>,
+    /// The Ethereum block number at which the batch is confirmed onchain
     pub confirmation_block_number: u32,
+    /// The hash of the batch header
     pub batch_header_hash: Vec<u8>,
 }
 
