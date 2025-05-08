@@ -81,6 +81,7 @@ async fn main() {
     let payload = Payload::new(data.clone());
     let blob_key = payload_disperser.send_payload(payload).await.unwrap();
 
+    // sleep so we let the dispersal process complete
     tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
 
     let inclusion_data = payload_disperser
