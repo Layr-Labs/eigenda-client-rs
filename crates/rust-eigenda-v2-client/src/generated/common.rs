@@ -6,11 +6,11 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct G1Commitment {
     /// The X coordinate of the KZG commitment. This is the raw byte representation of the field element.
-    /// x should contain 32 bytes.
+    /// Should contain 32 bytes.
     #[prost(bytes = "vec", tag = "1")]
     pub x: ::prost::alloc::vec::Vec<u8>,
     /// The Y coordinate of the KZG commitment. This is the raw byte representation of the field element.
-    /// y should contain 32 bytes.
+    /// Should contain 32 bytes.
     #[prost(bytes = "vec", tag = "2")]
     pub y: ::prost::alloc::vec::Vec<u8>,
 }

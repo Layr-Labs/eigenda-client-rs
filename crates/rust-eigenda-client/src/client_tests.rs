@@ -18,15 +18,6 @@ mod tests {
 
     use crate::blob_info::BlobInfo;
 
-    impl<S> EigenClient<S> {
-        pub(crate) async fn get_commitment(
-            &self,
-            blob_id: &str,
-        ) -> Result<Option<BlobInfo>, EigenClientError> {
-            self.client.get_commitment(blob_id).await
-        }
-    }
-
     const STATUS_QUERY_INTERVAL: Duration = Duration::from_millis(5);
     const MAX_RETRY_ATTEMPTS: usize = 1800000; // With this value we retry for a duration of 30 minutes
 
@@ -35,7 +26,7 @@ mod tests {
         blob_id: &str,
     ) -> Result<BlobInfo, EigenClientError> {
         let blob_info = (|| async {
-            let blob_info = client.get_commitment(blob_id).await?;
+            let blob_info = client.get_blob_info(blob_id).await?;
             if blob_info.is_none() {
                 return Err(EigenClientError::Communication(
                     CommunicationError::FailedToGetBlob,

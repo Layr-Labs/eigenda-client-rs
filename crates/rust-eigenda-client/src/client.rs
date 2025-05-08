@@ -1,3 +1,4 @@
+use crate::blob_info::BlobInfo;
 use crate::errors::EigenClientError;
 
 use super::{config::EigenConfig, sdk::RawEigenClient};
@@ -7,7 +8,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 /// Provides a way of retrieving blobs.
-/// Some implementations may not need it. In that case, they can return None in the get_blob method.
+/// Some implementations may not need it. In that case, they can return `None` in the `get_blob` method.
 /// It can be used as extra verification if you also store the blob yourself.
 #[async_trait]
 pub trait BlobProvider: std::fmt::Debug + Send + Sync {
@@ -55,6 +56,11 @@ impl<S> EigenClient<S> {
     ) -> Result<Option<Vec<u8>>, EigenClientError> {
         let inclusion_data = self.client.get_inclusion_data(blob_id).await?;
         Ok(inclusion_data)
+    }
+
+    /// Gets the blob info for a dispersed blob
+    pub async fn get_blob_info(&self, blob_id: &str) -> Result<Option<BlobInfo>, EigenClientError> {
+        self.client.get_blob_info(blob_id).await
     }
 
     /// Returns the blob size limit

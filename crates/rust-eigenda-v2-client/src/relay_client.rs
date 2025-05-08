@@ -18,6 +18,7 @@ use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
 
 pub type RelayKey = u32;
 
+#[derive(Clone)]
 pub struct RelayClientConfig {
     pub max_grpc_message_size: usize,
     pub relay_clients_keys: Vec<u32>,

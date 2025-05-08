@@ -23,12 +23,14 @@ fn compute_blob_key(eigenda_cert: &EigenDACert) -> Result<BlobKey, ConversionErr
     BlobKey::compute_blob_key(&blob_header)
 }
 
+#[derive(Clone)]
 pub struct SRSConfig {
     pub source_path: String,
     pub order: u32,
     pub points_to_load: u32,
 }
 
+#[derive(Clone)]
 pub struct RelayPayloadRetrieverConfig {
     pub payload_form: PayloadForm,
     pub retrieval_timeout_secs: Duration,

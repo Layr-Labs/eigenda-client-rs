@@ -5,13 +5,13 @@
 name = "rust-eigenda-client"
 repository = "https://github.com/Layr-Labs/eigenda-client-rs"
 description = "EigenDA Client"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 exclude = [
-  # Excluded because g1.point is 32MiB and max crates.io package size is 10MiB.
-  # Users should download the SRS points themselves from the repo or elsewhere.
-  "../../resources/*",
+    # Excluded because g1.point is 32MiB and max crates.io package size is 10MiB.
+    # Users should download the SRS points themselves from the repo or elsewhere.
+    "../../resources/*",
 ]
 
 [dependencies]
