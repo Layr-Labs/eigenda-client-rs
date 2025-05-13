@@ -15,14 +15,8 @@ exclude = [
 ]
 
 [dependencies]
-# rust-eigenda-signers = { version = "0.1.4", features = ["ethers-signer"] }
-# rust-eigenda-v2-common = "0.1.0"
-
-# TODO: replace with crates.io once published
-rust-eigenda-v2-common = { git = "https://github.com/Layr-labs/eigenda-client-rs/", branch = "improved-docs" }
-rust-eigenda-signers = { git = "https://github.com/Layr-labs/eigenda-client-rs/", branch = "improved-docs", features = [
-    "ethers-signer",
-] }
+rust-eigenda-signers = { version = "0.1.5", features = ["ethers-signer"] }
+rust-eigenda-v2-common = "0.1.1"
 
 rand = { workspace = true }
 bytes = { workspace = true }
