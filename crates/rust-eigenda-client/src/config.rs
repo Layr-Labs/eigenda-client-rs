@@ -45,22 +45,22 @@ pub enum SrsPointsSource {
 #[derive(Clone, Debug, PartialEq)]
 pub struct EigenConfig {
     /// URL of the Disperser RPC server
-    pub(crate) disperser_rpc: String,
+    pub disperser_rpc: String,
     /// URL of the Ethereum RPC server
-    pub(crate) eth_rpc_url: SecretUrl,
+    pub eth_rpc_url: SecretUrl,
     /// Block height needed to reach in order to consider the blob finalized
     /// a value less or equal to 0 means that the disperser will not wait for finalization
-    pub(crate) settlement_layer_confirmation_depth: u32,
+    pub settlement_layer_confirmation_depth: u32,
     /// Address of the service manager contract
-    pub(crate) eigenda_svc_manager_address: H160,
+    pub eigenda_svc_manager_address: H160,
     /// Wait for the blob to be finalized before returning the response
-    pub(crate) wait_for_finalization: bool,
+    pub wait_for_finalization: bool,
     /// Authenticated dispersal
-    pub(crate) authenticated: bool,
+    pub authenticated: bool,
     /// Points source
-    pub(crate) srs_points_source: SrsPointsSource,
+    pub srs_points_source: SrsPointsSource,
     /// Custom quorum numbers
-    pub(crate) custom_quorum_numbers: Vec<u8>,
+    pub custom_quorum_numbers: Vec<u8>,
 }
 
 impl EigenConfig {
