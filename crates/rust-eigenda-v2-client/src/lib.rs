@@ -153,10 +153,7 @@ mod tests {
 
         let start_time = tokio::time::Instant::now();
         loop {
-            let inclusion_data = payload_disperser
-                .get_inclusion_data(blob_key)
-                .await
-                .unwrap();
+            let inclusion_data = payload_disperser.get_cert(blob_key).await.unwrap();
             match inclusion_data {
                 Some(cert) => {
                     return cert;

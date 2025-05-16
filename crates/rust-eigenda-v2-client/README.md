@@ -85,7 +85,7 @@ async fn main() {
     tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
 
     let inclusion_data = payload_disperser
-        .get_inclusion_data(&blob_key)
+        .get_cert(&blob_key)
         .await
         .unwrap();
     let eigenda_cert = inclusion_data.unwrap();
