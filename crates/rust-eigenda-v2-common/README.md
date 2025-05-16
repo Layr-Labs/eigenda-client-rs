@@ -14,5 +14,5 @@ Crate with definition of multiple types used in the v2 client of EigenDA.
 
 ```toml
 [dependencies]
-rust-eigenda-v2-common = "0.1.1"
+rust-eigenda-v2-common = "0.1"
 ```

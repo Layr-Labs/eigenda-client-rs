@@ -3,7 +3,7 @@
 # We will remove the prefix and publish as new crates once we combine all of these repos
 # and move them into the eigenda monorepo.
 name = "rust-eigenda-v2-client"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 repository = "https://github.com/Layr-Labs/eigenda-client-rs"
 description = "EigenDA Client"
@@ -16,7 +16,7 @@ exclude = [
 
 [dependencies]
 rust-eigenda-signers = { version = "0.1.5", features = ["ethers-signer"] }
-rust-eigenda-v2-common = "0.1.1"
+rust-eigenda-v2-common = "0.1.2"
 
 rand = { workspace = true }
 bytes = { workspace = true }
