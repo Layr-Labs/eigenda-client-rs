@@ -197,8 +197,8 @@ mod tests {
         let mut finished = false;
         let start_time = tokio::time::Instant::now();
         while !finished {
-            let inclusion_data = payload_disperser.get_cert(&blob_key).await.unwrap();
-            match inclusion_data {
+            let cert = payload_disperser.get_cert(&blob_key).await.unwrap();
+            match cert {
                 Some(cert) => {
                     println!("Inclusion data: {:?}", cert);
                     finished = true;
