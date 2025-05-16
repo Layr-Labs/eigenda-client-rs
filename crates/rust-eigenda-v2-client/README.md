@@ -84,11 +84,11 @@ async fn main() {
     // sleep so we let the dispersal process complete
     tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
 
-    let inclusion_data = payload_disperser
-        .get_inclusion_data(&blob_key)
+    let cert = payload_disperser
+        .get_cert(&blob_key)
         .await
         .unwrap();
-    let eigenda_cert = inclusion_data.unwrap();
+    let eigenda_cert = cert.unwrap();
 
     // Retriever
     let signer = Signer::new(private_key);

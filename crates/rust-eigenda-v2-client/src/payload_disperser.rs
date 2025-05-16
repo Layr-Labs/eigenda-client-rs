@@ -92,7 +92,7 @@ impl<S> PayloadDisperser<S> {
 
     /// Retrieves the inclusion data for a given blob key
     /// If the requested blob is still not complete, returns None
-    pub async fn get_inclusion_data(
+    pub async fn get_cert(
         &self,
         blob_key: &BlobKey,
     ) -> Result<Option<EigenDACert>, EigenClientError>
@@ -197,11 +197,8 @@ mod tests {
         let mut finished = false;
         let start_time = tokio::time::Instant::now();
         while !finished {
-            let inclusion_data = payload_disperser
-                .get_inclusion_data(&blob_key)
-                .await
-                .unwrap();
-            match inclusion_data {
+            let cert = payload_disperser.get_cert(&blob_key).await.unwrap();
+            match cert {
                 Some(cert) => {
                     println!("Inclusion data: {:?}", cert);
                     finished = true;
