@@ -111,5 +111,5 @@ async fn main() {
 
 ```toml
 [dependencies]
-rust-eigenda-v2-client = "0.1.1"
+rust-eigenda-v2-client = "0.1"
 ```
