@@ -29,7 +29,7 @@ You can find the published crate on [crates.io](https://crates.io/crates/rust-ei
 
 ## rust-eigenda-v2-client
 
-Rust client for interacting with EigenDA V2.
+Rust client for interacting with EigenDA (V2 implementation).
 
 Read the [rust-eigenda-v2-client Readme](/crates/rust-eigenda-v2-client/README.md) for more info about this crate.
 
