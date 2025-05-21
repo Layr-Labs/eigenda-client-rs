@@ -63,6 +63,15 @@ impl<S> EigenClient<S> {
         self.client.get_blob_info(blob_id).await
     }
 
+    /// Checks if the blob is included in EigenDA
+    pub async fn check_finality(&self, blob_id: &str) -> Result<bool, EigenClientError> {
+        let blob_info = self
+            .client
+            .try_get_inclusion_data(blob_id.to_string())
+            .await?;
+        Ok(blob_info.is_some())
+    }
+
     /// Returns the blob size limit
     pub fn blob_size_limit(&self) -> Option<usize> {
         Some(RawEigenClient::<S>::blob_size_limit())
