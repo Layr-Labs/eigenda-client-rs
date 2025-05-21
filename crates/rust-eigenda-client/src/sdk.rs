@@ -347,7 +347,7 @@ impl<S> RawEigenClient<S> {
         }
     }
 
-    async fn try_get_inclusion_data(
+    pub(crate) async fn try_get_inclusion_data(
         &self,
         request_id: String,
     ) -> Result<Option<DisperserBlobInfo>, EigenClientError> {

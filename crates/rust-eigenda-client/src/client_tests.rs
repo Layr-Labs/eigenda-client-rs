@@ -101,6 +101,48 @@ mod tests {
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     #[serial]
+    async fn test_check_finality() {
+        let config = test_eigenda_config();
+        let private_key = "d08aa7ae1bb5ddd46c3c2d8cdb5894ab9f54dec467233686ca42629e826ac4c6"
+            .parse()
+            .unwrap();
+
+        let pk_signer = PrivateKeySigner::new(private_key);
+        let client = EigenClient::new(config.clone(), pk_signer, Arc::new(MockBlobProvider))
+            .await
+            .unwrap();
+        let data = vec![1; 20];
+        let result = client.dispatch_blob(data.clone()).await.unwrap();
+
+        let finalized = (|| async {
+            let finalized = client.check_finality(&result).await?;
+            if !finalized {
+                return Err(EigenClientError::Communication(
+                    CommunicationError::FailedToGetBlob,
+                ));
+            }
+            Ok(finalized)
+        })
+        .retry(
+            &ConstantBuilder::default()
+                .with_delay(STATUS_QUERY_INTERVAL)
+                .with_max_times(MAX_RETRY_ATTEMPTS),
+        )
+        .when(|e| {
+            matches!(
+                e,
+                EigenClientError::Communication(CommunicationError::FailedToGetBlob)
+            )
+        })
+        .await
+        .unwrap();
+
+        assert!(finalized);
+    }
+
+    #[ignore = "depends on external RPC"]
+    #[tokio::test]
+    #[serial]
     async fn test_auth_dispersal() {
         let config = EigenConfig {
             authenticated: true,
