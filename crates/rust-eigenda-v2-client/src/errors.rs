@@ -190,6 +190,16 @@ pub enum PayloadDisperserError {
     Decode(#[from] DecodeError),
     #[error(transparent)]
     CertVerifier(#[from] CertVerifierError),
+    #[error("Expected >0 quorum numbers in blob header")]
+    NoQuorumNumbers,
+    #[error("Batch quorum number count and signed percentage count don't match")]
+    QuorumNumbersMismatch,
+    #[error("Expected batch header to be present in signed batch")]
+    BatchHeaderNotPresent,
+    #[error("Signed percentage not found for quorum: {0}")]
+    SignedPercentageNotFound(u32),
+    #[error("Confirmation threshold not met for quorum {0}, signed percentage {1}, threshold {2}")]
+    ConfirmationThresholdNotMet(u32,u8,u8)
 }
 
 /// Errors specific to the CertVerifier

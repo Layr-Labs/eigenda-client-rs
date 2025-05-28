@@ -101,6 +101,19 @@ impl<S> CertVerifier<S> {
             .map_err(|_| CertVerifierError::Contract("verify_cert_v2".to_string()))?;
         Ok(())
     }
+
+    pub async fn get_confirmation_threshold(&self) -> Result<u8, CertVerifierError>
+    where
+        EthersSigner<S>: Signer,
+    {
+        self.cert_verifier_contract
+            .security_thresholds(reference_block_number)
+            .call()
+            .await
+            .map_err(|_| {
+                CertVerifierError::Contract("get_confirmation_threshold".to_string())
+            })
+    }
 }
 
 #[cfg(test)]

@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use ethereum_types::H160;
 use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
 
 use crate::{
-    cert_verifier::CertVerifier,
+    cert_verifier::{self, CertVerifier},
     core::{eigenda_cert::build_cert_from_reply, BlobKey},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
@@ -109,8 +111,10 @@ impl<S> PayloadDisperser<S> {
             .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Decode(e)))?;
         match blob_status {
             BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
-            BlobStatus::Encoded | BlobStatus::GatheringSignatures | BlobStatus::Queued => Ok(None),
-            BlobStatus::Complete => {
+            BlobStatus::Encoded | BlobStatus::Queued => Ok(None),
+            BlobStatus::GatheringSignatures | BlobStatus::Complete => {
+                self.check_thresholds(blob_key, &status)
+                    .await?;
                 let eigenda_cert = self.build_eigenda_cert(&status).await?;
                 self.cert_verifier
                     .verify_cert_v2(&eigenda_cert)
@@ -121,6 +125,53 @@ impl<S> PayloadDisperser<S> {
                 Ok(Some(eigenda_cert))
             }
         }
+    }
+
+    /// Verifies if all quorums meet the confirmation threshold
+    async fn check_thresholds(
+        &self,
+        blob_key: &BlobKey,
+        status: &BlobStatusReply,
+    ) -> Result<(), PayloadDisperserError> { // todo error handling
+        let blob_quorum_numbers = status.clone().blob_inclusion_info.unwrap().blob_certificate.unwrap().blob_header.unwrap().quorum_numbers;
+        if blob_quorum_numbers.is_empty() {
+            return Err(PayloadDisperserError::NoQuorumNumbers);
+        }
+        let attestation = status.signed_batch.unwrap().attestation.unwrap();
+        let batch_quorum_numbers = attestation.quorum_numbers;
+        let batch_signed_percentages = attestation.quorum_signed_percentages;
+
+        if batch_quorum_numbers.len() != batch_signed_percentages.len() {
+            return Err(PayloadDisperserError::QuorumNumbersMismatch);
+        }
+
+        // map from quorum ID to the percentage stake signed from that quorum
+        let signed_percentages_map = HashMap::new();
+        for (quorum_id, signed_percentage) in batch_quorum_numbers.iter().zip(batch_signed_percentages.iter()) {
+            signed_percentages_map.insert(quorum_id, *signed_percentage);
+        }
+
+        let batch_header = status.signed_batch.unwrap().header;
+        if batch_header.is_none() {
+            return Err(PayloadDisperserError::BatchHeaderNotPresent);
+        }
+
+        let confirmation_threshold = self.cert_verifier.get_confirmation_threshold().await?;
+
+        for quorum in blob_quorum_numbers {
+            let signed_percentage = signed_percentages_map
+                .get(&quorum)
+                .ok_or(PayloadDisperserError::SignedPercentageNotFound(quorum))?;
+            if *signed_percentage < confirmation_threshold {
+                return Err(PayloadDisperserError::ConfirmationThresholdNotMet(
+                    quorum,
+                    *signed_percentage,
+                    confirmation_threshold,
+                ));
+            }
+        }
+
+        Ok(())
     }
 
     /// Creates a new EigenDACert from a BlobStatusReply, and NonSignerStakesAndSignature
