@@ -9,6 +9,7 @@ use crate::errors::{BlobError, ConversionError, EigenClientError};
 use crate::generated::disperser::v2::{
     Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
 };
+/* 
 use crate::generated::i_cert_verifier::{
     Attestation as AttestationContract, BatchHeaderV2 as BatchHeaderV2Contract,
     BlobCertificate as BlobCertificateContract, BlobCommitment as BlobCommitmentContract,
@@ -16,7 +17,7 @@ use crate::generated::i_cert_verifier::{
     NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
     SignedBatch as SignedBatchContract,
 };
-use crate::generated::i_cert_verifier::{G1Point as G1PointContract, G2Point as G2PointContract};
+use crate::generated::i_cert_verifier::{G1Point as G1PointContract, G2Point as G2PointContract};*/
 
 use crate::commitment_utils::g1_commitment_from_bytes;
 
@@ -77,7 +78,7 @@ impl From<ProtoPaymentHeader> for PaymentHeader {
     }
 }
 
-impl From<BlobCommitments> for BlobCommitmentContract {
+/*impl From<BlobCommitments> for BlobCommitmentContract {
     fn from(value: BlobCommitments) -> Self {
         Self {
             length_commitment: g2_contract_point_from_g2_affine(&value.length_commitment),
@@ -86,7 +87,7 @@ impl From<BlobCommitments> for BlobCommitmentContract {
             commitment: g1_contract_point_from_g1_affine(&value.commitment),
         }
     }
-}
+}*/
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
     type Error = ConversionError;
@@ -106,7 +107,7 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
     }
 }
 
-impl From<BlobHeader> for BlobHeaderV2Contract {
+/*impl From<BlobHeader> for BlobHeaderV2Contract {
     fn from(value: BlobHeader) -> Self {
         Self {
             version: value.version,
@@ -115,7 +116,7 @@ impl From<BlobHeader> for BlobHeaderV2Contract {
             payment_header_hash: value.payment_header_hash,
         }
     }
-}
+}*/
 
 impl TryFrom<ProtoBlobHeader> for BlobHeader {
     type Error = ConversionError;
@@ -156,7 +157,7 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
     }
 }
 
-impl From<BlobCertificate> for BlobCertificateContract {
+/*impl From<BlobCertificate> for BlobCertificateContract {
     fn from(value: BlobCertificate) -> Self {
         Self {
             blob_header: value.blob_header.into(),
@@ -164,7 +165,7 @@ impl From<BlobCertificate> for BlobCertificateContract {
             relay_keys: value.relay_keys,
         }
     }
-}
+}*/
 
 impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
     type Error = ConversionError;
@@ -180,7 +181,7 @@ impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
     }
 }
 
-impl From<BlobInclusionInfo> for BlobInclusionInfoContract {
+/*impl From<BlobInclusionInfo> for BlobInclusionInfoContract {
     fn from(value: BlobInclusionInfo) -> Self {
         BlobInclusionInfoContract {
             blob_certificate: value.blob_certificate.into(),
@@ -188,7 +189,7 @@ impl From<BlobInclusionInfo> for BlobInclusionInfoContract {
             inclusion_proof: value.inclusion_proof.clone().into(),
         }
     }
-}
+}*/
 
 impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
     type Error = ConversionError;
@@ -219,14 +220,14 @@ pub struct SignedBatch {
     pub attestation: Attestation,
 }
 
-impl From<SignedBatch> for SignedBatchContract {
+/*impl From<SignedBatch> for SignedBatchContract {
     fn from(value: SignedBatch) -> Self {
         Self {
             batch_header: value.header.into(),
             attestation: value.attestation.into(),
         }
     }
-}
+}*/
 
 impl TryFrom<SignedBatchProto> for SignedBatch {
     type Error = ConversionError;
@@ -262,14 +263,14 @@ impl TryFrom<SignedBatchProto> for SignedBatch {
     }
 }
 
-impl From<BatchHeaderV2> for BatchHeaderV2Contract {
+/*impl From<BatchHeaderV2> for BatchHeaderV2Contract {
     fn from(value: BatchHeaderV2) -> Self {
         Self {
             batch_root: value.batch_root,
             reference_block_number: value.reference_block_number,
         }
     }
-}
+}*/
 
 impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
     type Error = ConversionError;
@@ -297,7 +298,7 @@ impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
     }
 }
 
-impl TryFrom<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
+/*impl TryFrom<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
     type Error = ConversionError;
 
     fn try_from(value: NonSignerStakesAndSignatureContract) -> Result<Self, Self::Error> {
@@ -320,9 +321,9 @@ impl TryFrom<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignatur
             non_signer_stake_indices: value.non_signer_stake_indices,
         })
     }
-}
+}*/
 
-impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
+/*impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
     fn from(value: NonSignerStakesAndSignature) -> Self {
         Self {
             non_signer_quorum_bitmap_indices: value.non_signer_quorum_bitmap_indices.clone(),
@@ -343,9 +344,9 @@ impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
             non_signer_stake_indices: value.non_signer_stake_indices.clone(),
         }
     }
-}
+}*/
 
-impl From<Attestation> for AttestationContract {
+/*impl From<Attestation> for AttestationContract {
     fn from(value: Attestation) -> Self {
         Self {
             non_signer_pubkeys: value
@@ -363,7 +364,7 @@ impl From<Attestation> for AttestationContract {
             quorum_numbers: value.quorum_numbers,
         }
     }
-}
+}*/
 
 impl TryFrom<ProtoAttestation> for Attestation {
     type Error = ConversionError;
@@ -428,7 +429,7 @@ pub(crate) fn build_cert_from_reply(
     })
 }
 
-fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
+/*fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
     let x = g2_affine.x;
     let y = g2_affine.y;
     G2PointContract {
@@ -507,7 +508,7 @@ fn g2_affine_from_g2_contract_point(
     }
 
     Ok(point)
-}
+}*/
 
 #[cfg(test)]
 mod test {

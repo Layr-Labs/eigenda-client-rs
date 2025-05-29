@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use ethereum_types::H160;
-use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
+use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 
 use crate::{
     cert_verifier::{self, CertVerifier},
-    core::{eigenda_cert::build_cert_from_reply, BlobKey},
+    core::{eigenda_cert::{build_cert_from_reply}, BlobKey},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
-    generated::disperser::v2::{BlobStatus, BlobStatusReply},
+    generated::disperser::v2::{BlobStatus, BlobStatusReply, SignedBatch},
     rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign},
     utils::SecretUrl,
 };
@@ -132,12 +132,15 @@ impl<S> PayloadDisperser<S> {
         &self,
         blob_key: &BlobKey,
         status: &BlobStatusReply,
-    ) -> Result<(), PayloadDisperserError> { // todo error handling
+    ) -> Result<(), PayloadDisperserError>
+    where
+        S: Sign,
+    { // todo error handling
         let blob_quorum_numbers = status.clone().blob_inclusion_info.unwrap().blob_certificate.unwrap().blob_header.unwrap().quorum_numbers;
         if blob_quorum_numbers.is_empty() {
             return Err(PayloadDisperserError::NoQuorumNumbers);
         }
-        let attestation = status.signed_batch.unwrap().attestation.unwrap();
+        let attestation = status.signed_batch.clone().unwrap().attestation.unwrap();
         let batch_quorum_numbers = attestation.quorum_numbers;
         let batch_signed_percentages = attestation.quorum_signed_percentages;
 
@@ -146,12 +149,12 @@ impl<S> PayloadDisperser<S> {
         }
 
         // map from quorum ID to the percentage stake signed from that quorum
-        let signed_percentages_map = HashMap::new();
+        let mut signed_percentages_map = HashMap::new();
         for (quorum_id, signed_percentage) in batch_quorum_numbers.iter().zip(batch_signed_percentages.iter()) {
             signed_percentages_map.insert(quorum_id, *signed_percentage);
         }
 
-        let batch_header = status.signed_batch.unwrap().header;
+        let batch_header = status.clone().signed_batch.unwrap().header;
         if batch_header.is_none() {
             return Err(PayloadDisperserError::BatchHeaderNotPresent);
         }
@@ -193,16 +196,22 @@ impl<S> PayloadDisperser<S> {
             }
         };
         let non_signer_stakes_and_signature = self
-            .cert_verifier
             .get_non_signer_stakes_and_signature(signed_batch)
-            .await
-            .map_err(|e| {
-                EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
-            })?;
+            .await?;
 
         let cert = build_cert_from_reply(status, non_signer_stakes_and_signature)?;
 
         Ok(cert)
+    }
+
+    async fn get_non_signer_stakes_and_signature(
+        &self,
+        signed_batch: SignedBatch,
+    ) -> Result<NonSignerStakesAndSignature, EigenClientError>
+    where
+        S: Sign, 
+    {
+        unimplemented!("Implement the logic to retrieve non-signer stakes and signature from the signed batch");
     }
 
     /// Returns the max size of a blob that can be dispersed.

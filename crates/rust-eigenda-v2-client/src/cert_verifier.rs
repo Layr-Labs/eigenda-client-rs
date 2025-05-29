@@ -1,19 +1,17 @@
 use ethers::prelude::*;
 use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
-use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature};
+use rust_eigenda_v2_common::{EigenDACert};
 use std::sync::Arc;
 
 use ethereum_types::H160;
 
 use crate::{
-    core::eigenda_cert::SignedBatch,
     errors::{CertVerifierError, ConversionError},
     generated::{
-        disperser::v2::SignedBatch as SignedBatchProto,
         i_cert_verifier::{
             IEigenDACertVerifier,
-            NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
-        },
+            SecurityThresholds,
+        }, i_eigen_da_cert_verifier_base::IEigenDACertVerifierBase,
     },
     utils::SecretUrl,
 };
@@ -22,6 +20,7 @@ use crate::{
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier<S> {
     cert_verifier_contract: IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    cert_verifier_contract_base: IEigenDACertVerifierBase<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
 impl<S> CertVerifier<S> {
@@ -38,33 +37,13 @@ impl<S> CertVerifier<S> {
         let signer = EthersSigner::new(signer, chain_id);
         let client = SignerMiddleware::new(provider, signer);
         let client = Arc::new(client);
-        let cert_verifier_contract = IEigenDACertVerifier::new(address, client);
+        let cert_verifier_contract = IEigenDACertVerifier::new(address, client.clone());
+
+        let cert_verifier_contract_base = IEigenDACertVerifierBase::new(address, client);
         Ok(CertVerifier {
             cert_verifier_contract,
+            cert_verifier_contract_base
         })
-    }
-
-    /// Calls the getNonSignerStakesAndSignature view function on the EigenDACertVerifier
-    /// contract, and returns the resulting [`NonSignerStakesAndSignature`] object.
-    pub async fn get_non_signer_stakes_and_signature(
-        &self,
-        signed_batch: SignedBatchProto,
-    ) -> Result<NonSignerStakesAndSignature, CertVerifierError>
-    where
-        EthersSigner<S>: Signer,
-    {
-        let signed_batch: SignedBatch = signed_batch.try_into()?;
-        let contract_signed_batch = signed_batch.into();
-        let non_signer_stakes_and_signature: NonSignerStakesAndSignatureContract = self
-            .cert_verifier_contract
-            .get_non_signer_stakes_and_signature(contract_signed_batch)
-            .call()
-            .await
-            .map_err(|_| {
-                CertVerifierError::Contract("non_signer_stakes_and_signature".to_string())
-            })?;
-
-        Ok(non_signer_stakes_and_signature.try_into()?)
     }
 
     /// Queries the cert verifier contract for the configured set of quorum numbers that must
@@ -89,13 +68,8 @@ impl<S> CertVerifier<S> {
     where
         EthersSigner<S>: Signer,
     {
-        self.cert_verifier_contract
-            .verify_da_cert_v2(
-                eigenda_cert.batch_header.clone().into(),
-                eigenda_cert.blob_inclusion_info.clone().into(),
-                eigenda_cert.non_signer_stakes_and_signature.clone().into(),
-                eigenda_cert.signed_quorum_numbers.clone().into(),
-            )
+        let abi_encoded_cert: Bytes  = vec![].into(); // todo
+        self.cert_verifier_contract_base.check_da_cert(abi_encoded_cert)
             .call()
             .await
             .map_err(|_| CertVerifierError::Contract("verify_cert_v2".to_string()))?;
@@ -106,13 +80,15 @@ impl<S> CertVerifier<S> {
     where
         EthersSigner<S>: Signer,
     {
-        self.cert_verifier_contract
-            .security_thresholds(reference_block_number)
+        let result: SecurityThresholds = self.cert_verifier_contract
+            .security_thresholds()
             .call()
             .await
             .map_err(|_| {
-                CertVerifierError::Contract("get_confirmation_threshold".to_string())
-            })
+                CertVerifierError::Contract("security_thresholds".to_string())
+            })?;
+
+        Ok(result.confirmation_threshold)
     }
 }
 
