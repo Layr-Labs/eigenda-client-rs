@@ -63,6 +63,7 @@ pub(crate) mod generated {
 
 #[cfg(test)]
 mod tests {
+    use alloy::primitives::Address;
     use dotenv::dotenv;
     use ethereum_types::H160;
     use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
@@ -91,6 +92,8 @@ mod tests {
         0x8A, 0xFe, 0xBA, 0x1b, 0xa4, 0x9B, 0x76, 0x86, 0x89, 0xa1, 0x83, 0x20, 0x9d, 0x31, 0xf3,
         0xbe, 0xAD, 0x41, 0xce, 0x72,
     ]);
+    pub const REGISTRY_COORDINATOR_ADDRESS: &str = "0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490";
+    pub const OPERATOR_STATE_RETRIEVER_ADDRESS: &str = "0xB4baAfee917fb4449f5ec64804217bccE9f46C67";
 
     pub fn get_test_private_key_signer() -> PrivateKeySigner {
         dotenv().ok();
@@ -109,6 +112,10 @@ mod tests {
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
+            registry_coordinator_addr: Address::from_str(REGISTRY_COORDINATOR_ADDRESS)
+                .expect("valid registry coordinator address"),
+            operator_state_retriever_addr: Address::from_str(OPERATOR_STATE_RETRIEVER_ADDRESS)
+                .expect("valid operator state retriever address"),
         }
     }
 

@@ -1,14 +1,22 @@
 use std::collections::HashMap;
 
+use alloy::primitives::{Address, FixedBytes};
+use ark_bn254::G1Affine;
+use ark_ec::AffineRepr;
+use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 use ethereum_types::H160;
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
+use ark_ff::{BigInteger, Fp2, PrimeField};
+use tiny_keccak::{Hasher, Keccak};
+
+
 
 use crate::{
     cert_verifier::{self, CertVerifier},
-    core::{eigenda_cert::{build_cert_from_reply}, BlobKey},
+    core::{eigenda_cert::{build_cert_from_reply, SignedBatch}, BlobKey},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
-    generated::disperser::v2::{BlobStatus, BlobStatusReply, SignedBatch},
+    generated::disperser::v2::{BlobStatus, BlobStatusReply, SignedBatch as SignedBatchProto},
     rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign},
     utils::SecretUrl,
 };
@@ -21,6 +29,8 @@ pub struct PayloadDisperserConfig {
     pub eth_rpc_url: SecretUrl,
     pub disperser_rpc: String,
     pub use_secure_grpc_flag: bool,
+    pub registry_coordinator_addr: Address,
+    pub operator_state_retriever_addr: Address,
 }
 
 #[derive(Debug, Clone)]
@@ -206,12 +216,48 @@ impl<S> PayloadDisperser<S> {
 
     async fn get_non_signer_stakes_and_signature(
         &self,
-        signed_batch: SignedBatch,
+        signed_batch_proto: SignedBatchProto,
     ) -> Result<NonSignerStakesAndSignature, EigenClientError>
     where
         S: Sign, 
     {
-        unimplemented!("Implement the logic to retrieve non-signer stakes and signature from the signed batch");
+        let signed_batch: SignedBatch = signed_batch_proto
+            .try_into()?;
+
+        let non_signers_pubkeys: Vec<G1Affine> = signed_batch.attestation.non_signer_pubkeys.clone();
+
+        let mut non_signer_operator_ids: Vec<FixedBytes<32>> = vec![];
+
+        for pubkey in non_signers_pubkeys {
+            let x = pubkey.x.into_bigint().to_bytes_be();
+            let y = pubkey.y.into_bigint().to_bytes_be();
+            let mut hasher = Keccak::v256();
+            hasher.update(&[x, y].concat());
+            let mut g1_hash = [0u8; 32];
+            hasher.finalize(&mut g1_hash);
+            let operator_id = FixedBytes::<32>::from_slice(&g1_hash);
+            non_signer_operator_ids.push(operator_id);
+        }
+
+        let quorum_numbers = signed_batch.attestation.quorum_numbers.iter().map(|x| *x as u8).collect::<Vec<u8>>();
+
+        let reference_block_number = signed_batch.header.reference_block_number;
+
+        eigensdk::logging::init_logger(eigensdk::logging::log_level::LogLevel::Info);
+        let avs_registry_chain_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(eigensdk::logging::get_logger(), self.config.registry_coordinator_addr, self.config.operator_state_retriever_addr, self.config.eth_rpc_url.clone().try_into().unwrap()).await.unwrap();
+
+        let check_sig_indices = avs_registry_chain_reader.get_check_signatures_indices(reference_block_number, quorum_numbers, non_signer_operator_ids).await.unwrap();
+
+        Ok(NonSignerStakesAndSignature{
+            non_signer_quorum_bitmap_indices: check_sig_indices.nonSignerQuorumBitmapIndices,
+            non_signer_pubkeys: signed_batch.attestation.non_signer_pubkeys,
+            quorum_apks: signed_batch.attestation.quorum_apks,
+            apk_g2: signed_batch.attestation.apk_g2,
+            sigma: signed_batch.attestation.sigma,
+            quorum_apk_indices: check_sig_indices.quorumApkIndices,
+            total_stake_indices: check_sig_indices.totalStakeIndices,
+            non_signer_stake_indices: check_sig_indices.nonSignerStakeIndices,
+        })
     }
 
     /// Returns the max size of a blob that can be dispersed.
@@ -222,13 +268,14 @@ impl<S> PayloadDisperser<S> {
 
 #[cfg(test)]
 mod tests {
+    use alloy::primitives::Address;
     use rust_eigenda_v2_common::{Payload, PayloadForm};
+    use std::str::FromStr;
 
     use crate::{
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         tests::{
-            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS,
-            HOLESKY_DISPERSER_RPC_URL,
+            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_DISPERSER_RPC_URL, OPERATOR_STATE_RETRIEVER_ADDRESS, REGISTRY_COORDINATOR_ADDRESS
         },
     };
 
@@ -244,6 +291,8 @@ mod tests {
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
+            registry_coordinator_addr: Address::from_str(REGISTRY_COORDINATOR_ADDRESS).unwrap(),
+            operator_state_retriever_addr: Address::from_str(OPERATOR_STATE_RETRIEVER_ADDRESS).unwrap(),
         };
 
         let payload_disperser =

@@ -72,7 +72,7 @@ impl<S> CertVerifier<S> {
         self.cert_verifier_contract_base.check_da_cert(abi_encoded_cert)
             .call()
             .await
-            .map_err(|_| CertVerifierError::Contract("verify_cert_v2".to_string()))?;
+            .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
         Ok(())
     }
 
