@@ -1,3 +1,5 @@
+use alloy::sol;
+use alloy::sol_types::SolValue;
 // This file contains the needed conversions from proto and contract types
 use ark_bn254::{Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, Fp2, PrimeField};
@@ -36,6 +38,67 @@ use rust_eigenda_v2_common::{
     g2_commitment_from_bytes, BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader,
     BlobInclusionInfo, EigenDACert, NonSignerStakesAndSignature,
 };
+
+sol!{
+    struct G1PointContract {
+        uint256 X;
+        uint256 Y;
+    }
+
+    struct G2PointContract {
+        uint256[2] X;
+        uint256[2] Y;
+    }
+
+    struct BlobInclusionInfoContract {
+        BlobCertificateContract blobCertificate;
+        uint32 blobIndex;
+        bytes inclusionProof;
+    }
+
+    struct BlobCertificateContract {
+        BlobHeaderV2Contract blobHeader;
+        bytes signature;
+        uint32[] relayKeys;
+    }
+
+    struct BlobHeaderV2Contract {
+        uint16 version;
+        bytes quorumNumbers;
+        BlobCommitmentContract commitment;
+        bytes32 paymentHeaderHash;
+    }
+
+    struct BlobCommitmentContract {
+        G1PointContract commitment;
+        G2PointContract lengthCommitment;
+        G2PointContract lengthProof;
+        uint32 length;
+    }
+
+    struct BatchHeaderV2Contract {
+        bytes32 batchRoot;
+        uint32 referenceBlockNumber;
+    }
+
+    struct NonSignerStakesAndSignatureContract {
+        uint32[] nonSignerQuorumBitmapIndices;
+        G1PointContract[] nonSignerPubkeys;
+        G1PointContract[] quorumApks;
+        G2PointContract apkG2;
+        G1PointContract sigma;
+        uint32[] quorumApkIndices;
+        uint32[] totalStakeIndices;
+        uint32[][] nonSignerStakeIndices;
+    }
+
+    struct EigenDACertV3Contract {
+        BatchHeaderV2Contract batchHeader;
+        BlobInclusionInfoContract blobInclusionInfo;
+        NonSignerStakesAndSignatureContract nonSignerStakesAndSignature;
+        bytes signedQuorumNumbers;
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 /// PaymentHeader represents the header information for a blob
@@ -509,6 +572,15 @@ fn g2_affine_from_g2_contract_point(
 
     Ok(point)
 }*/
+
+/// Encodes an EigenDACert into ABI-encoded bytes
+pub fn eigenda_cert_to_abi_encoded(cert: &EigenDACert) -> Result<Vec<u8>, EigenClientError> {
+    let cert_contract: EigenDACertV3Contract = cert.try_into().unwrap(); // todo
+
+    let encoded = cert_contract.abi_encode();
+
+    Ok(encoded)
+}
 
 #[cfg(test)]
 mod test {

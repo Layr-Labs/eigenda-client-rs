@@ -6,14 +6,12 @@ use std::sync::Arc;
 use ethereum_types::H160;
 
 use crate::{
-    errors::{CertVerifierError, ConversionError},
-    generated::{
+    core::eigenda_cert::eigenda_cert_to_abi_encoded, errors::{CertVerifierError, ConversionError}, generated::{
         i_cert_verifier::{
             IEigenDACertVerifier,
             SecurityThresholds,
         }, i_eigen_da_cert_verifier_base::IEigenDACertVerifierBase,
-    },
-    utils::SecretUrl,
+    }, utils::SecretUrl
 };
 
 #[derive(Debug, Clone)]
@@ -68,8 +66,8 @@ impl<S> CertVerifier<S> {
     where
         EthersSigner<S>: Signer,
     {
-        let abi_encoded_cert: Bytes  = vec![].into(); // todo
-        self.cert_verifier_contract_base.check_da_cert(abi_encoded_cert)
+        let abi_encoded_cert: Vec<u8>  = eigenda_cert_to_abi_encoded(eigenda_cert).unwrap();
+        self.cert_verifier_contract_base.check_da_cert(Bytes::from(abi_encoded_cert))
             .call()
             .await
             .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
