@@ -52,6 +52,7 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign + Clone,
     {
+        eigensdk::logging::init_logger(eigensdk::logging::log_level::LogLevel::Info);
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
             signer: signer.clone(),
@@ -156,20 +157,34 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign,
     {
-        // todo error handling
         let blob_quorum_numbers = status
             .clone()
             .blob_inclusion_info
-            .unwrap()
+            .ok_or(ConversionError::BlobInclusion(
+                "BlobInclusionInfo not present".to_string(),
+            ))?
             .blob_certificate
-            .unwrap()
+            .ok_or(ConversionError::BlobCertificate(
+                "BlobCertificate not present".to_string(),
+            ))?
             .blob_header
-            .unwrap()
+            .ok_or(ConversionError::BlobHeader(
+                "BlobHeader not present".to_string(),
+            ))?
             .quorum_numbers;
         if blob_quorum_numbers.is_empty() {
             return Err(PayloadDisperserError::NoQuorumNumbers);
         }
-        let attestation = status.signed_batch.clone().unwrap().attestation.unwrap();
+        let attestation = status
+            .signed_batch
+            .clone()
+            .ok_or(ConversionError::SignedBatch(
+                "SignedBatch not present".to_string(),
+            ))?
+            .attestation
+            .ok_or(ConversionError::Attestation(
+                "Attestation not present".to_string(),
+            ))?;
         let batch_quorum_numbers = attestation.quorum_numbers;
         let batch_signed_percentages = attestation.quorum_signed_percentages;
 
@@ -186,7 +201,13 @@ impl<S> PayloadDisperser<S> {
             signed_percentages_map.insert(quorum_id, *signed_percentage);
         }
 
-        let batch_header = status.clone().signed_batch.unwrap().header;
+        let batch_header = status
+            .clone()
+            .signed_batch
+            .ok_or(ConversionError::SignedBatch(
+                "SignedBatch not present".to_string(),
+            ))?
+            .header;
         if batch_header.is_none() {
             return Err(PayloadDisperserError::BatchHeaderNotPresent);
         }
@@ -270,16 +291,15 @@ impl<S> PayloadDisperser<S> {
 
         let reference_block_number = signed_batch.header.reference_block_number;
 
-        eigensdk::logging::init_logger(eigensdk::logging::log_level::LogLevel::Info);
         let avs_registry_chain_reader =
             eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
                 eigensdk::logging::get_logger(),
                 self.config.registry_coordinator_addr,
                 self.config.operator_state_retriever_addr,
-                self.config.eth_rpc_url.clone().try_into().unwrap(),
+                self.config.eth_rpc_url.clone().try_into()?,
             )
             .await
-            .unwrap();
+            .map_err(|_| PayloadDisperserError::EigenSDKNotInitialized)?;
 
         let check_sig_indices = avs_registry_chain_reader
             .get_check_signatures_indices(
@@ -288,7 +308,7 @@ impl<S> PayloadDisperser<S> {
                 non_signer_operator_ids,
             )
             .await
-            .unwrap();
+            .map_err(|_| PayloadDisperserError::GetCheckSignaturesIndices)?;
 
         Ok(NonSignerStakesAndSignature {
             non_signer_quorum_bitmap_indices: check_sig_indices.nonSignerQuorumBitmapIndices,

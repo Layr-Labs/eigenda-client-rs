@@ -15,6 +15,8 @@ use crate::{
     utils::SecretUrl,
 };
 
+const CHECK_DA_CERT_STATUS_SUCCESS: u8 = 1;
+
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier<S> {
@@ -69,20 +71,15 @@ impl<S> CertVerifier<S> {
         EthersSigner<S>: Signer,
     {
         let abi_encoded_cert: Vec<u8> = eigenda_cert_to_abi_encoded(eigenda_cert)?;
-        println!("ABI Encoded Cert: {:?}", abi_encoded_cert);
         let res = self
             .cert_verifier_contract_base
             .check_da_cert(Bytes::from(abi_encoded_cert))
             .call()
             .await
-            .map_err(|e| {
-                println!("Error calling check_da_cert: {:?}", e);
-                CertVerifierError::Contract("check_da_cert".to_string())
-            })?;
-        if res != 1 {
-            // todo
+            .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
+        if res != CHECK_DA_CERT_STATUS_SUCCESS {
             return Err(CertVerifierError::VerificationFailed(
-                "check_da_cert returned non-1 value".to_string(),
+                "check_da_cert returned non-succesfull value".to_string(),
             ));
         }
         Ok(())

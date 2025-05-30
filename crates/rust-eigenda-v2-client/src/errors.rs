@@ -52,6 +52,8 @@ pub enum ConversionError {
     EigenDACommon(#[from] rust_eigenda_v2_common::ConversionError),
     #[error("Failed to convert U256: {0}")]
     U256Conversion(String),
+    #[error("Failed to parse attestation: {0}")]
+    Attestation(String),
 }
 
 /// Errors specific to the [`RelayPayloadRetriever`].
@@ -200,6 +202,10 @@ pub enum PayloadDisperserError {
     SignedPercentageNotFound(u32),
     #[error("Confirmation threshold not met for quorum {0}, signed percentage {1}, threshold {2}")]
     ConfirmationThresholdNotMet(u32, u8, u8),
+    #[error("Failed to initialize Eigen SDK")]
+    EigenSDKNotInitialized,
+    #[error("Failed to check signature indices")]
+    GetCheckSignaturesIndices,
 }
 
 /// Errors specific to the CertVerifier
