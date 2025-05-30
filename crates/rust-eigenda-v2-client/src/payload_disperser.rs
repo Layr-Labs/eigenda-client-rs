@@ -122,7 +122,23 @@ impl<S> PayloadDisperser<S> {
         match blob_status {
             BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
             BlobStatus::Encoded | BlobStatus::Queued => Ok(None),
-            BlobStatus::GatheringSignatures | BlobStatus::Complete => {
+            BlobStatus::GatheringSignatures => {
+                let thresholds_met = self.check_thresholds(blob_key, &status)
+                    .await;
+                if thresholds_met.is_err() {
+                    // Since we are gathering signatures, it is ok for thresholds not to be met yet.
+                    return Ok(None);
+                }
+                let eigenda_cert = self.build_eigenda_cert(&status).await?;
+                self.cert_verifier
+                    .verify_cert_v2(&eigenda_cert)
+                    .await
+                    .map_err(|e| {
+                        EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                    })?;
+                Ok(Some(eigenda_cert))
+            },
+            BlobStatus::Complete => {
                 self.check_thresholds(blob_key, &status)
                     .await?;
                 let eigenda_cert = self.build_eigenda_cert(&status).await?;

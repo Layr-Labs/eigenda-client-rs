@@ -66,11 +66,15 @@ impl<S> CertVerifier<S> {
     where
         EthersSigner<S>: Signer,
     {
-        let abi_encoded_cert: Vec<u8>  = eigenda_cert_to_abi_encoded(eigenda_cert).unwrap();
+        let abi_encoded_cert: Vec<u8>  = eigenda_cert_to_abi_encoded(eigenda_cert)?;
+        println!("ABI Encoded Cert: {:?}", abi_encoded_cert);
         self.cert_verifier_contract_base.check_da_cert(Bytes::from(abi_encoded_cert))
             .call()
             .await
-            .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
+            .map_err(|e| {
+                println!("Error calling check_da_cert: {:?}", e);
+                CertVerifierError::Contract("check_da_cert".to_string())
+    })?;
         Ok(())
     }
 

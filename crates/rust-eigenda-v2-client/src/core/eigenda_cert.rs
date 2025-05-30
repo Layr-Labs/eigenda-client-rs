@@ -1,3 +1,4 @@
+use alloy::primitives::U256 as AlloyU256;
 use alloy::sol;
 use alloy::sol_types::SolValue;
 // This file contains the needed conversions from proto and contract types
@@ -11,15 +12,6 @@ use crate::errors::{BlobError, ConversionError, EigenClientError};
 use crate::generated::disperser::v2::{
     Attestation as ProtoAttestation, BlobStatusReply, SignedBatch as SignedBatchProto,
 };
-/* 
-use crate::generated::i_cert_verifier::{
-    Attestation as AttestationContract, BatchHeaderV2 as BatchHeaderV2Contract,
-    BlobCertificate as BlobCertificateContract, BlobCommitment as BlobCommitmentContract,
-    BlobHeaderV2 as BlobHeaderV2Contract, BlobInclusionInfo as BlobInclusionInfoContract,
-    NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
-    SignedBatch as SignedBatchContract,
-};
-use crate::generated::i_cert_verifier::{G1Point as G1PointContract, G2Point as G2PointContract};*/
 
 use crate::commitment_utils::g1_commitment_from_bytes;
 
@@ -141,16 +133,22 @@ impl From<ProtoPaymentHeader> for PaymentHeader {
     }
 }
 
-/*impl From<BlobCommitments> for BlobCommitmentContract {
-    fn from(value: BlobCommitments) -> Self {
-        Self {
-            length_commitment: g2_contract_point_from_g2_affine(&value.length_commitment),
-            length_proof: g2_contract_point_from_g2_affine(&value.length_proof),
-            length: value.length,
-            commitment: g1_contract_point_from_g1_affine(&value.commitment),
-        }
+impl TryFrom<BlobCommitments> for BlobCommitmentContract {
+    type Error = ConversionError;
+    fn try_from(value: BlobCommitments) -> Result<Self, Self::Error> {
+        let commitment = g1_contract_point_from_g1_affine(&value.commitment)?;
+        let length_commitment = g2_contract_point_from_g2_affine(&value.length_commitment)?;
+        let length_proof = g2_contract_point_from_g2_affine(&value.length_proof)?;
+        let length = value.length;
+
+        Ok(Self {
+            commitment,
+            lengthCommitment: length_commitment,
+            lengthProof: length_proof,
+            length,
+        })
     }
-}*/
+}
 
 impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
     type Error = ConversionError;
@@ -170,16 +168,18 @@ impl TryFrom<ProtoBlobCommitment> for BlobCommitments {
     }
 }
 
-/*impl From<BlobHeader> for BlobHeaderV2Contract {
-    fn from(value: BlobHeader) -> Self {
-        Self {
+impl TryFrom<BlobHeader> for BlobHeaderV2Contract {
+    type Error = ConversionError;
+
+    fn try_from(value: BlobHeader) -> Result<Self, Self::Error> {
+        Ok(Self {
             version: value.version,
-            quorum_numbers: value.quorum_numbers.clone().into(),
-            commitment: value.commitment.clone().into(),
-            payment_header_hash: value.payment_header_hash,
-        }
+            quorumNumbers: value.quorum_numbers.into(),
+            commitment: value.commitment.clone().try_into()?,
+            paymentHeaderHash: value.payment_header_hash.into(),
+        })
     }
-}*/
+}
 
 impl TryFrom<ProtoBlobHeader> for BlobHeader {
     type Error = ConversionError;
@@ -220,15 +220,17 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
     }
 }
 
-/*impl From<BlobCertificate> for BlobCertificateContract {
-    fn from(value: BlobCertificate) -> Self {
-        Self {
-            blob_header: value.blob_header.into(),
+impl TryFrom<BlobCertificate> for BlobCertificateContract {
+    type Error = ConversionError;
+
+    fn try_from(value: BlobCertificate) -> Result<Self, Self::Error> {
+        Ok(Self {
+            blobHeader: value.blob_header.try_into()?,
             signature: value.signature.into(),
-            relay_keys: value.relay_keys,
-        }
+            relayKeys: value.relay_keys,
+        })
     }
-}*/
+}
 
 impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
     type Error = ConversionError;
@@ -244,15 +246,17 @@ impl TryFrom<ProtoBlobCertificate> for BlobCertificate {
     }
 }
 
-/*impl From<BlobInclusionInfo> for BlobInclusionInfoContract {
-    fn from(value: BlobInclusionInfo) -> Self {
-        BlobInclusionInfoContract {
-            blob_certificate: value.blob_certificate.into(),
-            blob_index: value.blob_index,
-            inclusion_proof: value.inclusion_proof.clone().into(),
-        }
+impl TryFrom<BlobInclusionInfo> for BlobInclusionInfoContract {
+    type Error = ConversionError;
+
+    fn try_from(value: BlobInclusionInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            blobCertificate: value.blob_certificate.try_into()?,
+            blobIndex: value.blob_index,
+            inclusionProof: value.inclusion_proof.clone().into(),
+        })
     }
-}*/
+}
 
 impl TryFrom<ProtoBlobInclusionInfo> for BlobInclusionInfo {
     type Error = ConversionError;
@@ -326,14 +330,14 @@ impl TryFrom<SignedBatchProto> for SignedBatch {
     }
 }
 
-/*impl From<BatchHeaderV2> for BatchHeaderV2Contract {
+impl From<BatchHeaderV2> for BatchHeaderV2Contract {
     fn from(value: BatchHeaderV2) -> Self {
         Self {
-            batch_root: value.batch_root,
-            reference_block_number: value.reference_block_number,
+            batchRoot: value.batch_root.into(),
+            referenceBlockNumber: value.reference_block_number,
         }
     }
-}*/
+}
 
 impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
     type Error = ConversionError;
@@ -386,28 +390,34 @@ impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
     }
 }*/
 
-/*impl From<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
-    fn from(value: NonSignerStakesAndSignature) -> Self {
-        Self {
-            non_signer_quorum_bitmap_indices: value.non_signer_quorum_bitmap_indices.clone(),
-            non_signer_pubkeys: value
-                .non_signer_pubkeys
-                .iter()
-                .map(g1_contract_point_from_g1_affine)
-                .collect(),
-            quorum_apks: value
-                .quorum_apks
-                .iter()
-                .map(g1_contract_point_from_g1_affine)
-                .collect(),
-            apk_g2: g2_contract_point_from_g2_affine(&value.apk_g2),
-            sigma: g1_contract_point_from_g1_affine(&value.sigma),
-            quorum_apk_indices: value.quorum_apk_indices.clone(),
-            total_stake_indices: value.total_stake_indices.clone(),
-            non_signer_stake_indices: value.non_signer_stake_indices.clone(),
-        }
+impl TryFrom<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
+    type Error = ConversionError;
+
+    fn try_from(value: NonSignerStakesAndSignature) -> Result<Self, Self::Error> {
+        let non_signer_pubkeys: Vec<G1PointContract> = value
+            .non_signer_pubkeys
+            .iter()
+            .map(g1_contract_point_from_g1_affine)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let quorum_apks = value
+            .quorum_apks
+            .iter()
+            .map(g1_contract_point_from_g1_affine)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Self {
+            nonSignerQuorumBitmapIndices: value.non_signer_quorum_bitmap_indices.clone(),
+            nonSignerPubkeys: non_signer_pubkeys,
+            quorumApks: quorum_apks,
+            apkG2: g2_contract_point_from_g2_affine(&value.apk_g2)?,
+            sigma: g1_contract_point_from_g1_affine(&value.sigma)?,
+            quorumApkIndices: value.quorum_apk_indices.clone(),
+            totalStakeIndices: value.total_stake_indices.clone(),
+            nonSignerStakeIndices: value.non_signer_stake_indices.clone(),
+        })
     }
-}*/
+}
 
 /*impl From<Attestation> for AttestationContract {
     fn from(value: Attestation) -> Self {
@@ -492,37 +502,37 @@ pub(crate) fn build_cert_from_reply(
     })
 }
 
-/*fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> G2PointContract {
-    let x = g2_affine.x;
-    let y = g2_affine.y;
-    G2PointContract {
-        x: [
-            U256::from_big_endian(&x.c1.into_bigint().to_bytes_be()),
-            U256::from_big_endian(&x.c0.into_bigint().to_bytes_be()),
+fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> Result<G2PointContract, ConversionError> {
+    let xc1: [u8;32] = g2_affine.x.c1.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;
+    let xc0: [u8;32] = g2_affine.x.c0.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;
+    let yc1: [u8;32] = g2_affine.y.c1.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;;
+    let yc0: [u8;32] = g2_affine.y.c0.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;;
+    Ok(G2PointContract {
+        X: [
+            AlloyU256::from_be_bytes(xc1),
+            AlloyU256::from_be_bytes(xc0),
         ],
-        y: [
-            U256::from_big_endian(&y.c1.into_bigint().to_bytes_be()),
-            U256::from_big_endian(&y.c0.into_bigint().to_bytes_be()),
+        Y: [
+            AlloyU256::from_be_bytes(yc1),
+            AlloyU256::from_be_bytes(yc0),
         ],
-    }
+    })
 }
 
-fn g1_contract_point_from_g1_affine(g1_affine: &G1Affine) -> G1PointContract {
-    let x = g1_affine.x;
-    let y = g1_affine.y;
-    G1PointContract {
-        x: U256::from_big_endian(&x.into_bigint().to_bytes_be()),
-        y: U256::from_big_endian(&y.into_bigint().to_bytes_be()),
-    }
+fn g1_contract_point_from_g1_affine(g1_affine: &G1Affine) -> Result<G1PointContract, ConversionError> {
+    let x: [u8;32] = g1_affine.x.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G1Point("Could not convert from g1 core to g1 contract".to_string()))?;
+    let y: [u8;32] = g1_affine.y.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G1Point("Could not convert from g1 core to g1 contract".to_string()))?;
+    Ok(G1PointContract {
+        X: AlloyU256::from_be_bytes(x),
+        Y: AlloyU256::from_be_bytes(y),
+    })
 }
 
-fn g1_affine_from_g1_contract_point(
+/*fn g1_affine_from_g1_contract_point(
     g1_point: &G1PointContract,
 ) -> Result<G1Affine, ConversionError> {
-    let mut x_bytes = [0u8; 32];
-    g1_point.x.to_big_endian(&mut x_bytes);
-    let mut y_bytes = [0u8; 32];
-    g1_point.y.to_big_endian(&mut y_bytes);
+    let x_bytes: [u8;32] =  g1_point.X.to_be_bytes();
+    let y_bytes: [u8;32] = g1_point.Y.to_be_bytes();
     let x = Fq::from_be_bytes_mod_order(&x_bytes);
     let y = Fq::from_be_bytes_mod_order(&y_bytes);
     let point = G1Affine::new_unchecked(x, y);
@@ -542,18 +552,14 @@ fn g1_affine_from_g1_contract_point(
 fn g2_affine_from_g2_contract_point(
     g2_point: &G2PointContract,
 ) -> Result<G2Affine, ConversionError> {
-    let mut x1_bytes = [0u8; 32];
-    g2_point.x[1].to_big_endian(&mut x1_bytes);
-    let mut x0_bytes = [0u8; 32];
-    g2_point.x[0].to_big_endian(&mut x0_bytes);
+    let x1_bytes: [u8; 32] = g2_point.X[1].to_be_bytes();
+    let x0_bytes: [u8; 32] = g2_point.X[0].to_be_bytes();
     let x = Fp2::new(
         Fq::from_be_bytes_mod_order(&x1_bytes),
         Fq::from_be_bytes_mod_order(&x0_bytes),
     );
-    let mut y1_bytes = [0u8; 32];
-    g2_point.y[1].to_big_endian(&mut y1_bytes);
-    let mut y0_bytes = [0u8; 32];
-    g2_point.y[0].to_big_endian(&mut y0_bytes);
+    let y1_bytes: [u8; 32] = g2_point.Y[1].to_be_bytes();
+    let y0_bytes: [u8; 32] = g2_point.Y[0].to_be_bytes();
     let y = Fp2::new(
         Fq::from_be_bytes_mod_order(&y1_bytes),
         Fq::from_be_bytes_mod_order(&y0_bytes),
@@ -573,9 +579,22 @@ fn g2_affine_from_g2_contract_point(
     Ok(point)
 }*/
 
+impl TryFrom<EigenDACert> for EigenDACertV3Contract {
+    type Error = ConversionError;
+
+    fn try_from(value: EigenDACert) -> Result<Self, Self::Error> {
+        Ok(Self {
+            batchHeader: value.batch_header.into(),
+            blobInclusionInfo: value.blob_inclusion_info.try_into()?,
+            nonSignerStakesAndSignature: value.non_signer_stakes_and_signature.try_into()?,
+            signedQuorumNumbers: value.signed_quorum_numbers.into()
+        })
+    }
+}
+
 /// Encodes an EigenDACert into ABI-encoded bytes
-pub fn eigenda_cert_to_abi_encoded(cert: &EigenDACert) -> Result<Vec<u8>, EigenClientError> {
-    let cert_contract: EigenDACertV3Contract = cert.try_into().unwrap(); // todo
+pub fn eigenda_cert_to_abi_encoded(cert: &EigenDACert) -> Result<Vec<u8>, ConversionError> {
+    let cert_contract: EigenDACertV3Contract = cert.clone().try_into()?;
 
     let encoded = cert_contract.abi_encode();
 
