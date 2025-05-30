@@ -1056,7 +1056,7 @@ mod test {
             get_test_private_key_signer(),
         )
         .unwrap();
-        let res = cert_verifier.verify_cert_v2(&eigenda_cert).await;
+        let res = cert_verifier.check_da_cert(&eigenda_cert).await;
         assert!(res.is_ok())
     }
 }

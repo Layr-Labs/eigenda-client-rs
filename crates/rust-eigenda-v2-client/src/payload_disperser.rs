@@ -131,7 +131,7 @@ impl<S> PayloadDisperser<S> {
                 }
                 let eigenda_cert = self.build_eigenda_cert(&status).await?;
                 self.cert_verifier
-                    .verify_cert_v2(&eigenda_cert)
+                    .check_da_cert(&eigenda_cert)
                     .await
                     .map_err(|e| {
                         EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
@@ -142,7 +142,7 @@ impl<S> PayloadDisperser<S> {
                 self.check_thresholds(&status).await?;
                 let eigenda_cert = self.build_eigenda_cert(&status).await?;
                 self.cert_verifier
-                    .verify_cert_v2(&eigenda_cert)
+                    .check_da_cert(&eigenda_cert)
                     .await
                     .map_err(|e| {
                         EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))

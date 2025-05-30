@@ -63,10 +63,10 @@ impl<S> CertVerifier<S> {
         Ok(quorums.to_vec())
     }
 
-    /// Calls the VerifyCertV2 view function on the EigenDACertVerifier contract.
+    /// Calls the CheckDACert view function on the EigenDACertVerifier contract.
     ///
     /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a [`CertVerifierError`].
-    pub async fn verify_cert_v2(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError>
+    pub async fn check_da_cert(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError>
     where
         EthersSigner<S>: Signer,
     {
@@ -305,14 +305,14 @@ mod tests {
 
     #[ignore = "depends on external RPC"]
     #[tokio::test]
-    async fn test_verify_cert() {
+    async fn test_check_da_cert() {
         let cert_verifier = CertVerifier::new(
             CERT_VERIFIER_ADDRESS,
             SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
             get_test_private_key_signer(),
         )
         .unwrap();
-        let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;
+        let res = cert_verifier.check_da_cert(&get_test_eigenda_cert()).await;
         assert!(res.is_ok())
     }
 }
