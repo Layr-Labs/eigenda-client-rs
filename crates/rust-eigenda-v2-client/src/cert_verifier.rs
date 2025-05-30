@@ -1,24 +1,26 @@
 use ethers::prelude::*;
 use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
-use rust_eigenda_v2_common::{EigenDACert};
+use rust_eigenda_v2_common::EigenDACert;
 use std::sync::Arc;
 
 use ethereum_types::H160;
 
 use crate::{
-    core::eigenda_cert::eigenda_cert_to_abi_encoded, errors::{CertVerifierError, ConversionError}, generated::{
-        i_cert_verifier::{
-            IEigenDACertVerifier,
-            SecurityThresholds,
-        }, i_eigen_da_cert_verifier_base::IEigenDACertVerifierBase,
-    }, utils::SecretUrl
+    core::eigenda_cert::eigenda_cert_to_abi_encoded,
+    errors::{CertVerifierError, ConversionError},
+    generated::{
+        i_cert_verifier::{IEigenDACertVerifier, SecurityThresholds},
+        i_eigen_da_cert_verifier_base::IEigenDACertVerifierBase,
+    },
+    utils::SecretUrl,
 };
 
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier<S> {
     cert_verifier_contract: IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
-    cert_verifier_contract_base: IEigenDACertVerifierBase<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    cert_verifier_contract_base:
+        IEigenDACertVerifierBase<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
 impl<S> CertVerifier<S> {
@@ -40,7 +42,7 @@ impl<S> CertVerifier<S> {
         let cert_verifier_contract_base = IEigenDACertVerifierBase::new(address, client);
         Ok(CertVerifier {
             cert_verifier_contract,
-            cert_verifier_contract_base
+            cert_verifier_contract_base,
         })
     }
 
@@ -66,16 +68,19 @@ impl<S> CertVerifier<S> {
     where
         EthersSigner<S>: Signer,
     {
-        let abi_encoded_cert: Vec<u8>  = eigenda_cert_to_abi_encoded(eigenda_cert)?;
+        let abi_encoded_cert: Vec<u8> = eigenda_cert_to_abi_encoded(eigenda_cert)?;
         println!("ABI Encoded Cert: {:?}", abi_encoded_cert);
-        let res = self.cert_verifier_contract_base.check_da_cert(Bytes::from(abi_encoded_cert))
+        let res = self
+            .cert_verifier_contract_base
+            .check_da_cert(Bytes::from(abi_encoded_cert))
             .call()
             .await
             .map_err(|e| {
                 println!("Error calling check_da_cert: {:?}", e);
                 CertVerifierError::Contract("check_da_cert".to_string())
-    })?;
-        if res != 1 { // todo
+            })?;
+        if res != 1 {
+            // todo
             return Err(CertVerifierError::VerificationFailed(
                 "check_da_cert returned non-1 value".to_string(),
             ));
@@ -87,13 +92,12 @@ impl<S> CertVerifier<S> {
     where
         EthersSigner<S>: Signer,
     {
-        let result: SecurityThresholds = self.cert_verifier_contract
+        let result: SecurityThresholds = self
+            .cert_verifier_contract
             .security_thresholds()
             .call()
             .await
-            .map_err(|_| {
-                CertVerifierError::Contract("security_thresholds".to_string())
-            })?;
+            .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?;
 
         Ok(result.confirmation_threshold)
     }

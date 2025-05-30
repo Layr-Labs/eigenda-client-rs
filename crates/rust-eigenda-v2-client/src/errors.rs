@@ -199,7 +199,7 @@ pub enum PayloadDisperserError {
     #[error("Signed percentage not found for quorum: {0}")]
     SignedPercentageNotFound(u32),
     #[error("Confirmation threshold not met for quorum {0}, signed percentage {1}, threshold {2}")]
-    ConfirmationThresholdNotMet(u32,u8,u8)
+    ConfirmationThresholdNotMet(u32, u8, u8),
 }
 
 /// Errors specific to the CertVerifier

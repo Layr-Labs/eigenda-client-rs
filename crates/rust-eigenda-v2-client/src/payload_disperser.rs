@@ -2,18 +2,18 @@ use std::collections::HashMap;
 
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
-use ark_ec::AffineRepr;
+use ark_ff::{BigInteger, PrimeField};
 use eigensdk::client_avsregistry::reader::AvsRegistryReader;
 use ethereum_types::H160;
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
-use ark_ff::{BigInteger, Fp2, PrimeField};
 use tiny_keccak::{Hasher, Keccak};
 
-
-
 use crate::{
-    cert_verifier::{self, CertVerifier},
-    core::{eigenda_cert::{build_cert_from_reply, SignedBatch}, BlobKey},
+    cert_verifier::CertVerifier,
+    core::{
+        eigenda_cert::{build_cert_from_reply, SignedBatch},
+        BlobKey,
+    },
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply, SignedBatch as SignedBatchProto},
@@ -123,8 +123,7 @@ impl<S> PayloadDisperser<S> {
             BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
             BlobStatus::Encoded | BlobStatus::Queued => Ok(None),
             BlobStatus::GatheringSignatures => {
-                let thresholds_met = self.check_thresholds(blob_key, &status)
-                    .await;
+                let thresholds_met = self.check_thresholds(&status).await;
                 if thresholds_met.is_err() {
                     // Since we are gathering signatures, it is ok for thresholds not to be met yet.
                     return Ok(None);
@@ -137,10 +136,9 @@ impl<S> PayloadDisperser<S> {
                         EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
                     })?;
                 Ok(Some(eigenda_cert))
-            },
+            }
             BlobStatus::Complete => {
-                self.check_thresholds(blob_key, &status)
-                    .await?;
+                self.check_thresholds(&status).await?;
                 let eigenda_cert = self.build_eigenda_cert(&status).await?;
                 self.cert_verifier
                     .verify_cert_v2(&eigenda_cert)
@@ -154,15 +152,20 @@ impl<S> PayloadDisperser<S> {
     }
 
     /// Verifies if all quorums meet the confirmation threshold
-    async fn check_thresholds(
-        &self,
-        blob_key: &BlobKey,
-        status: &BlobStatusReply,
-    ) -> Result<(), PayloadDisperserError>
+    async fn check_thresholds(&self, status: &BlobStatusReply) -> Result<(), PayloadDisperserError>
     where
         S: Sign,
-    { // todo error handling
-        let blob_quorum_numbers = status.clone().blob_inclusion_info.unwrap().blob_certificate.unwrap().blob_header.unwrap().quorum_numbers;
+    {
+        // todo error handling
+        let blob_quorum_numbers = status
+            .clone()
+            .blob_inclusion_info
+            .unwrap()
+            .blob_certificate
+            .unwrap()
+            .blob_header
+            .unwrap()
+            .quorum_numbers;
         if blob_quorum_numbers.is_empty() {
             return Err(PayloadDisperserError::NoQuorumNumbers);
         }
@@ -176,7 +179,10 @@ impl<S> PayloadDisperser<S> {
 
         // map from quorum ID to the percentage stake signed from that quorum
         let mut signed_percentages_map = HashMap::new();
-        for (quorum_id, signed_percentage) in batch_quorum_numbers.iter().zip(batch_signed_percentages.iter()) {
+        for (quorum_id, signed_percentage) in batch_quorum_numbers
+            .iter()
+            .zip(batch_signed_percentages.iter())
+        {
             signed_percentages_map.insert(quorum_id, *signed_percentage);
         }
 
@@ -235,12 +241,12 @@ impl<S> PayloadDisperser<S> {
         signed_batch_proto: SignedBatchProto,
     ) -> Result<NonSignerStakesAndSignature, EigenClientError>
     where
-        S: Sign, 
+        S: Sign,
     {
-        let signed_batch: SignedBatch = signed_batch_proto
-            .try_into()?;
+        let signed_batch: SignedBatch = signed_batch_proto.try_into()?;
 
-        let non_signers_pubkeys: Vec<G1Affine> = signed_batch.attestation.non_signer_pubkeys.clone();
+        let non_signers_pubkeys: Vec<G1Affine> =
+            signed_batch.attestation.non_signer_pubkeys.clone();
 
         let mut non_signer_operator_ids: Vec<FixedBytes<32>> = vec![];
 
@@ -255,16 +261,36 @@ impl<S> PayloadDisperser<S> {
             non_signer_operator_ids.push(operator_id);
         }
 
-        let quorum_numbers = signed_batch.attestation.quorum_numbers.iter().map(|x| *x as u8).collect::<Vec<u8>>();
+        let quorum_numbers = signed_batch
+            .attestation
+            .quorum_numbers
+            .iter()
+            .map(|x| *x as u8)
+            .collect::<Vec<u8>>();
 
         let reference_block_number = signed_batch.header.reference_block_number;
 
         eigensdk::logging::init_logger(eigensdk::logging::log_level::LogLevel::Info);
-        let avs_registry_chain_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(eigensdk::logging::get_logger(), self.config.registry_coordinator_addr, self.config.operator_state_retriever_addr, self.config.eth_rpc_url.clone().try_into().unwrap()).await.unwrap();
+        let avs_registry_chain_reader =
+            eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
+                eigensdk::logging::get_logger(),
+                self.config.registry_coordinator_addr,
+                self.config.operator_state_retriever_addr,
+                self.config.eth_rpc_url.clone().try_into().unwrap(),
+            )
+            .await
+            .unwrap();
 
-        let check_sig_indices = avs_registry_chain_reader.get_check_signatures_indices(reference_block_number, quorum_numbers, non_signer_operator_ids).await.unwrap();
+        let check_sig_indices = avs_registry_chain_reader
+            .get_check_signatures_indices(
+                reference_block_number,
+                quorum_numbers,
+                non_signer_operator_ids,
+            )
+            .await
+            .unwrap();
 
-        Ok(NonSignerStakesAndSignature{
+        Ok(NonSignerStakesAndSignature {
             non_signer_quorum_bitmap_indices: check_sig_indices.nonSignerQuorumBitmapIndices,
             non_signer_pubkeys: signed_batch.attestation.non_signer_pubkeys,
             quorum_apks: signed_batch.attestation.quorum_apks,
@@ -291,7 +317,9 @@ mod tests {
     use crate::{
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         tests::{
-            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_DISPERSER_RPC_URL, OPERATOR_STATE_RETRIEVER_ADDRESS, REGISTRY_COORDINATOR_ADDRESS
+            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS,
+            HOLESKY_DISPERSER_RPC_URL, OPERATOR_STATE_RETRIEVER_ADDRESS,
+            REGISTRY_COORDINATOR_ADDRESS,
         },
     };
 
@@ -308,7 +336,8 @@ mod tests {
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
             registry_coordinator_addr: Address::from_str(REGISTRY_COORDINATOR_ADDRESS).unwrap(),
-            operator_state_retriever_addr: Address::from_str(OPERATOR_STATE_RETRIEVER_ADDRESS).unwrap(),
+            operator_state_retriever_addr: Address::from_str(OPERATOR_STATE_RETRIEVER_ADDRESS)
+                .unwrap(),
         };
 
         let payload_disperser =

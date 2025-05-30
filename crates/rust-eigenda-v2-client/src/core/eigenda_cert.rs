@@ -2,8 +2,8 @@ use alloy::primitives::U256 as AlloyU256;
 use alloy::sol;
 use alloy::sol_types::SolValue;
 // This file contains the needed conversions from proto and contract types
-use ark_bn254::{Fq, G1Affine, G2Affine};
-use ark_ff::{BigInteger, Fp2, PrimeField};
+use ark_bn254::{G1Affine, G2Affine};
+use ark_ff::{BigInteger, PrimeField};
 use ethabi::Token;
 use ethereum_types::U256;
 use tiny_keccak::{Hasher, Keccak};
@@ -31,7 +31,7 @@ use rust_eigenda_v2_common::{
     BlobInclusionInfo, EigenDACert, NonSignerStakesAndSignature,
 };
 
-sol!{
+sol! {
     struct G1PointContract {
         uint256 X;
         uint256 Y;
@@ -287,15 +287,6 @@ pub struct SignedBatch {
     pub attestation: Attestation,
 }
 
-/*impl From<SignedBatch> for SignedBatchContract {
-    fn from(value: SignedBatch) -> Self {
-        Self {
-            batch_header: value.header.into(),
-            attestation: value.attestation.into(),
-        }
-    }
-}*/
-
 impl TryFrom<SignedBatchProto> for SignedBatch {
     type Error = ConversionError;
 
@@ -365,31 +356,6 @@ impl TryFrom<ProtoBatchHeader> for BatchHeaderV2 {
     }
 }
 
-/*impl TryFrom<NonSignerStakesAndSignatureContract> for NonSignerStakesAndSignature {
-    type Error = ConversionError;
-
-    fn try_from(value: NonSignerStakesAndSignatureContract) -> Result<Self, Self::Error> {
-        Ok(Self {
-            non_signer_quorum_bitmap_indices: value.non_signer_quorum_bitmap_indices,
-            non_signer_pubkeys: value
-                .non_signer_pubkeys
-                .iter()
-                .map(g1_affine_from_g1_contract_point)
-                .collect::<Result<Vec<_>, _>>()?,
-            quorum_apks: value
-                .quorum_apks
-                .iter()
-                .map(g1_affine_from_g1_contract_point)
-                .collect::<Result<Vec<_>, _>>()?,
-            apk_g2: g2_affine_from_g2_contract_point(&value.apk_g2)?,
-            sigma: g1_affine_from_g1_contract_point(&value.sigma)?,
-            quorum_apk_indices: value.quorum_apk_indices,
-            total_stake_indices: value.total_stake_indices,
-            non_signer_stake_indices: value.non_signer_stake_indices,
-        })
-    }
-}*/
-
 impl TryFrom<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContract {
     type Error = ConversionError;
 
@@ -418,26 +384,6 @@ impl TryFrom<NonSignerStakesAndSignature> for NonSignerStakesAndSignatureContrac
         })
     }
 }
-
-/*impl From<Attestation> for AttestationContract {
-    fn from(value: Attestation) -> Self {
-        Self {
-            non_signer_pubkeys: value
-                .non_signer_pubkeys
-                .iter()
-                .map(g1_contract_point_from_g1_affine)
-                .collect::<Vec<_>>(),
-            quorum_apks: value
-                .quorum_apks
-                .iter()
-                .map(g1_contract_point_from_g1_affine)
-                .collect::<Vec<_>>(),
-            sigma: g1_contract_point_from_g1_affine(&value.sigma),
-            apk_g2: g2_contract_point_from_g2_affine(&value.apk_g2),
-            quorum_numbers: value.quorum_numbers,
-        }
-    }
-}*/
 
 impl TryFrom<ProtoAttestation> for Attestation {
     type Error = ConversionError;
@@ -502,82 +448,75 @@ pub(crate) fn build_cert_from_reply(
     })
 }
 
-fn g2_contract_point_from_g2_affine(g2_affine: &G2Affine) -> Result<G2PointContract, ConversionError> {
-    let xc1: [u8;32] = g2_affine.x.c1.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;
-    let xc0: [u8;32] = g2_affine.x.c0.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;
-    let yc1: [u8;32] = g2_affine.y.c1.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;;
-    let yc0: [u8;32] = g2_affine.y.c0.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string()))?;;
+fn g2_contract_point_from_g2_affine(
+    g2_affine: &G2Affine,
+) -> Result<G2PointContract, ConversionError> {
+    let xc1: [u8; 32] = g2_affine
+        .x
+        .c1
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| {
+            ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string())
+        })?;
+    let xc0: [u8; 32] = g2_affine
+        .x
+        .c0
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| {
+            ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string())
+        })?;
+    let yc1: [u8; 32] = g2_affine
+        .y
+        .c1
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| {
+            ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string())
+        })?;
+    let yc0: [u8; 32] = g2_affine
+        .y
+        .c0
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| {
+            ConversionError::G2Point("Could not convert from g2 core to g2 contract".to_string())
+        })?;
     Ok(G2PointContract {
-        X: [
-            AlloyU256::from_be_bytes(xc1),
-            AlloyU256::from_be_bytes(xc0),
-        ],
-        Y: [
-            AlloyU256::from_be_bytes(yc1),
-            AlloyU256::from_be_bytes(yc0),
-        ],
+        X: [AlloyU256::from_be_bytes(xc1), AlloyU256::from_be_bytes(xc0)],
+        Y: [AlloyU256::from_be_bytes(yc1), AlloyU256::from_be_bytes(yc0)],
     })
 }
 
-fn g1_contract_point_from_g1_affine(g1_affine: &G1Affine) -> Result<G1PointContract, ConversionError> {
-    let x: [u8;32] = g1_affine.x.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G1Point("Could not convert from g1 core to g1 contract".to_string()))?;
-    let y: [u8;32] = g1_affine.y.into_bigint().to_bytes_be().try_into().map_err(|_| ConversionError::G1Point("Could not convert from g1 core to g1 contract".to_string()))?;
+fn g1_contract_point_from_g1_affine(
+    g1_affine: &G1Affine,
+) -> Result<G1PointContract, ConversionError> {
+    let x: [u8; 32] = g1_affine
+        .x
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| {
+            ConversionError::G1Point("Could not convert from g1 core to g1 contract".to_string())
+        })?;
+    let y: [u8; 32] = g1_affine
+        .y
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .map_err(|_| {
+            ConversionError::G1Point("Could not convert from g1 core to g1 contract".to_string())
+        })?;
     Ok(G1PointContract {
         X: AlloyU256::from_be_bytes(x),
         Y: AlloyU256::from_be_bytes(y),
     })
 }
-
-/*fn g1_affine_from_g1_contract_point(
-    g1_point: &G1PointContract,
-) -> Result<G1Affine, ConversionError> {
-    let x_bytes: [u8;32] =  g1_point.X.to_be_bytes();
-    let y_bytes: [u8;32] = g1_point.Y.to_be_bytes();
-    let x = Fq::from_be_bytes_mod_order(&x_bytes);
-    let y = Fq::from_be_bytes_mod_order(&y_bytes);
-    let point = G1Affine::new_unchecked(x, y);
-    if !point.is_on_curve() {
-        return Err(ConversionError::G1Point(
-            "Point is not on curve".to_string(),
-        ));
-    }
-    if !point.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(ConversionError::G1Point(
-            "Point is not on correct subgroup".to_string(),
-        ));
-    }
-    Ok(point)
-}
-
-fn g2_affine_from_g2_contract_point(
-    g2_point: &G2PointContract,
-) -> Result<G2Affine, ConversionError> {
-    let x1_bytes: [u8; 32] = g2_point.X[1].to_be_bytes();
-    let x0_bytes: [u8; 32] = g2_point.X[0].to_be_bytes();
-    let x = Fp2::new(
-        Fq::from_be_bytes_mod_order(&x1_bytes),
-        Fq::from_be_bytes_mod_order(&x0_bytes),
-    );
-    let y1_bytes: [u8; 32] = g2_point.Y[1].to_be_bytes();
-    let y0_bytes: [u8; 32] = g2_point.Y[0].to_be_bytes();
-    let y = Fp2::new(
-        Fq::from_be_bytes_mod_order(&y1_bytes),
-        Fq::from_be_bytes_mod_order(&y0_bytes),
-    );
-    let point = G2Affine::new_unchecked(x, y);
-    if !point.is_on_curve() {
-        return Err(ConversionError::G2Point(
-            "Point is not on curve".to_string(),
-        ));
-    }
-    if !point.is_in_correct_subgroup_assuming_on_curve() {
-        return Err(ConversionError::G2Point(
-            "Point is not on correct subgroup".to_string(),
-        ));
-    }
-
-    Ok(point)
-}*/
 
 impl TryFrom<EigenDACert> for EigenDACertV3Contract {
     type Error = ConversionError;
@@ -587,7 +526,7 @@ impl TryFrom<EigenDACert> for EigenDACertV3Contract {
             batchHeader: value.batch_header.into(),
             blobInclusionInfo: value.blob_inclusion_info.try_into()?,
             nonSignerStakesAndSignature: value.non_signer_stakes_and_signature.try_into()?,
-            signedQuorumNumbers: value.signed_quorum_numbers.into()
+            signedQuorumNumbers: value.signed_quorum_numbers.into(),
         })
     }
 }
