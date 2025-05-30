@@ -213,4 +213,6 @@ pub enum CertVerifierError {
     Contract(String),
     #[error("Error while signing: {0}")]
     Signing(String),
+    #[error("Error while verifying checkDACert: {0}")]
+    VerificationFailed(String),
 }

@@ -68,13 +68,18 @@ impl<S> CertVerifier<S> {
     {
         let abi_encoded_cert: Vec<u8>  = eigenda_cert_to_abi_encoded(eigenda_cert)?;
         println!("ABI Encoded Cert: {:?}", abi_encoded_cert);
-        self.cert_verifier_contract_base.check_da_cert(Bytes::from(abi_encoded_cert))
+        let res = self.cert_verifier_contract_base.check_da_cert(Bytes::from(abi_encoded_cert))
             .call()
             .await
             .map_err(|e| {
                 println!("Error calling check_da_cert: {:?}", e);
                 CertVerifierError::Contract("check_da_cert".to_string())
     })?;
+        if res != 1 { // todo
+            return Err(CertVerifierError::VerificationFailed(
+                "check_da_cert returned non-1 value".to_string(),
+            ));
+        }
         Ok(())
     }
 
