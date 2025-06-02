@@ -131,7 +131,6 @@ where
     }
 
     /// Sets the signer's chain id
-    #[must_use]
     fn with_chain_id<C: Into<u64>>(mut self, chain_id: C) -> Self {
         self.chain_id = chain_id.into();
         self

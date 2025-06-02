@@ -183,7 +183,7 @@ impl<S> DisperserClient<S> {
             .disperse_blob(disperse_request)
             .await
             .map(|response| response.into_inner())
-            .map_err(DisperseError::FailedRPC)?;
+            .map_err(|e| DisperseError::FailedRPC(Box::new(e)))?;
 
         if BlobKey::compute_blob_key(&blob_header)?.to_bytes().to_vec() != reply.blob_key {
             return Err(DisperseError::BlobKeyMismatch);
@@ -221,7 +221,7 @@ impl<S> DisperserClient<S> {
             .get_blob_status(request)
             .await
             .map(|response| response.into_inner())
-            .map_err(DisperseError::FailedRPC)
+            .map_err(|e| DisperseError::FailedRPC(Box::new(e)))
     }
 
     /// Returns the payment state of the disperser client
@@ -253,7 +253,7 @@ impl<S> DisperserClient<S> {
             .get_payment_state(request)
             .await
             .map(|response: tonic::Response<GetPaymentStateReply>| response.into_inner())
-            .map_err(DisperseError::FailedRPC)
+            .map_err(|e| DisperseError::FailedRPC(Box::new(e)))
     }
 
     pub async fn blob_commitment(&self, data: &[u8]) -> Result<BlobCommitmentReply, DisperseError> {
@@ -267,7 +267,7 @@ impl<S> DisperserClient<S> {
             .get_blob_commitment(request)
             .await
             .map(|response| response.into_inner())
-            .map_err(DisperseError::FailedRPC)
+            .map_err(|e| DisperseError::FailedRPC(Box::new(e)))
     }
 }
 
