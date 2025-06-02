@@ -14,49 +14,49 @@ pub use rust_eigenda_signers;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {
-    pub mod common {
+    pub(crate) mod common {
         include!("generated/common.rs");
 
-        pub mod v2 {
+        pub(crate) mod v2 {
             include!("generated/common.v2.rs");
         }
     }
 
-    pub mod disperser {
-        pub mod v2 {
+    pub(crate) mod disperser {
+        pub(crate) mod v2 {
             include!("generated/disperser.v2.rs");
         }
     }
 
-    pub mod encoder {
-        pub mod v2 {
+    pub(crate) mod encoder {
+        pub(crate) mod v2 {
             include!("generated/encoder.v2.rs");
         }
     }
 
-    pub mod retriever {
-        pub mod v2 {
+    pub(crate) mod retriever {
+        pub(crate) mod v2 {
             include!("generated/retriever.v2.rs");
         }
     }
 
-    pub mod validator {
+    pub(crate) mod validator {
         include!("generated/validator.rs");
     }
 
-    pub mod relay {
+    pub(crate) mod relay {
         include!("generated/relay.rs");
     }
 
-    pub mod cert_verifier_contract {
+    pub(crate) mod cert_verifier_contract {
         include!("generated/IEigenDACertVerifier.rs");
     }
 
-    pub mod relay_registry_contract {
+    pub(crate) mod relay_registry_contract {
         include!("generated/IRelayRegistry.rs");
     }
 
-    pub mod cert_verifier_base_contract {
+    pub(crate) mod cert_verifier_base_contract {
         include!("generated/IEigenDACertVerifierBase.rs");
     }
 }
