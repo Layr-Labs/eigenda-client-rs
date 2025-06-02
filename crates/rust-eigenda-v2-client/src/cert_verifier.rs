@@ -9,8 +9,8 @@ use crate::{
     core::eigenda_cert::eigenda_cert_to_abi_encoded,
     errors::{CertVerifierError, ConversionError},
     generated::{
-        i_cert_verifier::{IEigenDACertVerifier, SecurityThresholds},
-        i_eigen_da_cert_verifier_base::IEigenDACertVerifierBase,
+        cert_verifier_base_contract::IEigenDACertVerifierBase,
+        cert_verifier_contract::{IEigenDACertVerifier, SecurityThresholds},
     },
     utils::SecretUrl,
 };
@@ -86,7 +86,7 @@ impl<S> CertVerifier<S> {
     }
 
     /// Calls the SecurityThresholds view function on the EigenDACertVerifier contract.
-    /// 
+    ///
     /// This method returns the confirmation threshold
     pub async fn get_confirmation_threshold(&self) -> Result<u8, CertVerifierError>
     where

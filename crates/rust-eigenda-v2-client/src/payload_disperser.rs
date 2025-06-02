@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
-use eigensdk::client_avsregistry::reader::AvsRegistryReader;
+use eigensdk::{
+    client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
+    logging::{get_logger, init_logger, log_level::LogLevel},
+};
 use ethereum_types::H160;
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
@@ -52,7 +55,7 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign + Clone,
     {
-        eigensdk::logging::init_logger(eigensdk::logging::log_level::LogLevel::Info);
+        init_logger(LogLevel::Info);
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
             signer: signer.clone(),
@@ -193,12 +196,12 @@ impl<S> PayloadDisperser<S> {
         }
 
         // map from quorum ID to the percentage stake signed from that quorum
-        let mut signed_percentages_map = HashMap::new();
+        let mut signed_percentages_per_quorum = HashMap::new();
         for (quorum_id, signed_percentage) in batch_quorum_numbers
             .iter()
             .zip(batch_signed_percentages.iter())
         {
-            signed_percentages_map.insert(quorum_id, *signed_percentage);
+            signed_percentages_per_quorum.insert(quorum_id, *signed_percentage);
         }
 
         let batch_header = status
@@ -215,15 +218,15 @@ impl<S> PayloadDisperser<S> {
         let confirmation_threshold = self.cert_verifier.get_confirmation_threshold().await?;
 
         for quorum in blob_quorum_numbers {
-            let signed_percentage = signed_percentages_map
+            let signed_percentage = signed_percentages_per_quorum
                 .get(&quorum)
                 .ok_or(PayloadDisperserError::SignedPercentageNotFound(quorum))?;
             if *signed_percentage < confirmation_threshold {
-                return Err(PayloadDisperserError::ConfirmationThresholdNotMet(
-                    quorum,
-                    *signed_percentage,
-                    confirmation_threshold,
-                ));
+                return Err(PayloadDisperserError::ConfirmationThresholdNotMet {
+                    quorum_number: quorum,
+                    signed_percentage: *signed_percentage,
+                    threshold: confirmation_threshold,
+                });
             }
         }
 
@@ -291,15 +294,14 @@ impl<S> PayloadDisperser<S> {
 
         let reference_block_number = signed_batch.header.reference_block_number;
 
-        let avs_registry_chain_reader =
-            eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
-                eigensdk::logging::get_logger(),
-                self.config.registry_coordinator_addr,
-                self.config.operator_state_retriever_addr,
-                self.config.eth_rpc_url.clone().try_into()?,
-            )
-            .await
-            .map_err(|_| PayloadDisperserError::EigenSDKNotInitialized)?;
+        let avs_registry_chain_reader = AvsRegistryChainReader::new(
+            get_logger(),
+            self.config.registry_coordinator_addr,
+            self.config.operator_state_retriever_addr,
+            self.config.eth_rpc_url.clone().try_into()?,
+        )
+        .await
+        .map_err(|_| PayloadDisperserError::EigenSDKNotInitialized)?;
 
         let check_sig_indices = avs_registry_chain_reader
             .get_check_signatures_indices(

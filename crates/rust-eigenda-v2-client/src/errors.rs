@@ -200,8 +200,12 @@ pub enum PayloadDisperserError {
     BatchHeaderNotPresent,
     #[error("Signed percentage not found for quorum: {0}")]
     SignedPercentageNotFound(u32),
-    #[error("Confirmation threshold not met for quorum {0}, signed percentage {1}, threshold {2}")]
-    ConfirmationThresholdNotMet(u32, u8, u8),
+    #[error("Confirmation threshold not met for quorum {quorum_number}, signed percentage {signed_percentage}, threshold {threshold}")]
+    ConfirmationThresholdNotMet {
+        quorum_number: u32,
+        signed_percentage: u8,
+        threshold: u8,
+    },
     #[error("Failed to initialize Eigen SDK")]
     EigenSDKNotInitialized,
     #[error("Failed to check signature indices")]

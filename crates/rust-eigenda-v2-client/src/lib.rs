@@ -48,15 +48,15 @@ pub(crate) mod generated {
         include!("generated/relay.rs");
     }
 
-    pub mod i_cert_verifier {
+    pub mod cert_verifier_contract {
         include!("generated/IEigenDACertVerifier.rs");
     }
 
-    pub mod i_relay_registry {
+    pub mod relay_registry_contract {
         include!("generated/IRelayRegistry.rs");
     }
 
-    pub mod i_eigen_da_cert_verifier_base {
+    pub mod cert_verifier_base_contract {
         include!("generated/IEigenDACertVerifierBase.rs");
     }
 }
