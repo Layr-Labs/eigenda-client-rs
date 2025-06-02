@@ -119,10 +119,13 @@ impl<S> PayloadDisperser<S> {
             .disperser_client
             .blob_status(blob_key)
             .await
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Disperser(e)))?;
+            .map_err(|e| {
+                EigenClientError::PayloadDisperser(Box::new(PayloadDisperserError::Disperser(e)))
+            })?;
 
-        let blob_status = BlobStatus::try_from(status.status)
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Decode(e)))?;
+        let blob_status = BlobStatus::try_from(status.status).map_err(|e| {
+            EigenClientError::PayloadDisperser(Box::new(PayloadDisperserError::Decode(e)))
+        })?;
         match blob_status {
             BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
             BlobStatus::Encoded | BlobStatus::Queued => Ok(None),
@@ -137,7 +140,9 @@ impl<S> PayloadDisperser<S> {
                     .check_da_cert(&eigenda_cert)
                     .await
                     .map_err(|e| {
-                        EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                        EigenClientError::PayloadDisperser(Box::new(
+                            PayloadDisperserError::CertVerifier(e),
+                        ))
                     })?;
                 Ok(Some(eigenda_cert))
             }
@@ -148,7 +153,9 @@ impl<S> PayloadDisperser<S> {
                     .check_da_cert(&eigenda_cert)
                     .await
                     .map_err(|e| {
-                        EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                        EigenClientError::PayloadDisperser(Box::new(
+                            PayloadDisperserError::CertVerifier(e),
+                        ))
                     })?;
                 Ok(Some(eigenda_cert))
             }
@@ -244,11 +251,11 @@ impl<S> PayloadDisperser<S> {
         let signed_batch = match status.clone().signed_batch {
             Some(batch) => batch,
             None => {
-                return Err(EigenClientError::PayloadDisperser(
+                return Err(EigenClientError::PayloadDisperser(Box::new(
                     PayloadDisperserError::Conversion(ConversionError::SignedBatch(
                         "Not Present".to_string(),
                     )),
-                ))
+                )))
             }
         };
         let non_signer_stakes_and_signature = self
