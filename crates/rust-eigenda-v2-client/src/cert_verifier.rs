@@ -85,6 +85,9 @@ impl<S> CertVerifier<S> {
         Ok(())
     }
 
+    /// Calls the SecurityThresholds view function on the EigenDACertVerifier contract.
+    /// 
+    /// This method returns the confirmation threshold
     pub async fn get_confirmation_threshold(&self) -> Result<u8, CertVerifierError>
     where
         EthersSigner<S>: Signer,
