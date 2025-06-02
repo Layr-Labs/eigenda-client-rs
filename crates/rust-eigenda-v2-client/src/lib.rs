@@ -11,6 +11,10 @@ pub mod relay_registry;
 pub mod utils;
 pub mod validator_payload_retriever;
 pub mod validator_client;
+pub mod eth_client;
+pub mod validator_verifier;
+pub mod validator_encoder;
+pub mod validator_types;
 // So users can use the client without having to depend on the signers crate as well.
 pub use rust_eigenda_signers;
 

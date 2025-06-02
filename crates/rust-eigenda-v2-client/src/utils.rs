@@ -40,6 +40,12 @@ impl PartialEq for SecretUrl {
     }
 }
 
+impl From<SecretUrl> for Url {
+    fn from(secret_url: SecretUrl) -> Self {
+        Url::parse(secret_url.inner.expose_secret()).unwrap() // Safe to unwrap, as the `new` fn ensures the URL is valid
+    }
+}
+
 /// Secretly enclosed Private Key
 #[derive(Debug, Clone)]
 pub struct PrivateKey(pub Secret<String>);

@@ -4,7 +4,7 @@ use ethers::signers::WalletError;
 use rust_eigenda_v2_common::BlobError as BlobErrorCommon;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
-use crate::{core::BlobKey, relay_client::RelayKey};
+use crate::{core::BlobKey, eth_client::RpcErrorResponse, relay_client::RelayKey};
 use prost::DecodeError;
 
 /// Errors returned by the client.
@@ -134,6 +134,8 @@ pub enum EthClientError {
     EthAbi(#[from] ethabi::Error),
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
+    #[error("RPC: {0}")]
+    Rpc(RpcErrorResponse),
 }
 
 /// Errors specific to the Accountant
@@ -222,11 +224,19 @@ pub enum ValidatorPayloadRetrieverError {
     #[error(transparent)]
     ValidatorClient(#[from] ValidatorClientError),
     #[error("Timedout while retrieving payload")]
-    Timeout
+    Timeout,
 }
 
 /// Errors specific to the ValidatorClient
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorClientError {
+    #[error(transparent)]
+    ValidatorVerifier(#[from] ValidatorVerifierError),
+}
 
+/// Errors for the validator verifier
+#[derive(Debug, thiserror::Error)]
+pub enum ValidatorVerifierError {
+    #[error("Failed to verify commit equivalence batch")]
+    FailedToVerifyCommitEquivalenceBatch,
 }
