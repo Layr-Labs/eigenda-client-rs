@@ -546,6 +546,7 @@ mod test {
 
     use ark_bn254::{Fq, Fq2, G1Affine, G2Affine};
     use ark_ff::{BigInt, Fp2, PrimeField};
+    use ethereum_types::H160;
 
     use crate::{
         cert_verifier::CertVerifier,
@@ -1051,7 +1052,7 @@ mod test {
         assert_eq!(expected_eigenda_cert, eigenda_cert);
 
         let cert_verifier = CertVerifier::new(
-            CERT_VERIFIER_ADDRESS,
+            H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
             get_test_holesky_rpc_url(),
             get_test_private_key_signer(),
         )

@@ -108,6 +108,7 @@ impl<S> PayloadDisperser<S> {
 
     /// Retrieves the inclusion data for a given blob key
     /// If the requested blob is still not complete, returns None
+    /// The Cert returned is checked to be correct, and an error is returned if it is not valid.
     pub async fn get_cert(
         &self,
         blob_key: &BlobKey,
@@ -340,6 +341,7 @@ impl<S> PayloadDisperser<S> {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::Address;
+    use ethereum_types::H160;
     use rust_eigenda_v2_common::{Payload, PayloadForm};
     use std::str::FromStr;
 
@@ -360,7 +362,7 @@ mod tests {
         let payload_config = PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: CERT_VERIFIER_ADDRESS,
+            cert_verifier_address: H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,

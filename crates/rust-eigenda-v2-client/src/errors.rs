@@ -54,6 +54,8 @@ pub enum ConversionError {
     U256Conversion(String),
     #[error("Failed to parse attestation: {0}")]
     Attestation(String),
+    #[error("Failed to parse checkDACert Status: {0}")]
+    InvalidCheckDACertStatus(u8),
 }
 
 /// Errors specific to the [`RelayPayloadRetriever`].
@@ -243,4 +245,6 @@ pub enum CertVerifierError {
     Signing(String),
     #[error("Error while verifying checkDACert: {0}")]
     VerificationFailed(String),
+    #[error("Error while verifying checkDACert, Null Error returned, this is a bug in the contracts, please report it")]
+    VerificationFailedNullError,
 }

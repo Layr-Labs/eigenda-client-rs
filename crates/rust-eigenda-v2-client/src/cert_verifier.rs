@@ -15,12 +15,38 @@ use crate::{
     utils::SecretUrl,
 };
 
-const CHECK_DA_CERT_STATUS_SUCCESS: u8 = 1;
+#[derive(Debug)]
+pub enum CheckDACertStatus {
+    NullError,
+    Success,
+    InvalidInclusionProof,
+    SecurityAssumptionsNotMet,
+    BlobQuorumsNotSubset,
+    RequiredQuorumsNotSubset,
+}
+
+impl TryFrom<u8> for CheckDACertStatus {
+    type Error = ConversionError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(CheckDACertStatus::NullError),
+            1 => Ok(CheckDACertStatus::Success),
+            2 => Ok(CheckDACertStatus::InvalidInclusionProof),
+            3 => Ok(CheckDACertStatus::SecurityAssumptionsNotMet),
+            4 => Ok(CheckDACertStatus::BlobQuorumsNotSubset),
+            5 => Ok(CheckDACertStatus::RequiredQuorumsNotSubset),
+            _ => Err(ConversionError::InvalidCheckDACertStatus(value)),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier<S> {
+    /// Contains the view functions which are needed when building a certificate, it is only used in the dispersal route
     cert_verifier_contract: IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    /// Only contains the single function checkDACert, used purely for verification, only used in retrieval route
     cert_verifier_contract_base:
         IEigenDACertVerifierBase<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
@@ -77,10 +103,19 @@ impl<S> CertVerifier<S> {
             .call()
             .await
             .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
-        if res != CHECK_DA_CERT_STATUS_SUCCESS {
-            return Err(CertVerifierError::VerificationFailed(
-                "check_da_cert returned non-succesfull value".to_string(),
-            ));
+
+        let status = CheckDACertStatus::try_from(res)?;
+        match status {
+            CheckDACertStatus::NullError => {
+                return Err(CertVerifierError::VerificationFailedNullError);
+            }
+            CheckDACertStatus::Success => {}
+            status => {
+                return Err(CertVerifierError::VerificationFailed(format!(
+                    "check_da_cert returned non-succesfull value: {:?}",
+                    status
+                )));
+            }
         }
         Ok(())
     }
@@ -109,6 +144,7 @@ mod tests {
 
     use ark_bn254::{G1Affine, G2Affine};
     use ark_ff::{BigInt, Fp2};
+    use ethereum_types::H160;
     use rust_eigenda_v2_common::{
         BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
         EigenDACert, NonSignerStakesAndSignature,
@@ -310,7 +346,7 @@ mod tests {
     #[tokio::test]
     async fn test_check_da_cert() {
         let cert_verifier = CertVerifier::new(
-            CERT_VERIFIER_ADDRESS,
+            H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
             SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
             get_test_private_key_signer(),
         )

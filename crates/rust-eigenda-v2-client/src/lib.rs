@@ -84,14 +84,8 @@ mod tests {
     const TEST_PAYLOAD_DATA: &[u8] = &[1, 2, 3, 4, 5];
     pub const HOLESKY_ETH_RPC_URL: &str = "https://ethereum-holesky-rpc.publicnode.com";
     pub const HOLESKY_DISPERSER_RPC_URL: &str = "https://disperser-testnet-holesky.eigenda.xyz";
-    pub const HOLESKY_RELAY_REGISTRY_ADDRESS: H160 = H160([
-        0xac, 0x8c, 0x6c, 0x7e, 0xe7, 0x57, 0x29, 0x75, 0x45, 0x4e, 0x2f, 0x0b, 0x5c, 0x72, 0x0f,
-        0x9e, 0x74, 0x98, 0x92, 0x54,
-    ]);
-    pub const CERT_VERIFIER_ADDRESS: H160 = H160([
-        0xd3, 0x05, 0xae, 0xbc, 0xde, 0xc2, 0x1d, 0x00, 0xfd, 0xf8, 0x79, 0x6c, 0xe3, 0x7d, 0x0e,
-        0x74, 0x83, 0x6a, 0x6b, 0x6e,
-    ]);
+    pub const HOLESKY_RELAY_REGISTRY_ADDRESS: &str = "0xac8c6c7ee7572975454e2f0b5c720f9e74989254";
+    pub const CERT_VERIFIER_ADDRESS: &str = "0xd305aebcdec21d00fdf8796ce37d0e74836a6b6e";
     pub const REGISTRY_COORDINATOR_ADDRESS: &str = "0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490";
     pub const OPERATOR_STATE_RETRIEVER_ADDRESS: &str = "0xB4baAfee917fb4449f5ec64804217bccE9f46C67";
 
@@ -108,7 +102,7 @@ mod tests {
         PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: CERT_VERIFIER_ADDRESS,
+            cert_verifier_address: H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
@@ -138,7 +132,7 @@ mod tests {
         crate::relay_client::RelayClientConfig {
             max_grpc_message_size: 9999999,
             relay_clients_keys: vec![0, 1, 2],
-            relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
+            relay_registry_address: H160::from_str(HOLESKY_RELAY_REGISTRY_ADDRESS).unwrap(),
             eth_rpc_url: get_test_holesky_rpc_url(),
         }
     }
