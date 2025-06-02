@@ -1,9 +1,10 @@
 use ark_bn254::{Fr, G1Affine};
 use ethereum_types::H160;
 use ethers::signers::WalletError;
+use rust_eigenda_v2_common::BlobError as BlobErrorCommon;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
-use crate::relay_client::RelayKey;
+use crate::{core::BlobKey, relay_client::RelayKey};
 use prost::DecodeError;
 
 /// Errors returned by the client.
@@ -203,4 +204,29 @@ pub enum CertVerifierError {
     Contract(String),
     #[error("Error while signing: {0}")]
     Signing(String),
+}
+
+/// Errors specific to the ValidatorPayloadRetriever
+#[derive(Debug, thiserror::Error)]
+pub enum ValidatorPayloadRetrieverError {
+    #[error("Unable to retrieve payload from quorums {0:?}")]
+    BlobRetrieval(Vec<u8>),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Generated commitment doesn't match cert commitment")]
+    BlobVerification,
+    #[error(transparent)]
+    Blob(#[from] BlobError),
+    #[error(transparent)]
+    BlobCommon(#[from] BlobErrorCommon),
+    #[error(transparent)]
+    ValidatorClient(#[from] ValidatorClientError),
+    #[error("Timedout while retrieving payload")]
+    Timeout
+}
+
+/// Errors specific to the ValidatorClient
+#[derive(Debug, thiserror::Error)]
+pub enum ValidatorClientError {
+
 }
