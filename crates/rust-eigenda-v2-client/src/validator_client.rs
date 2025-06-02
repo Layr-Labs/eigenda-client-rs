@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rust_eigenda_v2_common::BlobHeader;
 
-use crate::{core::BlobKey, errors::ValidatorClientError, eth_client::EthClient, validator_verifier::ValidatorVerifier};
+use crate::{core::BlobKey, errors::ValidatorClientError, eth_client::EthClient, validator_chain_state_provider::RetrievalChainStateProvider, validator_verifier::ValidatorVerifier};
 
 /// Contains the configuration for the validator retrieval client.
 
@@ -21,7 +21,7 @@ pub(crate) struct ValidatorClientConfig {
 /// To retrieve a blob from the relay, use RelayClient instead.
 pub(crate) struct ValidatorClient {
     reader: Reader,
-    chain_state: ChainState,
+    chain_state: EthClient, // todo add trait
     verifier: EthClient,
     config: ValidatorClientConfig,
 }
@@ -31,7 +31,7 @@ impl ValidatorClient {
     pub async fn get_blob(&self, blob_header: &BlobHeader, reference_block_number: u32) -> Result<Vec<u8>, ValidatorClientError> {
         self.verifier.verify_commit_equivalence_batch(vec![blob_header.commitment]).await?;
 
-        let operator_state = self.chain_state.get_operator_state_with_socket(blob_header.quorum_numbers.clone(), reference_block_number).await?;
+        let operator_state = self.chain_state.get_operator_state_with_socket(reference_block_number as u64, blob_header.quorum_numbers.clone()).await?;
 
         let blob_versions = self.reader.get_all_versioned_blob_params().await?;
 

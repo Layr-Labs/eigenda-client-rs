@@ -72,6 +72,7 @@ pub(crate) struct EthClient {
     pub(crate) url: SecretUrl,
     pub(crate) cert_verifier_addr: Address,
     pub(crate) threshold_registry_addr: Address,
+    pub(crate) contract_operator_state_retriever_addr: Address,
 }
 
 impl EthClient {
@@ -80,12 +81,14 @@ impl EthClient {
         url: SecretUrl,
         cert_verifier_addr: Address,
         threshold_registry_addr: Address,
+        contract_operator_state_retriever_addr: Address,
     ) -> Self {
         Self {
             client: reqwest::Client::new(),
             url,
             cert_verifier_addr,
             threshold_registry_addr,
+            contract_operator_state_retriever_addr,
         }
     }
 

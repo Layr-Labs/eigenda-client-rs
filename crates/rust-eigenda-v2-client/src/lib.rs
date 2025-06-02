@@ -15,6 +15,7 @@ pub mod eth_client;
 pub mod validator_verifier;
 pub mod validator_encoder;
 pub mod validator_types;
+pub mod validator_chain_state_provider;
 // So users can use the client without having to depend on the signers crate as well.
 pub use rust_eigenda_signers;
 

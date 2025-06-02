@@ -2,10 +2,12 @@ use std::str::FromStr;
 
 use crate::{
     core::BYTES_PER_SYMBOL,
-    errors::{ConversionError, EigenClientError},
+    errors::{AbiEncodeError, ConversionError, EigenClientError},
 };
 use ark_bn254::Fr;
 use ark_ff::fields::PrimeField;
+use ethabi::Token;
+use ethereum_types::U256;
 use secrecy::{ExposeSecret, Secret};
 use url::Url;
 
@@ -94,4 +96,18 @@ pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Vec<Fr> {
         output_elements.push(Fr::from_be_bytes_mod_order(&bytes[start_idx..end_idx]))
     }
     output_elements
+}
+
+pub fn string_from_token(token: &Token) -> Result<String, AbiEncodeError> {
+    match token {
+        Token::String(value) => Ok(value.clone()),
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}
+
+pub fn u256_from_token(token: &Token) -> Result<U256, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => Ok(*value),
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
 }

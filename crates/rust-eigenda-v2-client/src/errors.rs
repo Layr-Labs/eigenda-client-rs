@@ -232,6 +232,10 @@ pub enum ValidatorPayloadRetrieverError {
 pub enum ValidatorClientError {
     #[error(transparent)]
     ValidatorVerifier(#[from] ValidatorVerifierError),
+    #[error(transparent)]
+    AbiEncode(#[from] AbiEncodeError),
+    #[error(transparent)]
+    EthClient(#[from] EthClientError),
 }
 
 /// Errors for the validator verifier
@@ -239,4 +243,15 @@ pub enum ValidatorClientError {
 pub enum ValidatorVerifierError {
     #[error("Failed to verify commit equivalence batch")]
     FailedToVerifyCommitEquivalenceBatch,
+}
+
+/// Errors specific to Eth Abi encoding and decoding
+#[derive(Debug, thiserror::Error)]
+pub enum AbiEncodeError {
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Invalid token type: {0}")]
+    InvalidTokenType(String),
+    #[error("Could not encode token as bytes")]
+    EncodeTokenAsBytes,
 }
