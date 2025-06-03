@@ -2,10 +2,12 @@ use std::str::FromStr;
 
 use crate::{
     core::BYTES_PER_SYMBOL,
-    errors::{ConversionError, EigenClientError},
+    errors::{AbiEncodeError, ConversionError, EigenClientError},
 };
 use ark_bn254::Fr;
 use ark_ff::fields::PrimeField;
+use ethabi::Token;
+use ethereum_types::U256;
 use secrecy::{ExposeSecret, Secret};
 use url::Url;
 
@@ -37,6 +39,12 @@ impl TryFrom<SecretUrl> for String {
 impl PartialEq for SecretUrl {
     fn eq(&self, other: &Self) -> bool {
         self.inner.expose_secret().eq(other.inner.expose_secret())
+    }
+}
+
+impl From<SecretUrl> for Url {
+    fn from(secret_url: SecretUrl) -> Self {
+        Url::parse(secret_url.inner.expose_secret()).unwrap() // Safe to unwrap, as the `new` fn ensures the URL is valid
     }
 }
 
@@ -88,4 +96,42 @@ pub(crate) fn fr_array_from_bytes(input_data: &[u8]) -> Vec<Fr> {
         output_elements.push(Fr::from_be_bytes_mod_order(&bytes[start_idx..end_idx]))
     }
     output_elements
+}
+
+pub fn string_from_token(token: &Token) -> Result<String, AbiEncodeError> {
+    match token {
+        Token::String(value) => Ok(value.clone()),
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}
+
+pub fn u256_from_token(token: &Token) -> Result<U256, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => Ok(*value),
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}
+
+pub fn u32_from_token(token: &Token) -> Result<u32, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => match *value > U256::from(u32::MAX) {
+            true => {
+                Err(ConversionError::U32Conversion("Value exceeds u32::MAX".to_string()).into())
+            }
+            false => Ok(value.as_u32()), // Safe cast as the value is guaranteed to be within the range of u32
+        },
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}
+
+pub fn u16_from_token(token: &Token) -> Result<u16, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => match *value > U256::from(u16::MAX) {
+            true => {
+                Err(ConversionError::U16Conversion("Value exceeds u16::MAX".to_string()).into())
+            }
+            false => Ok(value.as_u32() as u16), // Safe cast as the value is guaranteed to be within the range of u32
+        },
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
 }

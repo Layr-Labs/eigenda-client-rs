@@ -1,0 +1,141 @@
+use std::collections::HashMap;
+
+use rust_eigenda_v2_common::{BlobError as BlobErrorCommon, BlobHeader};
+
+use crate::{
+    core::BlobKey,
+    errors::{BlobError, ValidatorClientError},
+    eth_client::EthClient,
+    validator_assigment::get_assigment_for_blob,
+    validator_chain_state_provider::RetrievalChainStateProvider,
+    validator_reader::ValidatorReader,
+    validator_retrieval_worker::RetrievalWorker,
+    validator_types::{BlobVersionParameters, EncodingParams, OperatorInfo},
+    validator_verifier::ValidatorVerifier,
+};
+
+/// Contains the configuration for the validator retrieval client.
+
+#[derive(Clone, Debug)]
+pub(crate) struct ValidatorClientConfig {
+    download_pessimism: f64,
+    verification_pessimism: f64,
+    pessimistic_timeout: tokio::time::Duration,
+    download_timeout: tokio::time::Duration,
+    control_loop_period: tokio::time::Duration,
+    detailed_logging: bool,
+    connection_pool_size: usize,
+    compute_pool_size: usize,
+}
+
+/// ValidatorClient is an object that can retrieve blobs from the validator nodes.
+/// To retrieve a blob from the relay, use RelayClient instead.
+pub(crate) struct ValidatorClient {
+    // todo add trait, currently the EthClient implements the ValidatorReader, ValidatorChainState and ValidatorVerifier traits
+    // We could either pass those traits as parameters, or just receive a single EthClient.
+    reader: EthClient,
+    chain_state: EthClient,
+    verifier: EthClient,
+    config: ValidatorClientConfig,
+}
+
+impl ValidatorClient {
+    /// Downloads chunks of a blob from operator network and reconstructs the blob.
+    pub async fn get_blob(
+        &self,
+        blob_header: &BlobHeader,
+        reference_block_number: u32,
+    ) -> Result<Vec<u8>, ValidatorClientError> {
+        self.verifier
+            .verify_commit_equivalence_batch(vec![blob_header.commitment.clone()])
+            .await?;
+
+        let operator_state = self
+            .chain_state
+            .get_operator_state_with_socket(
+                reference_block_number as u64,
+                blob_header.quorum_numbers.clone(),
+            )
+            .await?;
+
+        let blob_versions = self.reader.get_all_versioned_blob_params().await?;
+
+        let blob_params = &blob_versions[&blob_header.version];
+
+        let encoding_params = get_encoding_params(blob_header.commitment.length, &blob_params)?;
+
+        let blob_key = BlobKey::compute_blob_key(blob_header)?;
+
+        let assigments = get_assigment_for_blob(
+            operator_state.clone(),
+            blob_params,
+            blob_header.quorum_numbers.clone(),
+        );
+
+        let minimum_chunk_count = encoding_params.num_chunks / blob_params.coding_rate as u64;
+
+        let sockets = self
+            .get_flattened_operator_sockets(operator_state.operators)
+            .await;
+
+        let worker = RetrievalWorker::new(
+            self.config.clone(),
+            assigments,
+            minimum_chunk_count,
+            encoding_params,
+            blob_header,
+            blob_key,
+        );
+
+        let blob = worker.retrieve_blob_from_validators()?;
+        Ok(blob)
+    }
+
+    async fn get_flattened_operator_sockets(
+        &self,
+        operators: HashMap<u8, HashMap<usize, OperatorInfo>>,
+    ) -> HashMap<usize, String> {
+        let mut operator_sockets = HashMap::new();
+        for (_, quorum_operator) in operators {
+            for (operator_id, operator) in quorum_operator {
+                if !operator_sockets.contains_key(&operator_id) {
+                    operator_sockets.insert(operator_id, operator.socket.clone());
+                }
+            }
+        }
+        operator_sockets
+    }
+}
+
+fn get_encoding_params(
+    length: u32,
+    blob_param: &BlobVersionParameters,
+) -> Result<EncodingParams, BlobError> {
+    let length = get_chunk_length(length, blob_param)?;
+
+    Ok(EncodingParams {
+        num_chunks: blob_param.num_chunks as u64,
+        chunk_len: length as u64,
+    })
+}
+
+fn get_chunk_length(length: u32, blob_param: &BlobVersionParameters) -> Result<u32, BlobError> {
+    if length == 0 {
+        return Err(BlobErrorCommon::InvalidBlobLengthZero.into());
+    }
+
+    if blob_param.num_chunks == 0 {
+        return Err(BlobError::EmptyChunks);
+    }
+
+    if !length.is_power_of_two() {
+        return Err(BlobErrorCommon::InvalidBlobLengthNotPowerOfTwo(length as usize).into());
+    }
+
+    let mut chunk_length = length.saturating_mul(blob_param.coding_rate) / blob_param.num_chunks;
+    if chunk_length == 0 {
+        chunk_length = 1;
+    }
+
+    Ok(chunk_length)
+}

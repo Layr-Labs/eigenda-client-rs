@@ -1,9 +1,10 @@
 use ark_bn254::{Fr, G1Affine};
 use ethereum_types::H160;
 use ethers::signers::WalletError;
+use rust_eigenda_v2_common::BlobError as BlobErrorCommon;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
-use crate::relay_client::RelayKey;
+use crate::{core::BlobKey, eth_client::RpcErrorResponse, relay_client::RelayKey};
 use prost::DecodeError;
 
 /// Errors returned by the client.
@@ -52,6 +53,10 @@ pub enum ConversionError {
     EigenDACommon(#[from] rust_eigenda_v2_common::ConversionError),
     #[error("Failed to convert U256: {0}")]
     U256Conversion(String),
+    #[error("Failed to convert u32: {0}")]
+    U32Conversion(String),
+    #[error("Failed to convert u16: {0}")]
+    U16Conversion(String),
 }
 
 /// Errors specific to the [`RelayPayloadRetriever`].
@@ -84,6 +89,8 @@ pub enum BlobError {
     Bn254(#[from] Bn254Error),
     #[error(transparent)]
     CommonBlob(#[from] rust_eigenda_v2_common::BlobError),
+    #[error("No chunks found")]
+    EmptyChunks,
 }
 
 /// Errors related to the BN254 and its points
@@ -133,6 +140,8 @@ pub enum EthClientError {
     EthAbi(#[from] ethabi::Error),
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
+    #[error("RPC: {0}")]
+    Rpc(RpcErrorResponse),
 }
 
 /// Errors specific to the Accountant
@@ -203,4 +212,56 @@ pub enum CertVerifierError {
     Contract(String),
     #[error("Error while signing: {0}")]
     Signing(String),
+}
+
+/// Errors specific to the ValidatorPayloadRetriever
+#[derive(Debug, thiserror::Error)]
+pub enum ValidatorPayloadRetrieverError {
+    #[error("Unable to retrieve payload from quorums {0:?}")]
+    BlobRetrieval(Vec<u8>),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Generated commitment doesn't match cert commitment")]
+    BlobVerification,
+    #[error(transparent)]
+    Blob(#[from] BlobError),
+    #[error(transparent)]
+    BlobCommon(#[from] BlobErrorCommon),
+    #[error(transparent)]
+    ValidatorClient(#[from] ValidatorClientError),
+    #[error("Timedout while retrieving payload")]
+    Timeout,
+}
+
+/// Errors specific to the ValidatorClient
+#[derive(Debug, thiserror::Error)]
+pub enum ValidatorClientError {
+    #[error(transparent)]
+    ValidatorVerifier(#[from] ValidatorVerifierError),
+    #[error(transparent)]
+    AbiEncode(#[from] AbiEncodeError),
+    #[error(transparent)]
+    EthClient(#[from] EthClientError),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error(transparent)]
+    Blob(#[from] BlobError),
+}
+
+/// Errors for the validator verifier
+#[derive(Debug, thiserror::Error)]
+pub enum ValidatorVerifierError {
+    #[error("Failed to verify commit equivalence batch")]
+    FailedToVerifyCommitEquivalenceBatch,
+}
+
+/// Errors specific to Eth Abi encoding and decoding
+#[derive(Debug, thiserror::Error)]
+pub enum AbiEncodeError {
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error("Invalid token type: {0}")]
+    InvalidTokenType(String),
+    #[error("Could not encode token as bytes")]
+    EncodeTokenAsBytes,
 }
