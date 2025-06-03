@@ -3,7 +3,12 @@ use std::collections::HashMap;
 use ethabi::{ParamType, Token};
 use ethereum_types::U256;
 
-use crate::{errors::{AbiEncodeError, EthClientError, ValidatorClientError}, eth_client::EthClient, utils::{string_from_token, u256_from_token}, validator_types::{OperatorInfo, OperatorState}};
+use crate::{
+    errors::{AbiEncodeError, EthClientError, ValidatorClientError},
+    eth_client::EthClient,
+    utils::{string_from_token, u256_from_token},
+    validator_types::{OperatorInfo, OperatorState},
+};
 
 /// Trait that defines the methods for the chain_state used by the retrieval client
 #[async_trait::async_trait]
@@ -14,7 +19,6 @@ pub trait RetrievalChainStateProvider: Sync + Send + std::fmt::Debug {
         quorums: Vec<u8>,
     ) -> Result<OperatorState, ValidatorClientError>;
 }
-
 
 #[async_trait::async_trait]
 impl RetrievalChainStateProvider for EthClient {
@@ -85,7 +89,7 @@ impl RetrievalChainStateProvider for EthClient {
                 let operator_info = OperatorInfo {
                     stake,
                     index: operator_idx,
-                    _socket: String::default(), // TODO: Irrelevant, remove?
+                    socket: String::default(), // TODO: Irrelevant, remove?
                 };
                 quorum_operators.insert(operator_idx, operator_info);
             }
@@ -111,7 +115,7 @@ impl RetrievalChainStateProvider for EthClient {
                     OperatorInfo {
                         stake: total_stake,
                         index: operator_idx,
-                        _socket: socket,
+                        socket,
                     },
                 );
             }

@@ -1,4 +1,3 @@
-
 //! This client is inspired in ethrex EthClient https://github.com/lambdaclass/ethrex/blob/1d3ae1edf2dd40702c69bb09d8def3a0c0047ff8/crates/l2/sdk/src/eth_client/mod.rs
 //! We use this low level client in order to avoid adding unnecessary dependencies that would make the compile time longer
 use bytes::Bytes;

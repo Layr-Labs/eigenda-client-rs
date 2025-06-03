@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use ethereum_types::U256;
+use std::collections::HashMap;
 
 use ark_bn254::{Fr, G1Affine};
 
@@ -26,7 +26,7 @@ pub struct EncodingParams {
 
 /// OperatorInfo contains information about an operator which is stored on the blockchain state,
 /// corresponding to a particular quorum
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OperatorInfo {
     // Stake is the amount of stake held by the operator in the quorum
     pub(crate) stake: U256,
@@ -34,10 +34,10 @@ pub struct OperatorInfo {
     pub(crate) index: usize,
     // Socket is the socket address of the operator
     // Populated only when using GetOperatorStateWithSocket; otherwise it is an empty string
-    pub(crate) _socket: String,
+    pub(crate) socket: String,
 }
 
-
+#[derive(Clone, Debug)]
 /// OperatorState contains information about the current state of operators which is stored in the blockchain state
 pub struct OperatorState {
     /// Operators is a map from quorum ID to a map from the operators in that quorum to their StoredOperatorInfo. Membership
@@ -47,4 +47,11 @@ pub struct OperatorState {
     pub totals: HashMap<u8, OperatorInfo>,
     /// BlockNumber is the block number at which this state was retrieved
     pub _block_number: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct BlobVersionParameters {
+    pub coding_rate: u32,
+    pub max_num_operators: u32,
+    pub num_chunks: u32,
 }

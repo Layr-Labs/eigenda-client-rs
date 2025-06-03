@@ -111,3 +111,27 @@ pub fn u256_from_token(token: &Token) -> Result<U256, AbiEncodeError> {
         other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
     }
 }
+
+pub fn u32_from_token(token: &Token) -> Result<u32, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => match *value > U256::from(u32::MAX) {
+            true => {
+                Err(ConversionError::U32Conversion("Value exceeds u32::MAX".to_string()).into())
+            }
+            false => Ok(value.as_u32()), // Safe cast as the value is guaranteed to be within the range of u32
+        },
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}
+
+pub fn u16_from_token(token: &Token) -> Result<u16, AbiEncodeError> {
+    match token {
+        Token::Uint(value) => match *value > U256::from(u16::MAX) {
+            true => {
+                Err(ConversionError::U16Conversion("Value exceeds u16::MAX".to_string()).into())
+            }
+            false => Ok(value.as_u32() as u16), // Safe cast as the value is guaranteed to be within the range of u32
+        },
+        other => Err(AbiEncodeError::InvalidTokenType(other.to_string())),
+    }
+}

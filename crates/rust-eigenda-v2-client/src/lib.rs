@@ -4,18 +4,21 @@ pub mod commitment_utils;
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
+pub mod eth_client;
 pub mod payload_disperser;
 pub mod relay_client;
 pub mod relay_payload_retriever;
 pub mod relay_registry;
 pub mod utils;
-pub mod validator_payload_retriever;
-pub mod validator_client;
-pub mod eth_client;
-pub mod validator_verifier;
-pub mod validator_encoder;
-pub mod validator_types;
+pub mod validator_assigment;
 pub mod validator_chain_state_provider;
+pub mod validator_client;
+pub mod validator_encoder;
+pub mod validator_payload_retriever;
+pub mod validator_reader;
+pub mod validator_retrieval_worker;
+pub mod validator_types;
+pub mod validator_verifier;
 // So users can use the client without having to depend on the signers crate as well.
 pub use rust_eigenda_signers;
 

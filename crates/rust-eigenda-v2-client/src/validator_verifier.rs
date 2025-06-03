@@ -1,11 +1,20 @@
-use ark_bn254::{g1::{G1_GENERATOR_X, G1_GENERATOR_Y}, g2::{G2_GENERATOR_X, G2_GENERATOR_Y}, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{
+    g1::{G1_GENERATOR_X, G1_GENERATOR_Y},
+    g2::{G2_GENERATOR_X, G2_GENERATOR_Y},
+    Fr, G1Affine, G1Projective, G2Affine, G2Projective,
+};
 use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{Field, PrimeField, UniformRand};
 use rust_eigenda_v2_common::BlobCommitments;
 use rust_kzg_bn254_primitives::helpers::{pairings_verify, to_byte_array};
 use rust_kzg_bn254_prover::{kzg::KZG, srs::SRS};
 
-use crate::{errors::ValidatorVerifierError, eth_client::EthClient, validator_encoder::ValidatorEncoder, validator_types::{ChunkNumber, EncodingParams, Frame}};
+use crate::{
+    errors::ValidatorVerifierError,
+    eth_client::EthClient,
+    validator_encoder::ValidatorEncoder,
+    validator_types::{ChunkNumber, EncodingParams, Frame},
+};
 
 /// Trait that defines the methods for the verifier used by the validator client
 #[async_trait::async_trait]
@@ -33,7 +42,6 @@ pub trait ValidatorVerifier: Sync + Send + std::fmt::Debug {
         max_input_size: usize,
     ) -> Result<Vec<u8>, ValidatorVerifierError>;
 }
-
 
 #[async_trait::async_trait]
 impl ValidatorVerifier for EthClient {

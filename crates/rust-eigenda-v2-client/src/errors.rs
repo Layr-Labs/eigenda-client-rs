@@ -53,6 +53,10 @@ pub enum ConversionError {
     EigenDACommon(#[from] rust_eigenda_v2_common::ConversionError),
     #[error("Failed to convert U256: {0}")]
     U256Conversion(String),
+    #[error("Failed to convert u32: {0}")]
+    U32Conversion(String),
+    #[error("Failed to convert u16: {0}")]
+    U16Conversion(String),
 }
 
 /// Errors specific to the [`RelayPayloadRetriever`].
@@ -85,6 +89,8 @@ pub enum BlobError {
     Bn254(#[from] Bn254Error),
     #[error(transparent)]
     CommonBlob(#[from] rust_eigenda_v2_common::BlobError),
+    #[error("No chunks found")]
+    EmptyChunks,
 }
 
 /// Errors related to the BN254 and its points
@@ -236,6 +242,10 @@ pub enum ValidatorClientError {
     AbiEncode(#[from] AbiEncodeError),
     #[error(transparent)]
     EthClient(#[from] EthClientError),
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+    #[error(transparent)]
+    Blob(#[from] BlobError),
 }
 
 /// Errors for the validator verifier
