@@ -19,6 +19,7 @@ impl RetrievalWorker {
         unimplemented!()
     }
 
+    /// Downloads the blob from the validators.
     pub(crate) fn retrieve_blob_from_validators(&self) -> Result<Vec<u8>, ValidatorClientError> {
         unimplemented!()
     }

@@ -19,7 +19,8 @@ use crate::{
 /// Trait that defines the methods for the verifier used by the validator client
 #[async_trait::async_trait]
 pub trait ValidatorVerifier: Sync + Send + std::fmt::Debug {
-    async fn verify_frames(
+    //Currently unused, left here in case needed
+    /*async fn verify_frames(
         &self,
         chunks: &[Frame],
         indices: &[ChunkNumber],
@@ -27,25 +28,25 @@ pub trait ValidatorVerifier: Sync + Send + std::fmt::Debug {
         params: EncodingParams,
         kzg: KZG,
         srs: SRS,
-    ) -> Result<(), ValidatorVerifierError>;
+    ) -> Result<(), ValidatorVerifierError>;*/
 
     async fn verify_commit_equivalence_batch(
         &self,
         commitments: Vec<BlobCommitments>,
     ) -> Result<(), ValidatorVerifierError>;
 
-    async fn decode(
+    /*async fn decode(
         &self,
         chunks: Vec<Frame>,
         indices: Vec<ChunkNumber>,
         params: EncodingParams,
         max_input_size: usize,
-    ) -> Result<Vec<u8>, ValidatorVerifierError>;
+    ) -> Result<Vec<u8>, ValidatorVerifierError>;*/
 }
 
 #[async_trait::async_trait]
 impl ValidatorVerifier for EthClient {
-    async fn verify_frames(
+    /*async fn verify_frames(
         &self,
         frames: &[Frame],
         indices: &[ChunkNumber],
@@ -133,7 +134,7 @@ impl ValidatorVerifier for EthClient {
         }
 
         Ok(())
-    }
+    }*/
 
     async fn verify_commit_equivalence_batch(
         &self,
@@ -168,7 +169,7 @@ impl ValidatorVerifier for EthClient {
         Ok(())
     }
 
-    async fn decode(
+    /*async fn decode(
         &self,
         chunks: Vec<Frame>,
         indices: Vec<ChunkNumber>,
@@ -225,5 +226,5 @@ impl ValidatorVerifier for EthClient {
         let reconstructed_poly = encoder.fft(reconstructed_data, true);
 
         Ok(to_byte_array(&reconstructed_poly, max_input_size))
-    }
+    }*/
 }
