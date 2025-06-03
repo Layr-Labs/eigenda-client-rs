@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
@@ -28,12 +28,12 @@ use crate::{
 pub struct PayloadDisperserConfig {
     pub polynomial_form: PayloadForm,
     pub blob_version: u16,
-    pub cert_verifier_address: H160,
+    pub cert_verifier_address: String,
     pub eth_rpc_url: SecretUrl,
     pub disperser_rpc: String,
     pub use_secure_grpc_flag: bool,
-    pub registry_coordinator_addr: Address,
-    pub operator_state_retriever_addr: Address,
+    pub registry_coordinator_addr: String,
+    pub operator_state_retriever_addr: String,
 }
 
 #[derive(Debug, Clone)]
@@ -63,7 +63,9 @@ impl<S> PayloadDisperser<S> {
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
-            payload_config.cert_verifier_address,
+            H160::from_str(&payload_config.cert_verifier_address).map_err(|_| {
+                ConversionError::Address(payload_config.cert_verifier_address.clone())
+            })?,
             payload_config.eth_rpc_url.clone(),
             signer,
         )?;
@@ -325,8 +327,12 @@ impl<S> PayloadDisperser<S> {
 
         let avs_registry_chain_reader = AvsRegistryChainReader::new(
             get_logger(),
-            self.config.registry_coordinator_addr,
-            self.config.operator_state_retriever_addr,
+            Address::from_str(&self.config.registry_coordinator_addr).map_err(|_| {
+                ConversionError::Address(self.config.registry_coordinator_addr.clone())
+            })?,
+            Address::from_str(&self.config.operator_state_retriever_addr).map_err(|_| {
+                ConversionError::Address(self.config.operator_state_retriever_addr.clone())
+            })?,
             self.config.eth_rpc_url.clone().try_into()?,
         )
         .await
@@ -361,10 +367,7 @@ impl<S> PayloadDisperser<S> {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::Address;
-    use ethereum_types::H160;
     use rust_eigenda_v2_common::{Payload, PayloadForm};
-    use std::str::FromStr;
 
     use crate::{
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
@@ -383,13 +386,12 @@ mod tests {
         let payload_config = PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
+            cert_verifier_address: CERT_VERIFIER_ADDRESS.to_string(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
-            registry_coordinator_addr: Address::from_str(REGISTRY_COORDINATOR_ADDRESS).unwrap(),
-            operator_state_retriever_addr: Address::from_str(OPERATOR_STATE_RETRIEVER_ADDRESS)
-                .unwrap(),
+            registry_coordinator_addr: REGISTRY_COORDINATOR_ADDRESS.to_string(),
+            operator_state_retriever_addr: OPERATOR_STATE_RETRIEVER_ADDRESS.to_string(),
         };
 
         let payload_disperser =

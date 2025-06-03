@@ -63,7 +63,6 @@ pub(crate) mod generated {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::Address;
     use dotenv::dotenv;
     use ethereum_types::H160;
     use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
@@ -102,14 +101,12 @@ mod tests {
         PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
+            cert_verifier_address: CERT_VERIFIER_ADDRESS.to_string(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
-            registry_coordinator_addr: Address::from_str(REGISTRY_COORDINATOR_ADDRESS)
-                .expect("valid registry coordinator address"),
-            operator_state_retriever_addr: Address::from_str(OPERATOR_STATE_RETRIEVER_ADDRESS)
-                .expect("valid operator state retriever address"),
+            registry_coordinator_addr: REGISTRY_COORDINATOR_ADDRESS.to_string(),
+            operator_state_retriever_addr: OPERATOR_STATE_RETRIEVER_ADDRESS.to_string(),
         }
     }
 

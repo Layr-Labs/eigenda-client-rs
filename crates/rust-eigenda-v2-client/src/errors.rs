@@ -56,6 +56,8 @@ pub enum ConversionError {
     Attestation(String),
     #[error("Failed to parse checkDACert Status: {0}")]
     InvalidCheckDACertStatus(u8),
+    #[error("Failed to parse address: {0}")]
+    Address(String),
 }
 
 /// Errors specific to the [`RelayPayloadRetriever`].
