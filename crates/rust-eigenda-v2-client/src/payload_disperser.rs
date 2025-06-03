@@ -183,9 +183,7 @@ impl<S> PayloadDisperser<S> {
                 "BlobHeader not present".to_string(),
             ))?
             .quorum_numbers;
-        if blob_quorum_numbers.is_empty() {
-            return Err(PayloadDisperserError::NoQuorumNumbers);
-        }
+
         let attestation = status
             .signed_batch
             .clone()
@@ -199,6 +197,40 @@ impl<S> PayloadDisperser<S> {
         let batch_quorum_numbers = attestation.quorum_numbers;
         let batch_signed_percentages = attestation.quorum_signed_percentages;
 
+        let batch_header = status
+            .clone()
+            .signed_batch
+            .ok_or(ConversionError::SignedBatch(
+                "SignedBatch not present".to_string(),
+            ))?
+            .header;
+        if batch_header.is_none() {
+            return Err(PayloadDisperserError::BatchHeaderNotPresent);
+        }
+
+        self.check_thresholds_pure(
+            batch_quorum_numbers,
+            batch_signed_percentages,
+            blob_quorum_numbers,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn check_thresholds_pure(
+        &self,
+        batch_quorum_numbers: Vec<u32>,
+        batch_signed_percentages: Vec<u8>,
+        blob_quorum_numbers: Vec<u32>,
+    ) -> Result<(), PayloadDisperserError>
+    where
+        S: Sign,
+    {
+        if blob_quorum_numbers.is_empty() {
+            return Err(PayloadDisperserError::NoQuorumNumbers);
+        }
+
         if batch_quorum_numbers.len() != batch_signed_percentages.len() {
             return Err(PayloadDisperserError::QuorumNumbersMismatch);
         }
@@ -210,17 +242,6 @@ impl<S> PayloadDisperser<S> {
             .zip(batch_signed_percentages.iter())
         {
             signed_percentages_per_quorum.insert(quorum_id, *signed_percentage);
-        }
-
-        let batch_header = status
-            .clone()
-            .signed_batch
-            .ok_or(ConversionError::SignedBatch(
-                "SignedBatch not present".to_string(),
-            ))?
-            .header;
-        if batch_header.is_none() {
-            return Err(PayloadDisperserError::BatchHeaderNotPresent);
         }
 
         let confirmation_threshold = self.cert_verifier.get_confirmation_threshold().await?;
