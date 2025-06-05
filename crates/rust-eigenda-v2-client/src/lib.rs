@@ -11,6 +11,7 @@ pub mod relay_registry;
 pub mod utils;
 // So users can use the client without having to depend on the signers crate as well.
 pub use rust_eigenda_signers;
+pub mod contracts_bindings;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {
