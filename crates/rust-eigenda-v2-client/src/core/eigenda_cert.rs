@@ -569,7 +569,9 @@ mod test {
                 Attestation, BlobInclusionInfo as BlobInclusionInfoProto, SignedBatch,
             },
         },
-        tests::{get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS},
+        tests::{
+            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ROUTER_ADDRESS,
+        },
     };
 
     use super::{BlobStatusReply, EigenDACert, NonSignerStakesAndSignature};
@@ -1052,7 +1054,7 @@ mod test {
         assert_eq!(expected_eigenda_cert, eigenda_cert);
 
         let cert_verifier = CertVerifier::new(
-            H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
+            H160::from_str(CERT_VERIFIER_ROUTER_ADDRESS).unwrap(),
             get_test_holesky_rpc_url(),
             get_test_private_key_signer(),
         )

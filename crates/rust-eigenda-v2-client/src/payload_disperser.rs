@@ -28,7 +28,7 @@ use crate::{
 pub struct PayloadDisperserConfig {
     pub polynomial_form: PayloadForm,
     pub blob_version: u16,
-    pub cert_verifier_address: String,
+    pub cert_verifier_router_address: String,
     pub eth_rpc_url: SecretUrl,
     pub disperser_rpc: String,
     pub use_secure_grpc_flag: bool,
@@ -63,8 +63,8 @@ impl<S> PayloadDisperser<S> {
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
-            H160::from_str(&payload_config.cert_verifier_address).map_err(|_| {
-                ConversionError::Address(payload_config.cert_verifier_address.clone())
+            H160::from_str(&payload_config.cert_verifier_router_address).map_err(|_| {
+                ConversionError::Address(payload_config.cert_verifier_router_address.clone())
             })?,
             payload_config.eth_rpc_url.clone(),
             signer,
@@ -206,14 +206,15 @@ impl<S> PayloadDisperser<S> {
                 "SignedBatch not present".to_string(),
             ))?
             .header;
-        if batch_header.is_none() {
-            return Err(PayloadDisperserError::BatchHeaderNotPresent);
-        }
+        let reference_block_number = batch_header
+            .ok_or(PayloadDisperserError::BatchHeaderNotPresent)?
+            .reference_block_number;
 
         self.check_thresholds_pure(
             batch_quorum_numbers,
             batch_signed_percentages,
             blob_quorum_numbers,
+            reference_block_number,
         )
         .await?;
 
@@ -225,6 +226,7 @@ impl<S> PayloadDisperser<S> {
         batch_quorum_numbers: Vec<u32>,
         batch_signed_percentages: Vec<u8>,
         blob_quorum_numbers: Vec<u32>,
+        reference_block_number: u64,
     ) -> Result<(), PayloadDisperserError>
     where
         S: Sign,
@@ -246,7 +248,10 @@ impl<S> PayloadDisperser<S> {
             signed_percentages_per_quorum.insert(quorum_id, *signed_percentage);
         }
 
-        let confirmation_threshold = self.cert_verifier.get_confirmation_threshold().await?;
+        let confirmation_threshold = self
+            .cert_verifier
+            .get_confirmation_threshold(reference_block_number)
+            .await?;
 
         for quorum in blob_quorum_numbers {
             let signed_percentage = signed_percentages_per_quorum
@@ -372,7 +377,7 @@ mod tests {
     use crate::{
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
         tests::{
-            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS,
+            get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ROUTER_ADDRESS,
             HOLESKY_DISPERSER_RPC_URL, OPERATOR_STATE_RETRIEVER_ADDRESS,
             REGISTRY_COORDINATOR_ADDRESS,
         },
@@ -386,7 +391,7 @@ mod tests {
         let payload_config = PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: CERT_VERIFIER_ADDRESS.to_string(),
+            cert_verifier_router_address: CERT_VERIFIER_ROUTER_ADDRESS.to_string(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
