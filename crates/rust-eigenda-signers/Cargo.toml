@@ -21,6 +21,7 @@ rand = { workspace = true }
 secp256k1 = { workspace = true, features = ["global-context", "rand"] }
 thiserror = { workspace = true }
 tiny-keccak = { workspace = true }
+alloy = { workspace = true, features = ["signers", "consensus", "network", "rpc", "transports", "providers", "rpc-types"] }
 
 [dev-dependencies]
 rust-eigenda-signers = { workspace = true, features = [
