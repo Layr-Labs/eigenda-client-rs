@@ -48,7 +48,6 @@ ark-std = { workspace = true }
 ark-ec = { workspace = true }
 sha2 = { workspace = true }
 bincode = { workspace = true }
-ethers = { workspace = true }
 eigensdk = { workspace = true }
 alloy = { workspace = true, features = [ "contract", "sol-types"] }
 

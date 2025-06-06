@@ -1,9 +1,9 @@
-use ethers::prelude::*;
 use std::str::FromStr;
 use url::Url;
 
 use alloy::{
     network::{Ethereum, EthereumWallet},
+    primitives::Address,
     providers::{
         fillers::{FillProvider, JoinFill, WalletFiller},
         Identity, ProviderBuilder, RootProvider,
@@ -35,13 +35,10 @@ pub struct RelayRegistry {
 impl RelayRegistry {
     /// Creates a new instance of RelayRegistry receiving the address of the contract and the ETH RPC url.
     pub fn new(
-        address: H160,
+        address: Address,
         rpc_url: SecretUrl,
         signer: PrivateKeySigner,
     ) -> Result<Self, ConversionError> {
-        let address = alloy::primitives::Address::from_str(&hex::encode(address))
-            .map_err(|_| ConversionError::Address(address.to_string()))?;
-
         let rpc_url: String = rpc_url.try_into()?;
         let rpc_url = Url::from_str(&rpc_url).unwrap();
 

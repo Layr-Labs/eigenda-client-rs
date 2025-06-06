@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::signers::local::PrivateKeySigner;
-use ethabi::Address;
-use ethers::signers::Signer;
+use alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use tonic::transport::Channel;
 
 use crate::{
@@ -15,7 +13,6 @@ use crate::{
     relay_registry::RelayRegistry,
     utils::SecretUrl,
 };
-use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
 
 pub type RelayKey = u32;
 
@@ -37,10 +34,10 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
-    pub async fn new<S>(config: RelayClientConfig, signer: S) -> Result<Self, RelayClientError>
-    where
-        EthersSigner<S>: Signer,
-    {
+    pub async fn new(
+        config: RelayClientConfig,
+        signer: PrivateKeySigner,
+    ) -> Result<Self, RelayClientError> {
         if config.max_grpc_message_size == 0 {
             return Err(RelayClientError::InvalidMaxGrpcMessageSize);
         }
@@ -48,7 +45,7 @@ impl RelayClient {
         let relay_registry = RelayRegistry::new(
             config.relay_registry_address,
             config.eth_rpc_url.clone(),
-            PrivateKeySigner::random(), // TODO: fix
+            signer,
         )?;
 
         let mut rpc_clients = HashMap::new();
