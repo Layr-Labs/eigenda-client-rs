@@ -1,6 +1,6 @@
 use alloy::{
     network::{Ethereum, EthereumWallet},
-    primitives::Bytes,
+    primitives::{Address, Bytes},
     providers::{
         fillers::{FillProvider, JoinFill, WalletFiller},
         Identity, ProviderBuilder, RootProvider,
@@ -12,8 +12,6 @@ use alloy::{
 use rust_eigenda_v2_common::EigenDACert;
 use std::str::FromStr;
 use url::Url;
-
-use ethereum_types::H160;
 
 use crate::{
     contracts_bindings::{
@@ -80,13 +78,10 @@ pub struct CertVerifier {
 impl CertVerifier {
     /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
     pub fn new(
-        address: H160, // TODO: REPLACE WITH ADDRESS
+        address: Address,
         rpc_url: SecretUrl,
         signer: PrivateKeySigner,
     ) -> Result<Self, CertVerifierError> {
-        let address = alloy::primitives::Address::from_str(&hex::encode(address))
-            .map_err(|_| CertVerifierError::InvalidCertVerifierAddress(address))?;
-
         let rpc_url: String = rpc_url.try_into()?;
         let rpc_url = Url::from_str(&rpc_url).unwrap();
 
@@ -167,9 +162,9 @@ impl CertVerifier {
 mod tests {
     use std::str::FromStr;
 
+    use alloy::primitives::Address;
     use ark_bn254::{G1Affine, G2Affine};
     use ark_ff::{BigInt, Fp2};
-    use ethereum_types::H160;
     use rust_eigenda_v2_common::{
         BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
         EigenDACert, NonSignerStakesAndSignature,
@@ -370,14 +365,13 @@ mod tests {
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_check_da_cert() {
-        //     let cert_verifier = CertVerifier::new(
-        //         H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
-        //         SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
-        //         get_test_private_key_signer(),
-        //     )
-        //     .unwrap();
-        //     let res = cert_verifier.check_da_cert(&get_test_eigenda_cert()).await;
-        //     assert!(res.is_ok())
-        unimplemented!("fix alloy");
+        let cert_verifier = CertVerifier::new(
+            Address::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
+            SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
+            get_test_private_key_signer(),
+        )
+        .unwrap();
+        let res = cert_verifier.check_da_cert(&get_test_eigenda_cert()).await;
+        assert!(res.is_ok())
     }
 }
