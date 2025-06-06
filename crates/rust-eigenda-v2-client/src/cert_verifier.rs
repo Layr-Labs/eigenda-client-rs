@@ -1,11 +1,6 @@
 use alloy::{
-    network::{Ethereum, EthereumWallet},
     primitives::{Address, Bytes},
-    providers::{
-        fillers::{FillProvider, JoinFill, WalletFiller},
-        Identity, ProviderBuilder, RootProvider,
-    },
-    signers::local::PrivateKeySigner,
+    providers::{ProviderBuilder, RootProvider},
     transports::http::Http,
 };
 // use ethers::prelude::*;
@@ -154,7 +149,7 @@ mod tests {
 
     use crate::{
         cert_verifier::CertVerifier,
-        tests::{get_test_private_key_signer, CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
+        tests::{CERT_VERIFIER_ADDRESS, HOLESKY_ETH_RPC_URL},
         utils::SecretUrl,
     };
 

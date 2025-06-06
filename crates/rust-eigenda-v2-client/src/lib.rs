@@ -56,7 +56,6 @@ pub(crate) mod generated {
 mod tests {
     use alloy::primitives::Address;
     use dotenv::dotenv;
-    use ethereum_types::H160;
     use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
     use std::{env, str::FromStr, time::Duration};
     use url::Url;

@@ -569,7 +569,7 @@ mod test {
                 Attestation, BlobInclusionInfo as BlobInclusionInfoProto, SignedBatch,
             },
         },
-        tests::{get_test_holesky_rpc_url, get_test_private_key_signer, CERT_VERIFIER_ADDRESS},
+        tests::{get_test_holesky_rpc_url, CERT_VERIFIER_ADDRESS},
     };
 
     use super::{BlobStatusReply, EigenDACert, NonSignerStakesAndSignature};

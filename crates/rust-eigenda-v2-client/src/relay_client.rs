@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::{primitives::Address, signers::local::PrivateKeySigner};
+use alloy::primitives::Address;
 use tonic::transport::Channel;
 
 use crate::{

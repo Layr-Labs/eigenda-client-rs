@@ -2,13 +2,8 @@ use std::str::FromStr;
 use url::Url;
 
 use alloy::{
-    network::{Ethereum, EthereumWallet},
     primitives::Address,
-    providers::{
-        fillers::{FillProvider, JoinFill, WalletFiller},
-        Identity, ProviderBuilder, RootProvider,
-    },
-    signers::local::PrivateKeySigner,
+    providers::{ProviderBuilder, RootProvider},
     transports::http::Http,
 };
 

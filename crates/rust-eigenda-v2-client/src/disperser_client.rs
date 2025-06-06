@@ -135,7 +135,7 @@ impl<S> DisperserClient<S> {
         }
         let account_id: String = payment.account_id.encode_hex();
 
-        let account_id = (&Address::from_str(&account_id).map_err(|_| DisperseError::AccountID)?)
+        let account_id = (Address::from_str(&account_id).map_err(|_| DisperseError::AccountID)?)
             .to_checksum(None);
 
         let blob_header = BlobHeader {

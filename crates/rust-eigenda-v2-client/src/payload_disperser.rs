@@ -7,7 +7,6 @@ use eigensdk::{
     client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
     logging::{get_logger, init_logger, log_level::LogLevel},
 };
-use ethereum_types::H160;
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
 
