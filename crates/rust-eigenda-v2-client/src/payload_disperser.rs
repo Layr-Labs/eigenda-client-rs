@@ -66,7 +66,7 @@ impl PayloadDisperser {
                 ConversionError::Address(payload_config.cert_verifier_address.clone())
             })?,
             payload_config.eth_rpc_url.clone(),
-            alloy::signers::local::PrivateKeySigner::random(), // TODO: REPLACE
+            signer,
         )?;
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {
