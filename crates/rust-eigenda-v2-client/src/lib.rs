@@ -1,6 +1,7 @@
 pub mod accountant;
 pub mod cert_verifier;
 pub mod commitment_utils;
+pub mod contracts_bindings;
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
@@ -11,7 +12,6 @@ pub mod relay_registry;
 pub mod utils;
 // So users can use the client without having to depend on the signers crate as well.
 pub use rust_eigenda_signers;
-pub mod contracts_bindings;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {
@@ -54,8 +54,9 @@ pub(crate) mod generated {
 
 #[cfg(test)]
 mod tests {
-    use alloy::{primitives::Address, signers::local::PrivateKeySigner};
+    use alloy::primitives::Address;
     use dotenv::dotenv;
+    use ethereum_types::H160;
     use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
     use std::{env, str::FromStr, time::Duration};
     use url::Url;
@@ -68,7 +69,7 @@ mod tests {
         utils::SecretUrl,
     };
 
-    // use rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner;
+    use rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner;
 
     const TEST_BLOB_FINALIZATION_TIMEOUT: u64 = 180;
     const TEST_PAYLOAD_DATA: &[u8] = &[1, 2, 3, 4, 5];
@@ -81,11 +82,11 @@ mod tests {
 
     pub fn get_test_private_key_signer() -> PrivateKeySigner {
         dotenv().ok();
-        let private_key: PrivateKeySigner = env::var("SIGNER_PRIVATE_KEY")
+        let private_key = env::var("SIGNER_PRIVATE_KEY")
             .expect("SIGNER_PRIVATE_KEY must be set")
             .parse()
             .expect("valid secret key");
-        private_key
+        PrivateKeySigner::new(private_key)
     }
 
     fn get_test_payload_disperser_config() -> PayloadDisperserConfig {
@@ -130,12 +131,9 @@ mod tests {
     }
 
     pub async fn get_test_relay_client() -> RelayClient {
-        RelayClient::new(
-            get_relay_client_test_config(),
-            get_test_private_key_signer(),
-        )
-        .await
-        .unwrap()
+        RelayClient::new(get_relay_client_test_config())
+            .await
+            .unwrap()
     }
 
     async fn wait_for_blob_finalization_and_verification(

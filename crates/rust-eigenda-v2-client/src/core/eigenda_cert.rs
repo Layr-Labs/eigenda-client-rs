@@ -1054,7 +1054,6 @@ mod test {
         let cert_verifier = CertVerifier::new(
             Address::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
             get_test_holesky_rpc_url(),
-            get_test_private_key_signer(),
         )
         .unwrap();
         let res = cert_verifier.check_da_cert(&eigenda_cert).await;

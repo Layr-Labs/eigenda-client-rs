@@ -53,45 +53,26 @@ impl TryFrom<u8> for CheckDACertStatus {
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier {
     /// Contains the view functions which are needed when building a certificate, it is only used in the dispersal route
-    cert_verifier_contract: IEigenDACertVerifierInstance<
-        Http<reqwest::Client>,
-        FillProvider<
-            JoinFill<Identity, WalletFiller<EthereumWallet>>,
-            RootProvider<Http<reqwest::Client>>,
-            Http<reqwest::Client>,
-            Ethereum,
-        >,
-    >,
+    cert_verifier_contract:
+        IEigenDACertVerifierInstance<Http<reqwest::Client>, RootProvider<Http<reqwest::Client>>>,
 
     /// Only contains the single function checkDACert, used purely for verification, only used in retrieval route
     cert_verifier_contract_base: IEigenDACertVerifierBaseInstance<
         Http<reqwest::Client>,
-        FillProvider<
-            JoinFill<Identity, WalletFiller<EthereumWallet>>,
-            RootProvider<Http<reqwest::Client>>,
-            Http<reqwest::Client>,
-            Ethereum,
-        >,
+        RootProvider<Http<reqwest::Client>>,
     >,
 }
 
 impl CertVerifier {
     /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
-    pub fn new(
-        address: Address,
-        rpc_url: SecretUrl,
-        signer: PrivateKeySigner,
-    ) -> Result<Self, CertVerifierError> {
+    pub fn new(address: Address, rpc_url: SecretUrl) -> Result<Self, CertVerifierError> {
         let rpc_url: String = rpc_url.try_into()?;
         let rpc_url = Url::from_str(&rpc_url).unwrap();
 
         // Construct the ProviderBuilder
-        let wallet = EthereumWallet::from(signer.clone());
-        let cert_verifier_provider = ProviderBuilder::new()
-            .wallet(wallet.clone())
-            .on_http(rpc_url.clone());
+        let cert_verifier_provider = ProviderBuilder::new().on_http(rpc_url.clone());
         let contract = IEigenDACertVerifierInstance::new(address, cert_verifier_provider);
-        let cert_verifier_base_provider = ProviderBuilder::new().wallet(wallet).on_http(rpc_url);
+        let cert_verifier_base_provider = ProviderBuilder::new().on_http(rpc_url);
         let contract_base =
             IEigenDACertVerifierBaseInstance::new(address, cert_verifier_base_provider);
 
@@ -368,7 +349,6 @@ mod tests {
         let cert_verifier = CertVerifier::new(
             Address::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
             SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
-            get_test_private_key_signer(),
         )
         .unwrap();
         let res = cert_verifier.check_da_cert(&get_test_eigenda_cert()).await;

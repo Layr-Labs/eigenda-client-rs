@@ -1,15 +1,13 @@
 use std::{collections::HashMap, str::FromStr};
 
-use alloy::{
-    primitives::{Address, FixedBytes},
-    signers::local::PrivateKeySigner,
-};
+use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
 use eigensdk::{
     client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
     logging::{get_logger, init_logger, log_level::LogLevel},
 };
+use ethereum_types::H160;
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
 
@@ -22,6 +20,7 @@ use crate::{
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply, SignedBatch as SignedBatchProto},
+    rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign},
     utils::SecretUrl,
 };
 
@@ -39,20 +38,23 @@ pub struct PayloadDisperserConfig {
 
 #[derive(Debug, Clone)]
 /// Provides the ability to disperse payloads to EigenDA via a Disperser GRPC service.
-pub struct PayloadDisperser {
+pub struct PayloadDisperser<S = PrivateKeySigner> {
     config: PayloadDisperserConfig,
-    disperser_client: DisperserClient,
+    disperser_client: DisperserClient<S>,
     cert_verifier: CertVerifier,
     required_quorums: Vec<u8>,
 }
 
-impl PayloadDisperser {
+impl<S> PayloadDisperser<S> {
     const BLOB_SIZE_LIMIT: usize = 1024 * 1024 * 16; // 16 MB
     /// Creates a [`PayloadDisperser`] from the specified configuration.
     pub async fn new(
         payload_config: PayloadDisperserConfig,
-        signer: PrivateKeySigner,
-    ) -> Result<Self, PayloadDisperserError> {
+        signer: S,
+    ) -> Result<Self, PayloadDisperserError>
+    where
+        S: Sign + Clone,
+    {
         init_logger(LogLevel::Info);
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
@@ -65,7 +67,6 @@ impl PayloadDisperser {
                 ConversionError::Address(payload_config.cert_verifier_address.clone())
             })?,
             payload_config.eth_rpc_url.clone(),
-            signer,
         )?;
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {
@@ -77,7 +78,10 @@ impl PayloadDisperser {
     }
 
     /// Executes the dispersal of a payload, returning the associated blob key
-    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError> {
+    pub async fn send_payload(&self, payload: Payload) -> Result<BlobKey, PayloadDisperserError>
+    where
+        S: Sign,
+    {
         let blob = payload
             .to_blob(self.config.polynomial_form)
             .map_err(ConversionError::EigenDACommon)?;
@@ -109,7 +113,10 @@ impl PayloadDisperser {
     pub async fn get_cert(
         &self,
         blob_key: &BlobKey,
-    ) -> Result<Option<EigenDACert>, EigenClientError> {
+    ) -> Result<Option<EigenDACert>, EigenClientError>
+    where
+        S: Sign,
+    {
         let status = self
             .disperser_client
             .blob_status(blob_key)
@@ -158,10 +165,10 @@ impl PayloadDisperser {
     }
 
     /// Verifies if all quorums meet the confirmation threshold
-    async fn check_thresholds(
-        &self,
-        status: &BlobStatusReply,
-    ) -> Result<(), PayloadDisperserError> {
+    async fn check_thresholds(&self, status: &BlobStatusReply) -> Result<(), PayloadDisperserError>
+    where
+        S: Sign,
+    {
         let blob_quorum_numbers = status
             .clone()
             .blob_inclusion_info
@@ -217,7 +224,10 @@ impl PayloadDisperser {
         batch_quorum_numbers: Vec<u32>,
         batch_signed_percentages: Vec<u8>,
         blob_quorum_numbers: Vec<u32>,
-    ) -> Result<(), PayloadDisperserError> {
+    ) -> Result<(), PayloadDisperserError>
+    where
+        S: Sign,
+    {
         if blob_quorum_numbers.is_empty() {
             return Err(PayloadDisperserError::NoQuorumNumbers);
         }
@@ -257,7 +267,10 @@ impl PayloadDisperser {
     pub async fn build_eigenda_cert(
         &self,
         status: &BlobStatusReply,
-    ) -> Result<EigenDACert, EigenClientError> {
+    ) -> Result<EigenDACert, EigenClientError>
+    where
+        S: Sign,
+    {
         let signed_batch = match status.clone().signed_batch {
             Some(batch) => batch,
             None => {
@@ -280,7 +293,10 @@ impl PayloadDisperser {
     async fn get_non_signer_stakes_and_signature(
         &self,
         signed_batch_proto: SignedBatchProto,
-    ) -> Result<NonSignerStakesAndSignature, EigenClientError> {
+    ) -> Result<NonSignerStakesAndSignature, EigenClientError>
+    where
+        S: Sign,
+    {
         let signed_batch: SignedBatch = signed_batch_proto.try_into()?;
 
         let non_signers_pubkeys: Vec<G1Affine> =

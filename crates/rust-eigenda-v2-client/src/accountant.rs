@@ -5,8 +5,8 @@ use crate::{
     errors::AccountantError,
     generated::disperser::v2::GetPaymentStateReply,
 };
-use alloy::primitives::Address;
 use ark_ff::Zero;
+use ethereum_types::Address;
 use num_bigint::{BigInt, Sign};
 
 const MIN_NUM_BINS: u32 = 3;

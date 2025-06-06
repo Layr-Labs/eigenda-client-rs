@@ -21,32 +21,18 @@ use crate::{
 
 /// Provides methods for interacting with the EigenDA RelayRegistry contract.
 pub struct RelayRegistry {
-    relay_registry_contract: IRelayRegistryInstance<
-        Http<reqwest::Client>,
-        FillProvider<
-            JoinFill<Identity, WalletFiller<EthereumWallet>>,
-            RootProvider<Http<reqwest::Client>>,
-            Http<reqwest::Client>,
-            Ethereum,
-        >,
-    >,
+    relay_registry_contract:
+        IRelayRegistryInstance<Http<reqwest::Client>, RootProvider<Http<reqwest::Client>>>,
 }
 
 impl RelayRegistry {
     /// Creates a new instance of RelayRegistry receiving the address of the contract and the ETH RPC url.
-    pub fn new(
-        address: Address,
-        rpc_url: SecretUrl,
-        signer: PrivateKeySigner,
-    ) -> Result<Self, ConversionError> {
+    pub fn new(address: Address, rpc_url: SecretUrl) -> Result<Self, ConversionError> {
         let rpc_url: String = rpc_url.try_into()?;
         let rpc_url = Url::from_str(&rpc_url).unwrap();
 
         // Construct the ProviderBuilder
-        let wallet = EthereumWallet::from(signer.clone());
-        let provider = ProviderBuilder::new()
-            .wallet(wallet.clone())
-            .on_http(rpc_url.clone());
+        let provider = ProviderBuilder::new().on_http(rpc_url.clone());
         let contract = IRelayRegistryInstance::new(address, provider);
         Ok(RelayRegistry {
             relay_registry_contract: contract,
