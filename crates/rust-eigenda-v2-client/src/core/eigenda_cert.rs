@@ -1044,20 +1044,21 @@ mod test {
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_build_eigenda_cert() {
-        let (blob_status_reply, non_signer_stakes_and_signature) = get_test_reply();
-        let eigenda_cert =
-            build_cert_from_reply(&blob_status_reply, non_signer_stakes_and_signature).unwrap();
+        // let (blob_status_reply, non_signer_stakes_and_signature) = get_test_reply();
+        // let eigenda_cert =
+        //     build_cert_from_reply(&blob_status_reply, non_signer_stakes_and_signature).unwrap();
 
-        let expected_eigenda_cert = get_test_eigenda_cert();
-        assert_eq!(expected_eigenda_cert, eigenda_cert);
+        // let expected_eigenda_cert = get_test_eigenda_cert();
+        // assert_eq!(expected_eigenda_cert, eigenda_cert);
 
-        let cert_verifier = CertVerifier::new(
-            H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
-            get_test_holesky_rpc_url(),
-            get_test_private_key_signer(),
-        )
-        .unwrap();
-        let res = cert_verifier.check_da_cert(&eigenda_cert).await;
-        assert!(res.is_ok())
+        // let cert_verifier = CertVerifier::new(
+        //     H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
+        //     get_test_holesky_rpc_url(),
+        //     get_test_private_key_signer(),
+        // )
+        // .unwrap();
+        // let res = cert_verifier.check_da_cert(&eigenda_cert).await;
+        // assert!(res.is_ok())
+        unimplemented!("Fix alloy");
     }
 }

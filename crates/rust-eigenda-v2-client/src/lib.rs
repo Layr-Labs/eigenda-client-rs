@@ -49,17 +49,7 @@ pub(crate) mod generated {
         include!("generated/relay.rs");
     }
 
-    pub(crate) mod cert_verifier_contract {
-        include!("generated/IEigenDACertVerifier.rs");
-    }
-
-    pub(crate) mod relay_registry_contract {
-        include!("generated/IRelayRegistry.rs");
-    }
-
-    pub(crate) mod cert_verifier_base_contract {
-        include!("generated/IEigenDACertVerifierBase.rs");
-    }
+    // TODO: MOVE ALLOY MACROS HERE?
 }
 
 #[cfg(test)]

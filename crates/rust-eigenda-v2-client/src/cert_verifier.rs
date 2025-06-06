@@ -1,17 +1,27 @@
-use ethers::prelude::*;
-use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
+use alloy::{
+    network::{Ethereum, EthereumWallet},
+    primitives::Bytes,
+    providers::{
+        fillers::{FillProvider, JoinFill, WalletFiller},
+        Identity, ProviderBuilder, RootProvider,
+    },
+    signers::local::PrivateKeySigner,
+    transports::http::Http,
+};
+// use ethers::prelude::*;
 use rust_eigenda_v2_common::EigenDACert;
-use std::sync::Arc;
+use std::str::FromStr;
+use url::Url;
 
 use ethereum_types::H160;
 
 use crate::{
+    contracts_bindings::{
+        IEigenDACertVerifier::IEigenDACertVerifierInstance,
+        IEigenDACertVerifierBase::IEigenDACertVerifierBaseInstance,
+    },
     core::eigenda_cert::eigenda_cert_to_abi_encoded,
     errors::{CertVerifierError, ConversionError},
-    generated::{
-        cert_verifier_base_contract::IEigenDACertVerifierBase,
-        cert_verifier_contract::{IEigenDACertVerifier, SecurityThresholds},
-    },
     utils::SecretUrl,
 };
 
@@ -43,68 +53,85 @@ impl TryFrom<u8> for CheckDACertStatus {
 
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
-pub struct CertVerifier<S> {
+pub struct CertVerifier {
     /// Contains the view functions which are needed when building a certificate, it is only used in the dispersal route
-    cert_verifier_contract: IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    cert_verifier_contract: IEigenDACertVerifierInstance<
+        Http<reqwest::Client>,
+        FillProvider<
+            JoinFill<Identity, WalletFiller<EthereumWallet>>,
+            RootProvider<Http<reqwest::Client>>,
+            Http<reqwest::Client>,
+            Ethereum,
+        >,
+    >,
+
     /// Only contains the single function checkDACert, used purely for verification, only used in retrieval route
-    cert_verifier_contract_base:
-        IEigenDACertVerifierBase<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    cert_verifier_contract_base: IEigenDACertVerifierBaseInstance<
+        Http<reqwest::Client>,
+        FillProvider<
+            JoinFill<Identity, WalletFiller<EthereumWallet>>,
+            RootProvider<Http<reqwest::Client>>,
+            Http<reqwest::Client>,
+            Ethereum,
+        >,
+    >,
 }
 
-impl<S> CertVerifier<S> {
+impl CertVerifier {
     /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
-    pub fn new(address: H160, rpc_url: SecretUrl, signer: S) -> Result<Self, CertVerifierError>
-    where
-        EthersSigner<S>: Signer,
-    {
-        let url: String = rpc_url.try_into()?;
+    pub fn new(
+        address: H160,
+        rpc_url: SecretUrl,
+        signer: PrivateKeySigner,
+    ) -> Result<Self, CertVerifierError> {
+        let address = alloy::primitives::Address::from_str(&hex::encode(address))
+            .map_err(|_| CertVerifierError::InvalidCertVerifierAddress(address))?;
 
-        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
-        // ethers hard codes 1 when constructing wallets
-        let chain_id = 1;
-        let signer = EthersSigner::new(signer, chain_id);
-        let client = SignerMiddleware::new(provider, signer);
-        let client = Arc::new(client);
-        let cert_verifier_contract = IEigenDACertVerifier::new(address, client.clone());
+        let rpc_url: String = rpc_url.try_into()?;
+        let rpc_url = Url::from_str(&rpc_url).unwrap();
 
-        let cert_verifier_contract_base = IEigenDACertVerifierBase::new(address, client);
+        // Construct the ProviderBuilder
+        let wallet = EthereumWallet::from(signer.clone());
+        let cert_verifier_provider = ProviderBuilder::new()
+            .wallet(wallet.clone())
+            .on_http(rpc_url.clone());
+        let contract = IEigenDACertVerifierInstance::new(address, cert_verifier_provider);
+        let cert_verifier_base_provider = ProviderBuilder::new().wallet(wallet).on_http(rpc_url);
+        let contract_base =
+            IEigenDACertVerifierBaseInstance::new(address, cert_verifier_base_provider);
+
         Ok(CertVerifier {
-            cert_verifier_contract,
-            cert_verifier_contract_base,
+            cert_verifier_contract: contract,
+            cert_verifier_contract_base: contract_base,
         })
     }
 
     /// Queries the cert verifier contract for the configured set of quorum numbers that must
     /// be set in the BlobHeader, and verified in VerifyDACertV2 and verifyDACertV2FromSignedBatch
-    pub async fn quorum_numbers_required(&self) -> Result<Vec<u8>, CertVerifierError>
-    where
-        EthersSigner<S>: Signer,
-    {
-        let quorums: Bytes = self
+    pub async fn quorum_numbers_required(&self) -> Result<Vec<u8>, CertVerifierError> {
+        let quorums = self
             .cert_verifier_contract
-            .quorum_numbers_required()
+            .quorumNumbersRequired()
             .call()
             .await
-            .map_err(|_| CertVerifierError::Contract("quorum_numbers_required".to_string()))?;
-        Ok(quorums.to_vec())
+            .unwrap();
+        // .map_err(|_| CertVerifierError::Contract("quorum_numbers_required".to_string()))?;
+        Ok(quorums._0.to_vec())
     }
 
     /// Calls the CheckDACert view function on the EigenDACertVerifier contract.
     ///
     /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a [`CertVerifierError`].
-    pub async fn check_da_cert(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError>
-    where
-        EthersSigner<S>: Signer,
-    {
+    pub async fn check_da_cert(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError> {
         let abi_encoded_cert: Vec<u8> = eigenda_cert_to_abi_encoded(eigenda_cert)?;
         let res = self
             .cert_verifier_contract_base
-            .check_da_cert(Bytes::from(abi_encoded_cert))
+            .checkDACert(Bytes::from(abi_encoded_cert))
             .call()
             .await
             .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
 
-        let status = CheckDACertStatus::try_from(res)?;
+        let status = CheckDACertStatus::try_from(res.status)?;
         match status {
             CheckDACertStatus::NullError => {
                 return Err(CertVerifierError::VerificationFailedNullError);
@@ -123,18 +150,16 @@ impl<S> CertVerifier<S> {
     /// Calls the SecurityThresholds view function on the EigenDACertVerifier contract.
     ///
     /// This method returns the confirmation threshold
-    pub async fn get_confirmation_threshold(&self) -> Result<u8, CertVerifierError>
-    where
-        EthersSigner<S>: Signer,
-    {
-        let result: SecurityThresholds = self
+    pub async fn get_confirmation_threshold(&self) -> Result<u8, CertVerifierError> {
+        let result = self
             .cert_verifier_contract
-            .security_thresholds()
+            .securityThresholds()
             .call()
             .await
-            .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?;
+            .unwrap();
+        // .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?;
 
-        Ok(result.confirmation_threshold)
+        Ok(result._0.confirmationThreshold)
     }
 }
 
@@ -345,13 +370,14 @@ mod tests {
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     async fn test_check_da_cert() {
-        let cert_verifier = CertVerifier::new(
-            H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
-            SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
-            get_test_private_key_signer(),
-        )
-        .unwrap();
-        let res = cert_verifier.check_da_cert(&get_test_eigenda_cert()).await;
-        assert!(res.is_ok())
+        //     let cert_verifier = CertVerifier::new(
+        //         H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
+        //         SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
+        //         get_test_private_key_signer(),
+        //     )
+        //     .unwrap();
+        //     let res = cert_verifier.check_da_cert(&get_test_eigenda_cert()).await;
+        //     assert!(res.is_ok())
+        unimplemented!("fix alloy");
     }
 }

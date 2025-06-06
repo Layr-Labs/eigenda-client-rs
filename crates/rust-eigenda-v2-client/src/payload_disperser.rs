@@ -41,7 +41,7 @@ pub struct PayloadDisperserConfig {
 pub struct PayloadDisperser<S = PrivateKeySigner> {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient<S>,
-    cert_verifier: CertVerifier<S>,
+    cert_verifier: CertVerifier,
     required_quorums: Vec<u8>,
 }
 
@@ -67,7 +67,7 @@ impl<S> PayloadDisperser<S> {
                 ConversionError::Address(payload_config.cert_verifier_address.clone())
             })?,
             payload_config.eth_rpc_url.clone(),
-            signer,
+            alloy::signers::local::PrivateKeySigner::random(), // TODO: REPLACE
         )?;
         let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {

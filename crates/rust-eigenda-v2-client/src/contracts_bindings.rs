@@ -5,5 +5,10 @@ alloy::sol! {
 
 alloy::sol! {
     #[sol(rpc)]
+    IEigenDACertVerifierBase, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifierBase.json"),
+}
+
+alloy::sol! {
+    #[sol(rpc)]
     IRelayRegistry, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IRelayRegistry.json"),
 }
