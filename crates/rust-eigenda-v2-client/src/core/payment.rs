@@ -1,4 +1,6 @@
-use ethereum_types::Address;
+use std::io::Read;
+
+use alloy::primitives::Address;
 use num_bigint::BigInt;
 use rust_eigenda_signers::Message;
 use sha2::{Digest, Sha256};
@@ -78,8 +80,13 @@ impl PaymentStateRequest {
 
     pub fn prepare_for_signing_by(&self, address: &Address) -> Message {
         let mut keccak_hash = Keccak::v256();
-        keccak_hash.update((address.as_bytes().len() as u32).to_be_bytes().as_slice());
-        keccak_hash.update(address.as_bytes());
+        // TODO: REMOVE EXPECT? OR INFALIBLE?
+        let address_bytes: Vec<u8> = address
+            .bytes()
+            .map(|b| b.expect("failed to read byte") as u8)
+            .collect();
+        keccak_hash.update((address_bytes.len() as u32).to_be_bytes().as_slice());
+        keccak_hash.update(&address_bytes);
         keccak_hash.update(self.timestamp.to_be_bytes().as_slice());
 
         let mut account_id_hash: [u8; 32] = [0u8; 32];

@@ -80,7 +80,7 @@ pub struct CertVerifier {
 impl CertVerifier {
     /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
     pub fn new(
-        address: H160,
+        address: H160, // TODO: REPLACE WITH ADDRESS
         rpc_url: SecretUrl,
         signer: PrivateKeySigner,
     ) -> Result<Self, CertVerifierError> {

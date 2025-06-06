@@ -54,8 +54,8 @@ pub(crate) mod generated {
 
 #[cfg(test)]
 mod tests {
+    use alloy::{primitives::Address, signers::local::PrivateKeySigner};
     use dotenv::dotenv;
-    use ethereum_types::H160;
     use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
     use std::{env, str::FromStr, time::Duration};
     use url::Url;
@@ -68,7 +68,7 @@ mod tests {
         utils::SecretUrl,
     };
 
-    use rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner;
+    // use rust_eigenda_signers::signers::private_key::Signer as PrivateKeySigner;
 
     const TEST_BLOB_FINALIZATION_TIMEOUT: u64 = 180;
     const TEST_PAYLOAD_DATA: &[u8] = &[1, 2, 3, 4, 5];
@@ -81,11 +81,11 @@ mod tests {
 
     pub fn get_test_private_key_signer() -> PrivateKeySigner {
         dotenv().ok();
-        let private_key = env::var("SIGNER_PRIVATE_KEY")
+        let private_key: PrivateKeySigner = env::var("SIGNER_PRIVATE_KEY")
             .expect("SIGNER_PRIVATE_KEY must be set")
             .parse()
             .expect("valid secret key");
-        PrivateKeySigner::new(private_key)
+        private_key
     }
 
     fn get_test_payload_disperser_config() -> PayloadDisperserConfig {
@@ -120,7 +120,7 @@ mod tests {
         crate::relay_client::RelayClientConfig {
             max_grpc_message_size: 9999999,
             relay_clients_keys: vec![0, 1, 2],
-            relay_registry_address: H160::from_str(HOLESKY_RELAY_REGISTRY_ADDRESS).unwrap(),
+            relay_registry_address: Address::from_str(HOLESKY_RELAY_REGISTRY_ADDRESS).unwrap(),
             eth_rpc_url: get_test_holesky_rpc_url(),
         }
     }
