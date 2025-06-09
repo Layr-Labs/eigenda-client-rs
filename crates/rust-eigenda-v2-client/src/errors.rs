@@ -14,7 +14,7 @@ pub enum EigenClientError {
     #[error(transparent)]
     Blob(#[from] BlobError),
     #[error(transparent)]
-    PayloadDisperser(#[from] PayloadDisperserError),
+    PayloadDisperser(#[from] Box<PayloadDisperserError>),
 }
 
 /// Errors specific to conversion
@@ -58,7 +58,7 @@ pub enum ConversionError {
 #[derive(Debug, thiserror::Error)]
 pub enum RelayPayloadRetrieverError {
     #[error(transparent)]
-    RelayClient(#[from] RelayClientError),
+    RelayClient(#[from] Box<RelayClientError>),
     #[error(transparent)]
     Blob(#[from] BlobError),
     #[error(transparent)]
@@ -120,6 +120,12 @@ pub enum RelayClientError {
     RelayKeyToUrl(u32),
 }
 
+impl From<RelayClientError> for RelayPayloadRetrieverError {
+    fn from(err: RelayClientError) -> Self {
+        RelayPayloadRetrieverError::RelayClient(Box::new(err))
+    }
+}
+
 /// Errors for the EthClient
 #[derive(Debug, thiserror::Error)]
 pub enum EthClientError {
@@ -166,7 +172,7 @@ pub enum DisperseError {
     #[error("Invalid Account id")]
     AccountID,
     #[error("Failed RPC call: {0}")]
-    FailedRPC(#[from] tonic::Status),
+    FailedRPC(#[from] Box<tonic::Status>),
     #[error("Calculated and disperser blob key mismatch")]
     BlobKeyMismatch,
     #[error(transparent)]
@@ -175,6 +181,12 @@ pub enum DisperseError {
     SystemTime(#[from] std::time::SystemTimeError),
     #[error(transparent)]
     Signer(#[from] Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl From<tonic::Status> for DisperseError {
+    fn from(err: tonic::Status) -> Self {
+        DisperseError::FailedRPC(Box::new(err))
+    }
 }
 
 /// Errors specific to the [`PayloadDisperser`].
@@ -190,6 +202,12 @@ pub enum PayloadDisperserError {
     Decode(#[from] DecodeError),
     #[error(transparent)]
     CertVerifier(#[from] CertVerifierError),
+}
+
+impl From<PayloadDisperserError> for EigenClientError {
+    fn from(err: PayloadDisperserError) -> Self {
+        EigenClientError::PayloadDisperser(Box::new(err))
+    }
 }
 
 /// Errors specific to the CertVerifier
