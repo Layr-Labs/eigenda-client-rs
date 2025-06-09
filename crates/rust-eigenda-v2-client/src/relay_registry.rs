@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use url::Url;
 
 use alloy::{
@@ -23,11 +22,9 @@ pub struct RelayRegistry {
 impl RelayRegistry {
     /// Creates a new instance of RelayRegistry receiving the address of the contract and the ETH RPC url.
     pub fn new(address: Address, rpc_url: SecretUrl) -> Result<Self, ConversionError> {
-        let rpc_url: String = rpc_url.try_into()?;
-        let rpc_url = Url::from_str(&rpc_url).unwrap();
-
         // Construct the ProviderBuilder
-        let provider = ProviderBuilder::new().on_http(rpc_url.clone());
+        let rpc_url: Url = rpc_url.into();
+        let provider = ProviderBuilder::new().on_http(rpc_url);
         let contract = IRelayRegistryInstance::new(address, provider);
         Ok(RelayRegistry {
             relay_registry_contract: contract,
@@ -46,8 +43,8 @@ impl RelayRegistry {
                 .relayKeyToUrl(relay_key)
                 .call()
                 .await
-                .unwrap()
-                ._0 // .map_err(|_| RelayClientError::RelayKeyToUrl(relay_key))?
+                .map_err(|_| RelayClientError::RelayKeyToUrl(relay_key))?
+                ._0 // .
         ); // TODO: forcing https schema on local stack will fail
         Ok(url)
     }

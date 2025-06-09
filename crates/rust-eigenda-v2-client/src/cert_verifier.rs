@@ -5,7 +5,6 @@ use alloy::{
 };
 // use ethers::prelude::*;
 use rust_eigenda_v2_common::EigenDACert;
-use std::str::FromStr;
 use url::Url;
 
 use crate::{
@@ -61,10 +60,8 @@ pub struct CertVerifier {
 impl CertVerifier {
     /// Creates a new instance of [`CertVerifier`], receiving the address of the contract and the ETH RPC url.
     pub fn new(address: Address, rpc_url: SecretUrl) -> Result<Self, CertVerifierError> {
-        let rpc_url: String = rpc_url.try_into()?;
-        let rpc_url = Url::from_str(&rpc_url).unwrap();
-
         // Construct the ProviderBuilder
+        let rpc_url: Url = rpc_url.into();
         let cert_verifier_provider = ProviderBuilder::new().on_http(rpc_url.clone());
         let contract = IEigenDACertVerifierInstance::new(address, cert_verifier_provider);
         let cert_verifier_base_provider = ProviderBuilder::new().on_http(rpc_url);

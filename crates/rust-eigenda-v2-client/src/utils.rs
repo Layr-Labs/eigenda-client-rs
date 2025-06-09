@@ -34,6 +34,12 @@ impl TryFrom<SecretUrl> for String {
     }
 }
 
+impl From<SecretUrl> for Url {
+    fn from(secret_url: SecretUrl) -> Url {
+        Url::from_str(secret_url.inner.expose_secret()).unwrap() // Safe unwrap, as we control the input
+    }
+}
+
 impl PartialEq for SecretUrl {
     fn eq(&self, other: &Self) -> bool {
         self.inner.expose_secret().eq(other.inner.expose_secret())
