@@ -138,7 +138,9 @@ impl Accountant {
             return Ok(self.cumulative_payment.clone());
         }
 
-        Err(AccountantError::PaymentNotAvailable)
+        Err(AccountantError::PaymentNotAvailable(
+            self.account_id.to_string(),
+        ))
     }
 
     /// Returns the chargeable price for a given data length
