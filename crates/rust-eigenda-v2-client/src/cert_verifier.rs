@@ -3,7 +3,6 @@ use alloy::{
     providers::{ProviderBuilder, RootProvider},
     transports::http::Http,
 };
-// use ethers::prelude::*;
 use rust_eigenda_v2_common::EigenDACert;
 use url::Url;
 
