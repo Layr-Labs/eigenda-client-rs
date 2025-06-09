@@ -82,8 +82,7 @@ impl CertVerifier {
             .quorumNumbersRequired()
             .call()
             .await
-            .unwrap();
-        // .map_err(|_| CertVerifierError::Contract("quorum_numbers_required".to_string()))?;
+            .map_err(|_| CertVerifierError::Contract("quorum_numbers_required".to_string()))?;
         Ok(quorums._0.to_vec())
     }
 
@@ -124,8 +123,7 @@ impl CertVerifier {
             .securityThresholds()
             .call()
             .await
-            .unwrap();
-        // .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?;
+            .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?;
 
         Ok(result._0.confirmationThreshold)
     }
