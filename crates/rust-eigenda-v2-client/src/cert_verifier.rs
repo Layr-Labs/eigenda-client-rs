@@ -56,7 +56,7 @@ pub struct CertVerifier<S> {
 }
 
 impl<S> CertVerifier<S> {
-    /// Returns the contract of the cert verifier at the specified block number.
+    /// Fetches the contract of the cert verifier at the specified block number from the CertVerifierRouter.
     async fn get_cert_verifier_contract(
         &self,
         block_number: u32,
