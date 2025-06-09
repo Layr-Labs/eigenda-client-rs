@@ -14,7 +14,7 @@ pub enum EigenClientError {
     #[error(transparent)]
     Communication(#[from] CommunicationError),
     #[error(transparent)]
-    BlobStatus(#[from] BlobStatusError),
+    BlobStatus(#[from] Box<BlobStatusError>),
     #[error(transparent)]
     Conversion(#[from] ConversionError),
     #[error(transparent)]
@@ -69,6 +69,12 @@ pub enum BlobStatusError {
     Prost(#[from] prost::DecodeError),
     #[error(transparent)]
     Status(#[from] Status),
+}
+
+impl From<BlobStatusError> for EigenClientError {
+    fn from(err: BlobStatusError) -> Self {
+        EigenClientError::BlobStatus(Box::new(err))
+    }
 }
 
 /// Errors specific to conversion

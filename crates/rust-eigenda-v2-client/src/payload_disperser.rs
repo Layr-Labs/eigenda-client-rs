@@ -27,7 +27,6 @@ pub struct PayloadDisperser<S = PrivateKeySigner> {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient<S>,
     cert_verifier: CertVerifier<S>,
-    required_quorums: Vec<u8>,
 }
 
 impl<S> PayloadDisperser<S> {
@@ -51,12 +50,10 @@ impl<S> PayloadDisperser<S> {
             payload_config.eth_rpc_url.clone(),
             signer,
         )?;
-        let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {
             disperser_client,
             config: payload_config.clone(),
             cert_verifier,
-            required_quorums,
         })
     }
 
@@ -69,12 +66,13 @@ impl<S> PayloadDisperser<S> {
             .to_blob(self.config.polynomial_form)
             .map_err(ConversionError::EigenDACommon)?;
 
+        let required_quorums = self.cert_verifier.quorum_numbers_required().await?;
         let (blob_status, blob_key) = self
             .disperser_client
             .disperse_blob(
                 &blob.serialize(),
                 self.config.blob_version,
-                &self.required_quorums,
+                &required_quorums,
             )
             .await?;
 
@@ -103,10 +101,13 @@ impl<S> PayloadDisperser<S> {
             .disperser_client
             .blob_status(blob_key)
             .await
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Disperser(e)))?;
+            .map_err(|e| {
+                EigenClientError::PayloadDisperser(Box::new(PayloadDisperserError::Disperser(e)))
+            })?;
 
-        let blob_status = BlobStatus::try_from(status.status)
-            .map_err(|e| EigenClientError::PayloadDisperser(PayloadDisperserError::Decode(e)))?;
+        let blob_status = BlobStatus::try_from(status.status).map_err(|e| {
+            EigenClientError::PayloadDisperser(Box::new(PayloadDisperserError::Decode(e)))
+        })?;
         match blob_status {
             BlobStatus::Unknown | BlobStatus::Failed => Err(PayloadDisperserError::BlobStatus)?,
             BlobStatus::Encoded | BlobStatus::GatheringSignatures | BlobStatus::Queued => Ok(None),
@@ -116,7 +117,9 @@ impl<S> PayloadDisperser<S> {
                     .verify_cert_v2(&eigenda_cert)
                     .await
                     .map_err(|e| {
-                        EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                        EigenClientError::PayloadDisperser(Box::new(
+                            PayloadDisperserError::CertVerifier(e),
+                        ))
                     })?;
                 Ok(Some(eigenda_cert))
             }
@@ -134,11 +137,11 @@ impl<S> PayloadDisperser<S> {
         let signed_batch = match status.clone().signed_batch {
             Some(batch) => batch,
             None => {
-                return Err(EigenClientError::PayloadDisperser(
+                return Err(EigenClientError::PayloadDisperser(Box::new(
                     PayloadDisperserError::Conversion(ConversionError::SignedBatch(
                         "Not Present".to_string(),
                     )),
-                ))
+                )))
             }
         };
         let non_signer_stakes_and_signature = self
@@ -146,7 +149,7 @@ impl<S> PayloadDisperser<S> {
             .get_non_signer_stakes_and_signature(signed_batch)
             .await
             .map_err(|e| {
-                EigenClientError::PayloadDisperser(PayloadDisperserError::CertVerifier(e))
+                EigenClientError::PayloadDisperser(Box::new(PayloadDisperserError::CertVerifier(e)))
             })?;
 
         let cert = build_cert_from_reply(status, non_signer_stakes_and_signature)?;
