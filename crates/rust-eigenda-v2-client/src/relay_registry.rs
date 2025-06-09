@@ -44,7 +44,7 @@ impl RelayRegistry {
                 .call()
                 .await
                 .map_err(|_| RelayClientError::RelayKeyToUrl(relay_key))?
-                ._0 // .
+                ._0
         ); // TODO: forcing https schema on local stack will fail
         Ok(url)
     }

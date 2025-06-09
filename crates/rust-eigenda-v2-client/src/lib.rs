@@ -1,7 +1,6 @@
 pub mod accountant;
 pub mod cert_verifier;
 pub mod commitment_utils;
-// pub mod contracts_bindings;
 pub mod core;
 pub mod disperser_client;
 pub mod errors;

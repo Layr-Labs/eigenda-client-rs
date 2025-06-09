@@ -36,7 +36,7 @@ impl TryFrom<SecretUrl> for String {
 
 impl From<SecretUrl> for Url {
     fn from(secret_url: SecretUrl) -> Url {
-        Url::from_str(secret_url.inner.expose_secret()).unwrap() // Safe unwrap, as we control the input
+        Url::from_str(secret_url.inner.expose_secret()).unwrap() // Safe unwrap, as we now inner is a valid URL
     }
 }
 

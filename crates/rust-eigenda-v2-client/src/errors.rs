@@ -45,8 +45,6 @@ pub enum ConversionError {
     PrivateKey,
     #[error(transparent)]
     UrlParse(#[from] url::ParseError),
-    // #[error(transparent)]
-    // Wallet(#[from] Wallet), // TODO: REPLACE WITH ALLOY COUNTERPART
     #[error(transparent)]
     EigenDACommon(#[from] rust_eigenda_v2_common::ConversionError),
     #[error("Failed to convert U256: {0}")]
