@@ -9,12 +9,12 @@ use std::str::FromStr;
 use url::Url;
 
 use crate::{
-    contracts_bindings::{
+    core::eigenda_cert::eigenda_cert_to_abi_encoded,
+    errors::{CertVerifierError, ConversionError},
+    generated::contract_bindings::{
         IEigenDACertVerifier::IEigenDACertVerifierInstance,
         IEigenDACertVerifierBase::IEigenDACertVerifierBaseInstance,
     },
-    core::eigenda_cert::eigenda_cert_to_abi_encoded,
-    errors::{CertVerifierError, ConversionError},
     utils::SecretUrl,
 };
 

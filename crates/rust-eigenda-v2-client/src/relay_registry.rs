@@ -8,8 +8,8 @@ use alloy::{
 };
 
 use crate::{
-    contracts_bindings::IRelayRegistry::IRelayRegistryInstance,
     errors::{ConversionError, RelayClientError},
+    generated::contract_bindings::IRelayRegistry::IRelayRegistryInstance,
     relay_client::RelayKey,
     utils::SecretUrl,
 };

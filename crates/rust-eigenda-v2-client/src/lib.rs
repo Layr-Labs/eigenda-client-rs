@@ -1,7 +1,7 @@
 pub mod accountant;
 pub mod cert_verifier;
 pub mod commitment_utils;
-pub mod contracts_bindings;
+// pub mod contracts_bindings;
 pub mod core;
 pub mod disperser_client;
 pub mod errors;
@@ -49,7 +49,22 @@ pub(crate) mod generated {
         include!("generated/relay.rs");
     }
 
-    // TODO: MOVE ALLOY MACROS HERE?
+    pub(crate) mod contract_bindings {
+        alloy::sol! {
+            #[sol(rpc)]
+            IEigenDACertVerifier, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifier.json"),
+        }
+
+        alloy::sol! {
+            #[sol(rpc)]
+            IEigenDACertVerifierBase, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifierBase.json"),
+        }
+
+        alloy::sol! {
+            #[sol(rpc)]
+            IRelayRegistry, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IRelayRegistry.json"),
+        }
+    }
 }
 
 #[cfg(test)]
