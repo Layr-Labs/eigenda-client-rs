@@ -104,7 +104,7 @@ impl<S> PayloadDisperser<S> {
         Ok(blob_key)
     }
 
-    /// Retrieves the inclusion data for a given blob key
+    /// Retrieves the certificate for a given blob key
     /// If the requested blob is still not complete, returns None
     /// The Cert returned is checked to be correct, and an error is returned if it is not valid.
     pub async fn get_cert(
@@ -206,10 +206,13 @@ impl<S> PayloadDisperser<S> {
             return Err(PayloadDisperserError::BatchHeaderNotPresent);
         }
 
+        let confirmation_threshold = self.cert_verifier.get_confirmation_threshold().await?;
+
         self.check_thresholds_pure(
             batch_quorum_numbers,
             batch_signed_percentages,
             blob_quorum_numbers,
+            confirmation_threshold,
         )
         .await?;
 
@@ -221,6 +224,7 @@ impl<S> PayloadDisperser<S> {
         batch_quorum_numbers: Vec<u32>,
         batch_signed_percentages: Vec<u8>,
         blob_quorum_numbers: Vec<u32>,
+        confirmation_threshold: u8,
     ) -> Result<(), PayloadDisperserError>
     where
         S: Sign,
@@ -241,8 +245,6 @@ impl<S> PayloadDisperser<S> {
         {
             signed_percentages_per_quorum.insert(quorum_id, *signed_percentage);
         }
-
-        let confirmation_threshold = self.cert_verifier.get_confirmation_threshold().await?;
 
         for quorum in blob_quorum_numbers {
             let signed_percentage = signed_percentages_per_quorum
@@ -403,13 +405,12 @@ mod tests {
         while !finished {
             let cert = payload_disperser.get_cert(&blob_key).await.unwrap();
             match cert {
-                Some(cert) => {
-                    println!("Inclusion data: {:?}", cert);
+                Some(_) => {
                     finished = true;
                 }
                 None => {
                     let elapsed = start_time.elapsed();
-                    assert!(elapsed < timeout, "Timeout waiting for inclusion data");
+                    assert!(elapsed < timeout, "Timeout waiting for certificate");
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 }
             }
