@@ -234,12 +234,6 @@ impl From<PayloadDisperserError> for EigenClientError {
     }
 }
 
-impl From<PayloadDisperserError> for EigenClientError {
-    fn from(err: PayloadDisperserError) -> Self {
-        EigenClientError::PayloadDisperser(Box::new(err))
-    }
-}
-
 /// Errors specific to the CertVerifier
 #[derive(Debug, thiserror::Error)]
 pub enum CertVerifierError {
