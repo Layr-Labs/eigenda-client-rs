@@ -61,7 +61,7 @@ impl<S> PayloadDisperser<S> {
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
-Address::from_str(&payload_config.cert_verifier_router_address).map_err(|_| {
+            Address::from_str(&payload_config.cert_verifier_router_address).map_err(|_| {
                 ConversionError::Address(payload_config.cert_verifier_router_address.clone())
             })?,
             payload_config.eth_rpc_url.clone(),

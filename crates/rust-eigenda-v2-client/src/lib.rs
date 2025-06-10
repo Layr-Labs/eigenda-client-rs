@@ -63,10 +63,11 @@ pub(crate) mod generated {
             #[sol(rpc)]
             IRelayRegistry, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDARelayRegistry.json"),
         }
-    }
 
-    pub(crate) mod cert_verifier_router_contract {
-        include!("generated/IEigenDACertVerifierRouter.rs");
+        alloy::sol! {
+            #[sol(rpc)]
+            IEigenDACertVerifierRouter, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifierRouter.json"),
+        }
     }
 }
 
