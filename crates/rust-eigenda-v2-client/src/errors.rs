@@ -147,8 +147,8 @@ pub enum EthClientError {
 /// Errors specific to the Accountant
 #[derive(Debug, thiserror::Error)]
 pub enum AccountantError {
-    #[error("Neither reservation nor on-demand payment is available")]
-    PaymentNotAvailable,
+    #[error("invalid payments: no available bandwidth reservation found for account {0}, and current cumulativePayment balance insufficient to make an on-demand dispersal. Consider increasing reservation or cumulative payment on-chain. For more details, see https://docs.eigenda.xyz/core-concepts/payments#disperser-client-requirements")]
+    PaymentNotAvailable(String),
     #[error("Payment reply is not complete")]
     PaymentReply,
 }

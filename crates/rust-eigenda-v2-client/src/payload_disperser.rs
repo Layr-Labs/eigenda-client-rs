@@ -41,7 +41,6 @@ pub struct PayloadDisperser<S = PrivateKeySigner> {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient<S>,
     cert_verifier: CertVerifier,
-    required_quorums: Vec<u8>,
 }
 
 impl<S> PayloadDisperser<S> {
@@ -67,12 +66,10 @@ impl<S> PayloadDisperser<S> {
             })?,
             payload_config.eth_rpc_url.clone(),
         )?;
-        let required_quorums = cert_verifier.quorum_numbers_required().await?;
         Ok(PayloadDisperser {
             disperser_client,
             config: payload_config.clone(),
             cert_verifier,
-            required_quorums,
         })
     }
 
@@ -85,12 +82,13 @@ impl<S> PayloadDisperser<S> {
             .to_blob(self.config.polynomial_form)
             .map_err(ConversionError::EigenDACommon)?;
 
+        let required_quorums = self.cert_verifier.quorum_numbers_required().await?;
         let (blob_status, blob_key) = self
             .disperser_client
             .disperse_blob(
                 &blob.serialize(),
                 self.config.blob_version,
-                &self.required_quorums,
+                &required_quorums,
             )
             .await?;
 
