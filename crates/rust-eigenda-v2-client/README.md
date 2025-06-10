@@ -189,6 +189,7 @@ fn main() {
     let artifacts = [
         "IEigenDACertVerifier.sol/IEigenDACertVerifier.json",
         "IEigenDACertVerifierBase.sol/IEigenDACertVerifierBase.json",
+        "IEigenDARelayRegistry.sol/IEigenDARelayRegistry.json",
         // Add more artifacts as needed
     ];
 

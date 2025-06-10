@@ -61,7 +61,7 @@ pub(crate) mod generated {
 
         alloy::sol! {
             #[sol(rpc)]
-            IRelayRegistry, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IRelayRegistry.json"),
+            IRelayRegistry, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDARelayRegistry.json"),
         }
     }
 }
