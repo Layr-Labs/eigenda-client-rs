@@ -172,7 +172,7 @@ impl CertVerifier {
 
     /// Calls the `SecurityThresholds` view function on the `EigenDACertVerifier` contract.
     ///
-    /// This method returns the confirmation threshold
+    /// This method returns the confirmation threshold.
     pub async fn get_confirmation_threshold(
         &self,
         reference_block_number: u64,
