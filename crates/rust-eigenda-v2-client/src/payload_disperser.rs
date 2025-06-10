@@ -104,7 +104,7 @@ impl<S> PayloadDisperser<S> {
         Ok(blob_key)
     }
 
-    /// Retrieves the inclusion data for a given blob key
+    /// Retrieves the certificate for a given blob key
     /// If the requested blob is still not complete, returns None
     /// The Cert returned is checked to be correct, and an error is returned if it is not valid.
     pub async fn get_cert(
@@ -409,12 +409,11 @@ mod tests {
             let cert = payload_disperser.get_cert(&blob_key).await.unwrap();
             match cert {
                 Some(cert) => {
-                    println!("Inclusion data: {:?}", cert);
                     finished = true;
                 }
                 None => {
                     let elapsed = start_time.elapsed();
-                    assert!(elapsed < timeout, "Timeout waiting for inclusion data");
+                    assert!(elapsed < timeout, "Timeout waiting for certificate");
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 }
             }
