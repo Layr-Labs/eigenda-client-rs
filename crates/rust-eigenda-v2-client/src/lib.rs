@@ -63,6 +63,11 @@ pub(crate) mod generated {
             #[sol(rpc)]
             IRelayRegistry, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDARelayRegistry.json"),
         }
+
+        alloy::sol! {
+            #[sol(rpc)]
+            IEigenDACertVerifierRouter, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifierRouter.json"),
+        }
     }
 }
 
@@ -89,7 +94,7 @@ mod tests {
     pub const HOLESKY_ETH_RPC_URL: &str = "https://ethereum-holesky-rpc.publicnode.com";
     pub const HOLESKY_DISPERSER_RPC_URL: &str = "https://disperser-testnet-holesky.eigenda.xyz";
     pub const HOLESKY_RELAY_REGISTRY_ADDRESS: &str = "0xac8c6c7ee7572975454e2f0b5c720f9e74989254";
-    pub const CERT_VERIFIER_ADDRESS: &str = "0xd305aebcdec21d00fdf8796ce37d0e74836a6b6e";
+    pub const CERT_VERIFIER_ROUTER_ADDRESS: &str = "0xdd735affe77a5ed5b21ed47219f95ed841f8ffbd";
     pub const REGISTRY_COORDINATOR_ADDRESS: &str = "0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490";
     pub const OPERATOR_STATE_RETRIEVER_ADDRESS: &str = "0xB4baAfee917fb4449f5ec64804217bccE9f46C67";
 
@@ -106,7 +111,7 @@ mod tests {
         PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: CERT_VERIFIER_ADDRESS.to_string(),
+            cert_verifier_router_address: CERT_VERIFIER_ROUTER_ADDRESS.to_string(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,

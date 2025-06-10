@@ -190,6 +190,7 @@ fn main() {
         "IEigenDACertVerifier.sol/IEigenDACertVerifier.json",
         "IEigenDACertVerifierBase.sol/IEigenDACertVerifierBase.json",
         "IEigenDARelayRegistry.sol/IEigenDARelayRegistry.json",
+        "IEigenDACertVerifierRouter.sol/IEigenDACertVerifierRouter.json",
         // Add more artifacts as needed
     ];
 
