@@ -206,11 +206,16 @@ impl<S> PayloadDisperser<S> {
             .ok_or(PayloadDisperserError::BatchHeaderNotPresent)?
             .reference_block_number;
 
+        let confirmation_threshold = self
+            .cert_verifier
+            .get_confirmation_threshold(reference_block_number)
+            .await?;
+
         self.check_thresholds_pure(
             batch_quorum_numbers,
             batch_signed_percentages,
             blob_quorum_numbers,
-            reference_block_number,
+            confirmation_threshold,
         )
         .await?;
 
@@ -222,7 +227,7 @@ impl<S> PayloadDisperser<S> {
         batch_quorum_numbers: Vec<u32>,
         batch_signed_percentages: Vec<u8>,
         blob_quorum_numbers: Vec<u32>,
-        reference_block_number: u64,
+        confirmation_threshold: u8,
     ) -> Result<(), PayloadDisperserError>
     where
         S: Sign,
@@ -243,11 +248,6 @@ impl<S> PayloadDisperser<S> {
         {
             signed_percentages_per_quorum.insert(quorum_id, *signed_percentage);
         }
-
-        let confirmation_threshold = self
-            .cert_verifier
-            .get_confirmation_threshold(reference_block_number)
-            .await?;
 
         for quorum in blob_quorum_numbers {
             let signed_percentage = signed_percentages_per_quorum
