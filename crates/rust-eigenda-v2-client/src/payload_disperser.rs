@@ -408,7 +408,7 @@ mod tests {
         while !finished {
             let cert = payload_disperser.get_cert(&blob_key).await.unwrap();
             match cert {
-                Some(cert) => {
+                Some(_) => {
                     finished = true;
                 }
                 None => {
