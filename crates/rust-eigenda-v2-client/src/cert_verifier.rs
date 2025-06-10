@@ -62,14 +62,15 @@ impl CertVerifier {
         // Construct the ProviderBuilder
         let rpc_url: Url = rpc_url.into();
         let cert_verifier_provider = ProviderBuilder::new().on_http(rpc_url.clone());
-        let contract = IEigenDACertVerifierInstance::new(address, cert_verifier_provider);
+        let cert_verifier_contract =
+            IEigenDACertVerifierInstance::new(address, cert_verifier_provider);
         let cert_verifier_base_provider = ProviderBuilder::new().on_http(rpc_url);
-        let contract_base =
+        let cert_verifier_contract_base =
             IEigenDACertVerifierBaseInstance::new(address, cert_verifier_base_provider);
 
         Ok(CertVerifier {
-            cert_verifier_contract: contract,
-            cert_verifier_contract_base: contract_base,
+            cert_verifier_contract,
+            cert_verifier_contract_base,
         })
     }
 
