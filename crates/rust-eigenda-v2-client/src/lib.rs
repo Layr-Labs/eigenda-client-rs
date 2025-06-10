@@ -48,16 +48,21 @@ pub(crate) mod generated {
         include!("generated/relay.rs");
     }
 
-    pub(crate) mod cert_verifier_contract {
-        include!("generated/IEigenDACertVerifier.rs");
-    }
+    pub(crate) mod contract_bindings {
+        alloy::sol! {
+            #[sol(rpc)]
+            IEigenDACertVerifier, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifier.json"),
+        }
 
-    pub(crate) mod relay_registry_contract {
-        include!("generated/IRelayRegistry.rs");
-    }
+        alloy::sol! {
+            #[sol(rpc)]
+            IEigenDACertVerifierBase, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDACertVerifierBase.json"),
+        }
 
-    pub(crate) mod cert_verifier_base_contract {
-        include!("generated/IEigenDACertVerifierBase.rs");
+        alloy::sol! {
+            #[sol(rpc)]
+            IRelayRegistry, concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated/abi/IEigenDARelayRegistry.json"),
+        }
     }
 
     pub(crate) mod cert_verifier_router_contract {
@@ -67,8 +72,8 @@ pub(crate) mod generated {
 
 #[cfg(test)]
 mod tests {
+    use alloy::primitives::Address;
     use dotenv::dotenv;
-    use ethereum_types::H160;
     use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
     use std::{env, str::FromStr, time::Duration};
     use url::Url;
@@ -133,7 +138,7 @@ mod tests {
         crate::relay_client::RelayClientConfig {
             max_grpc_message_size: 9999999,
             relay_clients_keys: vec![0, 1, 2],
-            relay_registry_address: H160::from_str(HOLESKY_RELAY_REGISTRY_ADDRESS).unwrap(),
+            relay_registry_address: Address::from_str(HOLESKY_RELAY_REGISTRY_ADDRESS).unwrap(),
             eth_rpc_url: get_test_holesky_rpc_url(),
         }
     }
@@ -143,12 +148,9 @@ mod tests {
     }
 
     pub async fn get_test_relay_client() -> RelayClient {
-        RelayClient::new(
-            get_relay_client_test_config(),
-            get_test_private_key_signer(),
-        )
-        .await
-        .unwrap()
+        RelayClient::new(get_relay_client_test_config())
+            .await
+            .unwrap()
     }
 
     async fn wait_for_blob_finalization_and_verification(

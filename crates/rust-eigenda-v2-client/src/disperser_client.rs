@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ethers::utils::to_checksum;
+use alloy::primitives::Address;
 use hex::ToHex;
 use rust_eigenda_signers::{Message, Sign};
 use rust_eigenda_v2_common::{BlobCommitments, BlobHeader};
@@ -135,10 +135,8 @@ impl<S> DisperserClient<S> {
         }
         let account_id: String = payment.account_id.encode_hex();
 
-        let account_id = to_checksum(
-            &ethers::types::Address::from_str(&account_id).map_err(|_| DisperseError::AccountID)?,
-            None,
-        );
+        let account_id = (Address::from_str(&account_id).map_err(|_| DisperseError::AccountID)?)
+            .to_checksum(None);
 
         let blob_header = BlobHeader {
             version: blob_version,

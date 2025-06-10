@@ -143,9 +143,6 @@ edition = "2021"
 
 [dependencies]
 alloy = { version = "0.6", features = ["sol-types", "json"] }
-
-[build-dependencies]
-ethers-contract-abigen = "2.0.14"
 ```
 
 Create `build.rs`
@@ -155,7 +152,6 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use ethers_contract_abigen::Abigen;
 
 
 // This build.rs script compiles the eigenda contracts (in the eigenda/contracts submodule dir)
@@ -193,6 +189,7 @@ fn main() {
     let artifacts = [
         "IEigenDACertVerifier.sol/IEigenDACertVerifier.json",
         "IEigenDACertVerifierBase.sol/IEigenDACertVerifierBase.json",
+        "IEigenDARelayRegistry.sol/IEigenDARelayRegistry.json",
         // Add more artifacts as needed
     ];
 
@@ -212,16 +209,6 @@ fn main() {
 
         println!("Copied artifact: {:?}", json_file_name);
     }
-
-    let json_file_name = Path::new("IEigenDACertVerifier.json").file_name().unwrap();
-    Abigen::new("IEigenDACertVerifier", output_abis_dir.join(json_file_name).to_str().unwrap()).unwrap()
-        .generate().unwrap()
-        .write_to_file(Path::new("src/IEigenDACertVerifier.rs")).unwrap();
-
-    let json_file_name = Path::new("IEigenDACertVerifierBase.json").file_name().unwrap();
-    Abigen::new("IEigenDACertVerifierBase", output_abis_dir.join(json_file_name).to_str().unwrap()).unwrap()
-        .generate().unwrap()
-        .write_to_file(Path::new("src/IEigenDACertVerifierBase.rs")).unwrap();
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=eigenda/contracts/src");
