@@ -45,18 +45,44 @@ impl TryFrom<u8> for CheckDACertStatus {
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier<S> {
-    /// Contains a function to get the address of the cert verifier on a given block number
-    /// The cert verifier is divided into
-    /// IEigenDACertVerifier: Contains the view functions which are needed when building a certificate, it is only used in the dispersal route
-    /// IEigenDACertVerifierBase: Only contains the single function checkDACert, used purely for verification, only used in retrieval route
+    /// Contains a function to get the address of the cert verifier on a given block number.
+    /// The cert verifier is divided into:
+    /// - `IEigenDACertVerifier`: Contains the view functions which are needed when building a certificate, it is only used in the dispersal route
+    /// - `IEigenDACertVerifierBase`: Only contains the single function checkDACert, used purely for verification, only used in retrieval route
     cert_verifier_router_contract:
         IEigenDACertVerifierRouter<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
-    /// Client to create the contracts instance for IEigenDACertVerifier and IEigenDACertVerifierBase
+    /// Client to create the contracts instance for `IEigenDACertVerifier` and `IEigenDACertVerifierBase`.
     client: Arc<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
 impl<S> CertVerifier<S> {
-    /// Fetches the contract of the cert verifier at the specified block number from the CertVerifierRouter.
+    /// Creates a new instance of [`CertVerifier`], receiving the address of the cert verifier router and the ETH RPC url.
+    pub fn new(
+        cert_verifier_router_address: H160,
+        rpc_url: SecretUrl,
+        signer: S,
+    ) -> Result<Self, CertVerifierError>
+    where
+        EthersSigner<S>: Signer,
+    {
+        let url: String = rpc_url.try_into()?;
+
+        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
+        // ethers hard codes 1 when constructing wallets
+        let chain_id = 1;
+        let signer = EthersSigner::new(signer, chain_id);
+        let client = SignerMiddleware::new(provider, signer);
+        let client = Arc::new(client);
+
+        let cert_verifier_router_contract =
+            IEigenDACertVerifierRouter::new(cert_verifier_router_address, client.clone());
+        Ok(CertVerifier {
+            cert_verifier_router_contract,
+            client,
+        })
+    }
+
+    /// Fetches the contract of the cert verifier at the specified block number from the `CertVerifierRouter`.
     async fn get_cert_verifier_contract(
         &self,
         block_number: u32,
@@ -102,32 +128,6 @@ impl<S> CertVerifier<S> {
         ))
     }
 
-    /// Creates a new instance of [`CertVerifier`], receiving the address of the cert verifier router and the ETH RPC url.
-    pub fn new(
-        cert_verifier_router_address: H160,
-        rpc_url: SecretUrl,
-        signer: S,
-    ) -> Result<Self, CertVerifierError>
-    where
-        EthersSigner<S>: Signer,
-    {
-        let url: String = rpc_url.try_into()?;
-
-        let provider = Provider::<Http>::try_from(url).map_err(ConversionError::UrlParse)?;
-        // ethers hard codes 1 when constructing wallets
-        let chain_id = 1;
-        let signer = EthersSigner::new(signer, chain_id);
-        let client = SignerMiddleware::new(provider, signer);
-        let client = Arc::new(client);
-
-        let cert_verifier_router_contract =
-            IEigenDACertVerifierRouter::new(cert_verifier_router_address, client.clone());
-        Ok(CertVerifier {
-            cert_verifier_router_contract,
-            client,
-        })
-    }
-
     /// Queries the cert verifier contract for the configured set of quorum numbers that must
     /// be set in the BlobHeader, and verified in VerifyDACertV2 and verifyDACertV2FromSignedBatch
     pub async fn quorum_numbers_required(&self) -> Result<Vec<u8>, CertVerifierError>
@@ -158,10 +158,6 @@ impl<S> CertVerifier<S> {
         EthersSigner<S>: Signer,
     {
         let reference_block_number = eigenda_cert.batch_header.reference_block_number;
-        println!(
-            "Checking DA cert for block number: {}",
-            reference_block_number
-        );
         let abi_encoded_cert: Vec<u8> = eigenda_cert_to_abi_encoded(eigenda_cert)?;
         let cert_verifier_base_contract = self
             .get_cert_verifier_base_contract(reference_block_number)
@@ -170,10 +166,7 @@ impl<S> CertVerifier<S> {
             .check_da_cert(Bytes::from(abi_encoded_cert))
             .call()
             .await
-            .map_err(|e| {
-                println!("Error calling check_da_cert: {:?}", e);
-                CertVerifierError::Contract("check_da_cert".to_string())
-            })?;
+            .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
 
         let status = CheckDACertStatus::try_from(res)?;
         match status {
@@ -191,9 +184,9 @@ impl<S> CertVerifier<S> {
         Ok(())
     }
 
-    /// Calls the SecurityThresholds view function on the EigenDACertVerifier contract.
+    /// Calls the `SecurityThresholds` view function on the `EigenDACertVerifier` contract.
     ///
-    /// This method returns the confirmation threshold
+    /// This method returns the confirmation threshold.
     pub async fn get_confirmation_threshold(
         &self,
         reference_block_number: u64,
