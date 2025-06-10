@@ -14,6 +14,7 @@ description = "EigenDA Clients"
 repository = "https://github.com/Layr-Labs/eigenda-client-rs"
 license = "MIT OR Apache-2.0"
 edition = "2021"
+rust-version = "1.85"
 
 
 [workspace.dependencies]
@@ -57,3 +58,5 @@ dotenv = "0.15.0"
 serial_test = "3.1.1"
 bincode = "1.3.3"
 ethers = "2.0"
+eigensdk = { version = "0.3", features = ["client-avsregistry", "logging"] }
+alloy = "0.9.2"

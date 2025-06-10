@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     errors::{ConversionError, RelayClientError},
-    generated::i_relay_registry::IRelayRegistry,
+    generated::relay_registry_contract::IRelayRegistry,
     relay_client::RelayKey,
     utils::SecretUrl,
 };

@@ -1,27 +1,54 @@
 use ethers::prelude::*;
 use rust_eigenda_signers::signers::ethers::Signer as EthersSigner;
-use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature};
+use rust_eigenda_v2_common::EigenDACert;
 use std::sync::Arc;
 
 use ethereum_types::H160;
 
 use crate::{
-    core::eigenda_cert::SignedBatch,
+    core::eigenda_cert::eigenda_cert_to_abi_encoded,
     errors::{CertVerifierError, ConversionError},
     generated::{
-        disperser::v2::SignedBatch as SignedBatchProto,
-        i_cert_verifier::{
-            IEigenDACertVerifier,
-            NonSignerStakesAndSignature as NonSignerStakesAndSignatureContract,
-        },
+        cert_verifier_base_contract::IEigenDACertVerifierBase,
+        cert_verifier_contract::{IEigenDACertVerifier, SecurityThresholds},
     },
     utils::SecretUrl,
 };
 
+#[derive(Debug)]
+pub enum CheckDACertStatus {
+    NullError,
+    Success,
+    InvalidInclusionProof,
+    SecurityAssumptionsNotMet,
+    BlobQuorumsNotSubset,
+    RequiredQuorumsNotSubset,
+}
+
+impl TryFrom<u8> for CheckDACertStatus {
+    type Error = ConversionError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(CheckDACertStatus::NullError),
+            1 => Ok(CheckDACertStatus::Success),
+            2 => Ok(CheckDACertStatus::InvalidInclusionProof),
+            3 => Ok(CheckDACertStatus::SecurityAssumptionsNotMet),
+            4 => Ok(CheckDACertStatus::BlobQuorumsNotSubset),
+            5 => Ok(CheckDACertStatus::RequiredQuorumsNotSubset),
+            _ => Err(ConversionError::InvalidCheckDACertStatus(value)),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
 pub struct CertVerifier<S> {
+    /// Contains the view functions which are needed when building a certificate, it is only used in the dispersal route
     cert_verifier_contract: IEigenDACertVerifier<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
+    /// Only contains the single function checkDACert, used purely for verification, only used in retrieval route
+    cert_verifier_contract_base:
+        IEigenDACertVerifierBase<SignerMiddleware<Provider<Http>, EthersSigner<S>>>,
 }
 
 impl<S> CertVerifier<S> {
@@ -38,33 +65,13 @@ impl<S> CertVerifier<S> {
         let signer = EthersSigner::new(signer, chain_id);
         let client = SignerMiddleware::new(provider, signer);
         let client = Arc::new(client);
-        let cert_verifier_contract = IEigenDACertVerifier::new(address, client);
+        let cert_verifier_contract = IEigenDACertVerifier::new(address, client.clone());
+
+        let cert_verifier_contract_base = IEigenDACertVerifierBase::new(address, client);
         Ok(CertVerifier {
             cert_verifier_contract,
+            cert_verifier_contract_base,
         })
-    }
-
-    /// Calls the getNonSignerStakesAndSignature view function on the EigenDACertVerifier
-    /// contract, and returns the resulting [`NonSignerStakesAndSignature`] object.
-    pub async fn get_non_signer_stakes_and_signature(
-        &self,
-        signed_batch: SignedBatchProto,
-    ) -> Result<NonSignerStakesAndSignature, CertVerifierError>
-    where
-        EthersSigner<S>: Signer,
-    {
-        let signed_batch: SignedBatch = signed_batch.try_into()?;
-        let contract_signed_batch = signed_batch.into();
-        let non_signer_stakes_and_signature: NonSignerStakesAndSignatureContract = self
-            .cert_verifier_contract
-            .get_non_signer_stakes_and_signature(contract_signed_batch)
-            .call()
-            .await
-            .map_err(|_| {
-                CertVerifierError::Contract("non_signer_stakes_and_signature".to_string())
-            })?;
-
-        Ok(non_signer_stakes_and_signature.try_into()?)
     }
 
     /// Queries the cert verifier contract for the configured set of quorum numbers that must
@@ -82,24 +89,52 @@ impl<S> CertVerifier<S> {
         Ok(quorums.to_vec())
     }
 
-    /// Calls the VerifyCertV2 view function on the EigenDACertVerifier contract.
+    /// Calls the CheckDACert view function on the EigenDACertVerifier contract.
     ///
     /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a [`CertVerifierError`].
-    pub async fn verify_cert_v2(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError>
+    pub async fn check_da_cert(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError>
     where
         EthersSigner<S>: Signer,
     {
-        self.cert_verifier_contract
-            .verify_da_cert_v2(
-                eigenda_cert.batch_header.clone().into(),
-                eigenda_cert.blob_inclusion_info.clone().into(),
-                eigenda_cert.non_signer_stakes_and_signature.clone().into(),
-                eigenda_cert.signed_quorum_numbers.clone().into(),
-            )
+        let abi_encoded_cert: Vec<u8> = eigenda_cert_to_abi_encoded(eigenda_cert)?;
+        let res = self
+            .cert_verifier_contract_base
+            .check_da_cert(Bytes::from(abi_encoded_cert))
             .call()
             .await
-            .map_err(|_| CertVerifierError::Contract("verify_cert_v2".to_string()))?;
+            .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
+
+        let status = CheckDACertStatus::try_from(res)?;
+        match status {
+            CheckDACertStatus::NullError => {
+                return Err(CertVerifierError::VerificationFailedNullError);
+            }
+            CheckDACertStatus::Success => {}
+            status => {
+                return Err(CertVerifierError::VerificationFailed(format!(
+                    "check_da_cert returned non-succesfull value: {:?}",
+                    status
+                )));
+            }
+        }
         Ok(())
+    }
+
+    /// Calls the SecurityThresholds view function on the EigenDACertVerifier contract.
+    ///
+    /// This method returns the confirmation threshold
+    pub async fn get_confirmation_threshold(&self) -> Result<u8, CertVerifierError>
+    where
+        EthersSigner<S>: Signer,
+    {
+        let result: SecurityThresholds = self
+            .cert_verifier_contract
+            .security_thresholds()
+            .call()
+            .await
+            .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?;
+
+        Ok(result.confirmation_threshold)
     }
 }
 
@@ -109,6 +144,7 @@ mod tests {
 
     use ark_bn254::{G1Affine, G2Affine};
     use ark_ff::{BigInt, Fp2};
+    use ethereum_types::H160;
     use rust_eigenda_v2_common::{
         BatchHeaderV2, BlobCertificate, BlobCommitments, BlobHeader, BlobInclusionInfo,
         EigenDACert, NonSignerStakesAndSignature,
@@ -308,14 +344,14 @@ mod tests {
 
     #[ignore = "depends on external RPC"]
     #[tokio::test]
-    async fn test_verify_cert() {
+    async fn test_check_da_cert() {
         let cert_verifier = CertVerifier::new(
-            CERT_VERIFIER_ADDRESS,
+            H160::from_str(CERT_VERIFIER_ADDRESS).unwrap(),
             SecretUrl::new(Url::from_str(HOLESKY_ETH_RPC_URL).unwrap()),
             get_test_private_key_signer(),
         )
         .unwrap();
-        let res = cert_verifier.verify_cert_v2(&get_test_eigenda_cert()).await;
+        let res = cert_verifier.check_da_cert(&get_test_eigenda_cert()).await;
         assert!(res.is_ok())
     }
 }

@@ -52,6 +52,12 @@ pub enum ConversionError {
     EigenDACommon(#[from] rust_eigenda_v2_common::ConversionError),
     #[error("Failed to convert U256: {0}")]
     U256Conversion(String),
+    #[error("Failed to parse attestation: {0}")]
+    Attestation(String),
+    #[error("Failed to parse checkDACert Status: {0}")]
+    InvalidCheckDACertStatus(u8),
+    #[error("Failed to parse address: {0}")]
+    Address(String),
 }
 
 /// Errors specific to the [`RelayPayloadRetriever`].
@@ -202,6 +208,24 @@ pub enum PayloadDisperserError {
     Decode(#[from] DecodeError),
     #[error(transparent)]
     CertVerifier(#[from] CertVerifierError),
+    #[error("Expected >0 quorum numbers in blob header")]
+    NoQuorumNumbers,
+    #[error("Batch quorum number count and signed percentage count don't match")]
+    QuorumNumbersMismatch,
+    #[error("Expected batch header to be present in signed batch")]
+    BatchHeaderNotPresent,
+    #[error("Signed percentage not found for quorum: {0}")]
+    SignedPercentageNotFound(u32),
+    #[error("Confirmation threshold not met for quorum {quorum_number}, signed percentage {signed_percentage}, threshold {threshold}")]
+    ConfirmationThresholdNotMet {
+        quorum_number: u32,
+        signed_percentage: u8,
+        threshold: u8,
+    },
+    #[error("Failed to initialize Eigen SDK")]
+    EigenSDKNotInitialized,
+    #[error("Failed to check signature indices")]
+    GetCheckSignaturesIndices,
 }
 
 impl From<PayloadDisperserError> for EigenClientError {
@@ -221,4 +245,8 @@ pub enum CertVerifierError {
     Contract(String),
     #[error("Error while signing: {0}")]
     Signing(String),
+    #[error("Error while verifying checkDACert: {0}")]
+    VerificationFailed(String),
+    #[error("Error while verifying checkDACert, Null Error returned, this is a bug in the contracts, please report it")]
+    VerificationFailedNullError,
 }

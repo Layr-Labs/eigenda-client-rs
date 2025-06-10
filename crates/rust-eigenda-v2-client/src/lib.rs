@@ -14,46 +14,50 @@ pub use rust_eigenda_signers;
 
 #[allow(clippy::all)]
 pub(crate) mod generated {
-    pub mod common {
+    pub(crate) mod common {
         include!("generated/common.rs");
 
-        pub mod v2 {
+        pub(crate) mod v2 {
             include!("generated/common.v2.rs");
         }
     }
 
-    pub mod disperser {
-        pub mod v2 {
+    pub(crate) mod disperser {
+        pub(crate) mod v2 {
             include!("generated/disperser.v2.rs");
         }
     }
 
-    pub mod encoder {
-        pub mod v2 {
+    pub(crate) mod encoder {
+        pub(crate) mod v2 {
             include!("generated/encoder.v2.rs");
         }
     }
 
-    pub mod retriever {
-        pub mod v2 {
+    pub(crate) mod retriever {
+        pub(crate) mod v2 {
             include!("generated/retriever.v2.rs");
         }
     }
 
-    pub mod validator {
+    pub(crate) mod validator {
         include!("generated/validator.rs");
     }
 
-    pub mod relay {
+    pub(crate) mod relay {
         include!("generated/relay.rs");
     }
 
-    pub mod i_cert_verifier {
+    pub(crate) mod cert_verifier_contract {
         include!("generated/IEigenDACertVerifier.rs");
     }
 
-    pub mod i_relay_registry {
+    pub(crate) mod relay_registry_contract {
         include!("generated/IRelayRegistry.rs");
+    }
+
+    pub(crate) mod cert_verifier_base_contract {
+        include!("generated/IEigenDACertVerifierBase.rs");
     }
 }
 
@@ -79,14 +83,10 @@ mod tests {
     const TEST_PAYLOAD_DATA: &[u8] = &[1, 2, 3, 4, 5];
     pub const HOLESKY_ETH_RPC_URL: &str = "https://ethereum-holesky-rpc.publicnode.com";
     pub const HOLESKY_DISPERSER_RPC_URL: &str = "https://disperser-testnet-holesky.eigenda.xyz";
-    pub const HOLESKY_RELAY_REGISTRY_ADDRESS: H160 = H160([
-        0xac, 0x8c, 0x6c, 0x7e, 0xe7, 0x57, 0x29, 0x75, 0x45, 0x4e, 0x2f, 0x0b, 0x5c, 0x72, 0x0f,
-        0x9e, 0x74, 0x98, 0x92, 0x54,
-    ]);
-    pub const CERT_VERIFIER_ADDRESS: H160 = H160([
-        0xfe, 0x52, 0xfe, 0x19, 0x40, 0x85, 0x8d, 0xcb, 0x6e, 0x12, 0x15, 0x3e, 0x21, 0x04, 0xad,
-        0x0f, 0xdf, 0xbe, 0x11, 0x62,
-    ]);
+    pub const HOLESKY_RELAY_REGISTRY_ADDRESS: &str = "0xac8c6c7ee7572975454e2f0b5c720f9e74989254";
+    pub const CERT_VERIFIER_ADDRESS: &str = "0xd305aebcdec21d00fdf8796ce37d0e74836a6b6e";
+    pub const REGISTRY_COORDINATOR_ADDRESS: &str = "0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490";
+    pub const OPERATOR_STATE_RETRIEVER_ADDRESS: &str = "0xB4baAfee917fb4449f5ec64804217bccE9f46C67";
 
     pub fn get_test_private_key_signer() -> PrivateKeySigner {
         dotenv().ok();
@@ -101,10 +101,12 @@ mod tests {
         PayloadDisperserConfig {
             polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
-            cert_verifier_address: CERT_VERIFIER_ADDRESS,
+            cert_verifier_address: CERT_VERIFIER_ADDRESS.to_string(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             use_secure_grpc_flag: false,
+            registry_coordinator_addr: REGISTRY_COORDINATOR_ADDRESS.to_string(),
+            operator_state_retriever_addr: OPERATOR_STATE_RETRIEVER_ADDRESS.to_string(),
         }
     }
 
@@ -127,7 +129,7 @@ mod tests {
         crate::relay_client::RelayClientConfig {
             max_grpc_message_size: 9999999,
             relay_clients_keys: vec![0, 1, 2],
-            relay_registry_address: HOLESKY_RELAY_REGISTRY_ADDRESS,
+            relay_registry_address: H160::from_str(HOLESKY_RELAY_REGISTRY_ADDRESS).unwrap(),
             eth_rpc_url: get_test_holesky_rpc_url(),
         }
     }
@@ -160,7 +162,7 @@ mod tests {
                 }
                 None => {
                     let elapsed = start_time.elapsed();
-                    assert!(elapsed < timeout, "Timeout waiting for inclusion data");
+                    assert!(elapsed < timeout, "Timeout waiting for certificate");
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 }
             }

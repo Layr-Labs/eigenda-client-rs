@@ -53,10 +53,10 @@ pub enum CommunicationError {
     BlobProvider(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
+/// Some of this errors come from the generated BlobStatus
+/// https://github.com/Layr-Labs/eigenda-client-rs/blob/master/crates/rust-eigenda-client/src/generated/disperser.rs#L259
 #[derive(Debug, thiserror::Error)]
 pub enum BlobStatusError {
-    #[error("Blob still processing")]
-    BlobStillProcessing,
     #[error("Blob dispatched failed")]
     BlobDispatchedFailed,
     #[error("Insufficient signatures")]
