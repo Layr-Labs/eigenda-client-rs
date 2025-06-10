@@ -7,7 +7,6 @@ use eigensdk::{
     client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
     logging::{get_logger, init_logger, log_level::LogLevel},
 };
-use ethereum_types::H160;
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
 
@@ -41,7 +40,7 @@ pub struct PayloadDisperserConfig {
 pub struct PayloadDisperser<S = PrivateKeySigner> {
     config: PayloadDisperserConfig,
     disperser_client: DisperserClient<S>,
-    cert_verifier: CertVerifier<S>,
+    cert_verifier: CertVerifier,
 }
 
 impl<S> PayloadDisperser<S> {
@@ -62,11 +61,10 @@ impl<S> PayloadDisperser<S> {
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
-            H160::from_str(&payload_config.cert_verifier_address).map_err(|_| {
+            Address::from_str(&payload_config.cert_verifier_address).map_err(|_| {
                 ConversionError::Address(payload_config.cert_verifier_address.clone())
             })?,
             payload_config.eth_rpc_url.clone(),
-            signer,
         )?;
         Ok(PayloadDisperser {
             disperser_client,
