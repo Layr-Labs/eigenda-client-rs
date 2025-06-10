@@ -162,7 +162,7 @@ mod tests {
                 }
                 None => {
                     let elapsed = start_time.elapsed();
-                    assert!(elapsed < timeout, "Timeout waiting for inclusion data");
+                    assert!(elapsed < timeout, "Timeout waiting for certificate");
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 }
             }
