@@ -1,7 +1,6 @@
 use alloy::{
     primitives::{Address, Bytes},
     providers::{Provider, ProviderBuilder, RootProvider},
-    transports::http::Http,
 };
 use rust_eigenda_v2_common::EigenDACert;
 use url::Url;
@@ -51,11 +50,10 @@ pub struct CertVerifier {
     /// - `IEigenDACertVerifier`: Contains the view functions which are needed when building a certificate, it is only used in the dispersal route
     /// - `IEigenDACertVerifierBase`: Only contains the single function checkDACert, used purely for verification, only used in retrieval route
     cert_verifier_router_contract: IEigenDACertVerifierRouterInstance<
-        Http<reqwest::Client>,
-        RootProvider<Http<reqwest::Client>>,
+        RootProvider<alloy::network::Ethereum>,
+        alloy::network::Ethereum,
     >,
-    /// Client to create the contracts instance for `IEigenDACertVerifier` and `IEigenDACertVerifierBase`.
-    client: RootProvider<Http<reqwest::Client>>,
+    client: RootProvider<alloy::network::Ethereum>,
 }
 
 impl CertVerifier {
@@ -65,7 +63,10 @@ impl CertVerifier {
         rpc_url: SecretUrl,
     ) -> Result<Self, CertVerifierError> {
         let url: Url = rpc_url.into();
-        let cert_verifier_router_provider = ProviderBuilder::new().on_http(url.clone());
+        let cert_verifier_router_provider: RootProvider<alloy::network::Ethereum> =
+            ProviderBuilder::new()
+                .disable_recommended_fillers()
+                .connect_http(url.clone());
         let cert_verifier_router_contract = IEigenDACertVerifierRouterInstance::new(
             cert_verifier_router_address,
             cert_verifier_router_provider.clone(),
@@ -82,7 +83,10 @@ impl CertVerifier {
         &self,
         block_number: u32,
     ) -> Result<
-        IEigenDACertVerifierInstance<Http<reqwest::Client>, RootProvider<Http<reqwest::Client>>>,
+        IEigenDACertVerifierInstance<
+            RootProvider<alloy::network::Ethereum>,
+            alloy::network::Ethereum,
+        >,
         CertVerifierError,
     > {
         let cert_verifier_addr = self
@@ -90,8 +94,7 @@ impl CertVerifier {
             .getCertVerifierAt(block_number)
             .call()
             .await
-            .map_err(|_| CertVerifierError::Contract("get_cert_verifier_cert_at".to_string()))?
-            ._0;
+            .map_err(|_| CertVerifierError::Contract("get_cert_verifier_cert_at".to_string()))?;
         Ok(IEigenDACertVerifierInstance::new(
             cert_verifier_addr,
             self.client.clone(),
@@ -104,8 +107,8 @@ impl CertVerifier {
         block_number: u32,
     ) -> Result<
         IEigenDACertVerifierBaseInstance<
-            Http<reqwest::Client>,
-            RootProvider<Http<reqwest::Client>>,
+            RootProvider<alloy::network::Ethereum>,
+            alloy::network::Ethereum,
         >,
         CertVerifierError,
     > {
@@ -114,8 +117,7 @@ impl CertVerifier {
             .getCertVerifierAt(block_number)
             .call()
             .await
-            .map_err(|_| CertVerifierError::Contract("get_cert_verifier_cert_at".to_string()))?
-            ._0;
+            .map_err(|_| CertVerifierError::Contract("get_cert_verifier_cert_at".to_string()))?;
         Ok(IEigenDACertVerifierBaseInstance::new(
             cert_verifier_addr,
             self.client.clone(),
@@ -136,7 +138,7 @@ impl CertVerifier {
             .call()
             .await
             .map_err(|_| CertVerifierError::Contract("quorum_numbers_required".to_string()))?;
-        Ok(quorums._0.to_vec())
+        Ok(quorums.to_vec())
     }
 
     /// Calls the CheckDACert view function on the EigenDACertVerifier contract.
@@ -154,7 +156,7 @@ impl CertVerifier {
             .await
             .map_err(|_| CertVerifierError::Contract("check_da_cert".to_string()))?;
 
-        let status = CheckDACertStatus::try_from(res.status)?;
+        let status = CheckDACertStatus::try_from(res)?;
         match status {
             CheckDACertStatus::NullError => {
                 return Err(CertVerifierError::VerificationFailedNullError);
@@ -180,13 +182,12 @@ impl CertVerifier {
         let cert_verifier_contract = self
             .get_cert_verifier_contract(reference_block_number as u32)
             .await?;
-        let result: SecurityThresholds = cert_verifier_contract
-            .securityThresholds()
-            .call()
-            .await
-            .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?
-            ._0;
-
+        let result: SecurityThresholds =
+            cert_verifier_contract
+                .securityThresholds()
+                .call()
+                .await
+                .map_err(|_| CertVerifierError::Contract("security_thresholds".to_string()))?;
         Ok(result.confirmationThreshold)
     }
 }
