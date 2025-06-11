@@ -1,11 +1,11 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
 use eigensdk::{
     client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
-    logging::{get_logger, init_logger, log_level::LogLevel},
+    logging::noop_logger::NoopLogger,
 };
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
@@ -53,7 +53,6 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign + Clone,
     {
-        init_logger(LogLevel::Info);
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
             signer: signer.clone(),
@@ -327,7 +326,7 @@ impl<S> PayloadDisperser<S> {
         let reference_block_number = signed_batch.header.reference_block_number;
 
         let avs_registry_chain_reader = AvsRegistryChainReader::new(
-            get_logger(),
+            Arc::new(NoopLogger::default()),
             Address::from_str(&self.config.registry_coordinator_addr).map_err(|_| {
                 ConversionError::Address(self.config.registry_coordinator_addr.clone())
             })?,
