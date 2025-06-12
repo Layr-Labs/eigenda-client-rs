@@ -3,10 +3,10 @@ use std::{collections::HashMap, str::FromStr};
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
-// use eigensdk::{
-//     client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
-//     logging::{get_logger, init_logger, log_level::LogLevel},
-// };
+use eigensdk::{
+    client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
+    logging::get_logger,
+};
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
 
@@ -317,46 +317,46 @@ impl<S> PayloadDisperser<S> {
             non_signer_operator_ids.push(operator_id);
         }
 
-        let _quorum_numbers = signed_batch
+        let quorum_numbers = signed_batch
             .attestation
             .quorum_numbers
             .iter()
             .map(|x| *x as u8)
             .collect::<Vec<u8>>();
 
-        let _reference_block_number = signed_batch.header.reference_block_number;
+        let reference_block_number = signed_batch.header.reference_block_number;
 
-        // let avs_registry_chain_reader = AvsRegistryChainReader::new(
-        //     get_logger(),
-        //     Address::from_str(&self.config.registry_coordinator_addr).map_err(|_| {
-        //         ConversionError::Address(self.config.registry_coordinator_addr.clone())
-        //     })?,
-        //     Address::from_str(&self.config.operator_state_retriever_addr).map_err(|_| {
-        //         ConversionError::Address(self.config.operator_state_retriever_addr.clone())
-        //     })?,
-        //     self.config.eth_rpc_url.clone().try_into()?,
-        // )
-        // .await
-        // .map_err(|_| PayloadDisperserError::EigenSDKNotInitialized)?;
+        let avs_registry_chain_reader = AvsRegistryChainReader::new(
+            get_logger(),
+            Address::from_str(&self.config.registry_coordinator_addr).map_err(|_| {
+                ConversionError::Address(self.config.registry_coordinator_addr.clone())
+            })?,
+            Address::from_str(&self.config.operator_state_retriever_addr).map_err(|_| {
+                ConversionError::Address(self.config.operator_state_retriever_addr.clone())
+            })?,
+            self.config.eth_rpc_url.clone().try_into()?,
+        )
+        .await
+        .map_err(|_| PayloadDisperserError::EigenSDKNotInitialized)?;
 
-        // let check_sig_indices = avs_registry_chain_reader
-        //     .get_check_signatures_indices(
-        //         reference_block_number,
-        //         quorum_numbers,
-        //         non_signer_operator_ids,
-        //     )
-        //     .await
-        //     .map_err(|_| PayloadDisperserError::GetCheckSignaturesIndices)?;
+        let check_sig_indices = avs_registry_chain_reader
+            .get_check_signatures_indices(
+                reference_block_number as u64,
+                quorum_numbers,
+                non_signer_operator_ids,
+            )
+            .await
+            .map_err(|_| PayloadDisperserError::GetCheckSignaturesIndices)?;
 
         Ok(NonSignerStakesAndSignature {
-            non_signer_quorum_bitmap_indices: vec![], // check_sig_indices.nonSignerQuorumBitmapIndices,
+            non_signer_quorum_bitmap_indices: check_sig_indices.nonSignerQuorumBitmapIndices,
             non_signer_pubkeys: signed_batch.attestation.non_signer_pubkeys,
             quorum_apks: signed_batch.attestation.quorum_apks,
             apk_g2: signed_batch.attestation.apk_g2,
             sigma: signed_batch.attestation.sigma,
-            quorum_apk_indices: vec![], // check_sig_indices.quorumApkIndices,
-            total_stake_indices: vec![], // check_sig_indices.totalStakeIndices,
-            non_signer_stake_indices: vec![], // check_sig_indices.nonSignerStakeIndices,
+            quorum_apk_indices: check_sig_indices.quorumApkIndices,
+            total_stake_indices: check_sig_indices.totalStakeIndices,
+            non_signer_stake_indices: check_sig_indices.nonSignerStakeIndices,
         })
     }
 
