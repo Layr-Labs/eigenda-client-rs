@@ -53,6 +53,7 @@ pub struct CertVerifier {
         RootProvider<alloy::network::Ethereum>,
         alloy::network::Ethereum,
     >,
+    /// Client to create the contracts instance for `IEigenDACertVerifier` and `IEigenDACertVerifierBase`.
     client: RootProvider<alloy::network::Ethereum>,
 }
 
