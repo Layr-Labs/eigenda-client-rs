@@ -3,10 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
-use eigensdk::{
-    client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
-    logging::get_logger,
-};
+use eigensdk::client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader};
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
 
@@ -327,7 +324,6 @@ impl<S> PayloadDisperser<S> {
         let reference_block_number = signed_batch.header.reference_block_number;
 
         let avs_registry_chain_reader = AvsRegistryChainReader::new(
-            get_logger(),
             Address::from_str(&self.config.registry_coordinator_addr).map_err(|_| {
                 ConversionError::Address(self.config.registry_coordinator_addr.clone())
             })?,
