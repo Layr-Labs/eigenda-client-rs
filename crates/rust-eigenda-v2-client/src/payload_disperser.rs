@@ -50,7 +50,6 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign + Clone,
     {
-        // init_logger(LogLevel::Info);
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
             signer: signer.clone(),
