@@ -48,7 +48,7 @@ ark-std = { workspace = true }
 ark-ec = { workspace = true }
 sha2 = { workspace = true }
 bincode = { workspace = true }
-eigensdk = { workspace = true }
+eigensdk = { workspace = true,  features = ["client-avsregistry"] }
 alloy = { workspace = true, features = [ "contract", "sol-types"] }
 
 [dev-dependencies]

@@ -3,10 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
-use eigensdk::{
-    client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
-    logging::{get_logger, init_logger, log_level::LogLevel},
-};
+use eigensdk::client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader};
 use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
 
@@ -53,7 +50,6 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign + Clone,
     {
-        init_logger(LogLevel::Info);
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
             signer: signer.clone(),
@@ -327,7 +323,6 @@ impl<S> PayloadDisperser<S> {
         let reference_block_number = signed_batch.header.reference_block_number;
 
         let avs_registry_chain_reader = AvsRegistryChainReader::new(
-            get_logger(),
             Address::from_str(&self.config.registry_coordinator_addr).map_err(|_| {
                 ConversionError::Address(self.config.registry_coordinator_addr.clone())
             })?,
@@ -341,7 +336,7 @@ impl<S> PayloadDisperser<S> {
 
         let check_sig_indices = avs_registry_chain_reader
             .get_check_signatures_indices(
-                reference_block_number,
+                reference_block_number as u64,
                 quorum_numbers,
                 non_signer_operator_ids,
             )
