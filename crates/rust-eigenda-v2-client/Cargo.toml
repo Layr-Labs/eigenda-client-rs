@@ -16,7 +16,8 @@ exclude = [
 
 [dependencies]
 rust-eigenda-signers = { version = "0.1.6" }
-rust-eigenda-v2-common = "0.1.2"
+# rust-eigenda-v2-common = "0.1.2"
+rust-eigenda-v2-common = { path = "../rust-eigenda-v2-common"}
 
 rand = { workspace = true }
 bytes = { workspace = true }
@@ -48,7 +49,7 @@ ark-std = { workspace = true }
 ark-ec = { workspace = true }
 sha2 = { workspace = true }
 bincode = { workspace = true }
-eigensdk = { workspace = true }
+eigensdk = { workspace = true,  features = ["client-avsregistry"] }
 alloy = { workspace = true, features = [ "contract", "sol-types"] }
 
 [dev-dependencies]

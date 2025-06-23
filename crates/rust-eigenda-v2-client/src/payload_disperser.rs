@@ -3,25 +3,55 @@ use std::{collections::HashMap, str::FromStr};
 use alloy::primitives::{Address, FixedBytes};
 use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
-use eigensdk::{
-    client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader},
-    logging::{get_logger, init_logger, log_level::LogLevel},
+use eigensdk::client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader};
+use rust_eigenda_v2_common::{
+    BatchHeaderV2, EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm, SignedBatch,
 };
-use rust_eigenda_v2_common::{EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm};
 use tiny_keccak::{Hasher, Keccak};
 
 use crate::{
     cert_verifier::CertVerifier,
-    core::{
-        eigenda_cert::{build_cert_from_reply, SignedBatch},
-        BlobKey,
-    },
+    core::{eigenda_cert::build_cert_from_reply, BlobKey},
     disperser_client::{DisperserClient, DisperserClientConfig},
     errors::{ConversionError, EigenClientError, PayloadDisperserError},
     generated::disperser::v2::{BlobStatus, BlobStatusReply, SignedBatch as SignedBatchProto},
     rust_eigenda_signers::{signers::private_key::Signer as PrivateKeySigner, Sign},
     utils::SecretUrl,
 };
+
+impl TryFrom<SignedBatchProto> for SignedBatch {
+    type Error = ConversionError;
+
+    fn try_from(value: SignedBatchProto) -> Result<Self, Self::Error> {
+        let header = match value.header {
+            Some(header) => BatchHeaderV2 {
+                batch_root: header.batch_root.try_into().map_err(|_| {
+                    ConversionError::SignedBatch("Failed parsing batch root".to_string())
+                })?,
+                reference_block_number: header.reference_block_number.try_into().map_err(|_| {
+                    ConversionError::SignedBatch(
+                        "Failed parsing reference block number".to_string(),
+                    )
+                })?,
+            },
+            None => return Err(ConversionError::SignedBatch("Header is None".to_string())),
+        };
+
+        let attestation = match value.attestation {
+            Some(value) => value.try_into()?,
+            None => {
+                return Err(ConversionError::SignedBatch(
+                    "Attestation is None".to_string(),
+                ))
+            }
+        };
+
+        Ok(Self {
+            header,
+            attestation,
+        })
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct PayloadDisperserConfig {
@@ -53,7 +83,6 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign + Clone,
     {
-        init_logger(LogLevel::Info);
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
             signer: signer.clone(),
@@ -327,7 +356,6 @@ impl<S> PayloadDisperser<S> {
         let reference_block_number = signed_batch.header.reference_block_number;
 
         let avs_registry_chain_reader = AvsRegistryChainReader::new(
-            get_logger(),
             Address::from_str(&self.config.registry_coordinator_addr).map_err(|_| {
                 ConversionError::Address(self.config.registry_coordinator_addr.clone())
             })?,
@@ -341,7 +369,7 @@ impl<S> PayloadDisperser<S> {
 
         let check_sig_indices = avs_registry_chain_reader
             .get_check_signatures_indices(
-                reference_block_number,
+                reference_block_number as u64,
                 quorum_numbers,
                 non_signer_operator_ids,
             )

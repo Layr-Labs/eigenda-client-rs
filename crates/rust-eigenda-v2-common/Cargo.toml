@@ -18,6 +18,10 @@ ark-serialize = { workspace = true }
 rust-kzg-bn254-primitives = { workspace = true }
 bincode = { workspace = true }
 thiserror = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
+ethabi = { workspace = true }
+tiny-keccak = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

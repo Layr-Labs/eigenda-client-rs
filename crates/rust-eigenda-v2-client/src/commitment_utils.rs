@@ -1,9 +1,8 @@
 use ark_bn254::{G1Affine, G1Projective};
 use ark_ec::{CurveGroup, VariableBaseMSM};
-use rust_kzg_bn254_primitives::helpers::read_g1_point_from_bytes_be;
 
 use crate::{
-    errors::{BlobError, Bn254Error, ConversionError},
+    errors::{BlobError, Bn254Error},
     utils::fr_array_from_bytes,
 };
 
@@ -36,12 +35,6 @@ pub(crate) fn generate_and_compare_blob_commitment(
     Ok(claimed_commitment == computed_commitment)
 }
 
-/// Converts a byte slice to a [`G1Affine`] point.
-/// The points received are in compressed form.
-pub(crate) fn g1_commitment_from_bytes(bytes: &[u8]) -> Result<G1Affine, ConversionError> {
-    read_g1_point_from_bytes_be(bytes).map_err(|e| ConversionError::G1Point(e.to_string()))
-}
-
 #[cfg(test)]
 mod tests {
     use ark_bn254::{Fq, G2Affine};
@@ -50,7 +43,8 @@ mod tests {
     use proptest::prelude::*;
     use rand::{rngs::StdRng, SeedableRng};
     use rust_eigenda_v2_common::{
-        g1_commitment_to_bytes, g2_commitment_from_bytes, g2_commitment_to_bytes,
+        g1_commitment_from_bytes, g1_commitment_to_bytes, g2_commitment_from_bytes,
+        g2_commitment_to_bytes,
     };
 
     use crate::generated::common::G1Commitment;
