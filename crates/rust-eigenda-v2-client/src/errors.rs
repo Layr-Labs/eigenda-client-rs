@@ -1,5 +1,6 @@
 use ark_bn254::{Fr, G1Affine};
 use ethereum_types::H160;
+use rust_eigenda_v2_common::ConversionError as CommonConversionError;
 use rust_kzg_bn254_primitives::errors::KzgError;
 
 use crate::relay_client::RelayKey;
@@ -51,8 +52,6 @@ pub enum ConversionError {
     U256Conversion(String),
     #[error("Failed to parse attestation: {0}")]
     Attestation(String),
-    #[error("Failed to parse checkDACert Status: {0}")]
-    InvalidCheckDACertStatus(u8),
     #[error("Failed to parse address: {0}")]
     Address(String),
 }
@@ -184,6 +183,8 @@ pub enum DisperseError {
     SystemTime(#[from] std::time::SystemTimeError),
     #[error(transparent)]
     Signer(#[from] Box<dyn std::error::Error + Send + Sync>),
+    #[error(transparent)]
+    CommonConversion(#[from] CommonConversionError),
 }
 
 impl From<tonic::Status> for DisperseError {
@@ -236,6 +237,8 @@ impl From<PayloadDisperserError> for EigenClientError {
 pub enum CertVerifierError {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
+    #[error(transparent)]
+    CommonConversion(#[from] CommonConversionError),
     #[error("Invalid cert verifier contract address: {0}")]
     InvalidCertVerifierAddress(H160),
     #[error("Error while calling contract function: {0}")]

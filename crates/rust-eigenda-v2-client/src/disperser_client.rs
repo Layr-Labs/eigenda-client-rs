@@ -5,12 +5,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use alloy::primitives::Address;
 use hex::ToHex;
 use rust_eigenda_signers::{Message, Sign};
-use rust_eigenda_v2_common::{BlobCommitments, BlobHeader};
+use rust_eigenda_v2_common::{BlobCommitments, BlobHeader, PaymentHeader};
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::accountant::Accountant;
-use crate::core::eigenda_cert::PaymentHeader;
 use crate::core::{BlobKey, OnDemandPayment, PaymentStateRequest, ReservedPayment};
 
 use crate::errors::DisperseError;

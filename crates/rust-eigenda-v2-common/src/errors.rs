@@ -35,4 +35,6 @@ pub enum ConversionError {
     EncodedPayload(String),
     #[error("Failed to serialize ark: {0}")]
     ArkSerialization(String),
+    #[error("Failed to parse checkDACert Status: {0}")]
+    InvalidCheckDACertStatus(u8),
 }

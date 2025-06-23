@@ -2,12 +2,11 @@ use alloy::{
     primitives::{Address, Bytes},
     providers::{Provider, ProviderBuilder, RootProvider},
 };
-use rust_eigenda_v2_common::EigenDACert;
+use rust_eigenda_v2_common::{CheckDACertStatus, EigenDACert};
 use url::Url;
 
 use crate::{
-    core::eigenda_cert::eigenda_cert_to_abi_encoded,
-    errors::{CertVerifierError, ConversionError},
+    errors::CertVerifierError,
     generated::contract_bindings::{
         EigenDATypesV1::SecurityThresholds, IEigenDACertVerifier::IEigenDACertVerifierInstance,
         IEigenDACertVerifierBase::IEigenDACertVerifierBaseInstance,
@@ -15,32 +14,6 @@ use crate::{
     },
     utils::SecretUrl,
 };
-
-#[derive(Debug)]
-pub enum CheckDACertStatus {
-    NullError,
-    Success,
-    InvalidInclusionProof,
-    SecurityAssumptionsNotMet,
-    BlobQuorumsNotSubset,
-    RequiredQuorumsNotSubset,
-}
-
-impl TryFrom<u8> for CheckDACertStatus {
-    type Error = ConversionError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(CheckDACertStatus::NullError),
-            1 => Ok(CheckDACertStatus::Success),
-            2 => Ok(CheckDACertStatus::InvalidInclusionProof),
-            3 => Ok(CheckDACertStatus::SecurityAssumptionsNotMet),
-            4 => Ok(CheckDACertStatus::BlobQuorumsNotSubset),
-            5 => Ok(CheckDACertStatus::RequiredQuorumsNotSubset),
-            _ => Err(ConversionError::InvalidCheckDACertStatus(value)),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 /// Provides methods for interacting with the EigenDA CertVerifier contract.
@@ -147,7 +120,7 @@ impl CertVerifier {
     /// This method returns an empty Result if the cert is successfully verified. Otherwise, it returns a [`CertVerifierError`].
     pub async fn check_da_cert(&self, eigenda_cert: &EigenDACert) -> Result<(), CertVerifierError> {
         let reference_block_number = eigenda_cert.batch_header.reference_block_number;
-        let abi_encoded_cert: Vec<u8> = eigenda_cert_to_abi_encoded(eigenda_cert)?;
+        let abi_encoded_cert: Vec<u8> = eigenda_cert.to_abi_encoded()?;
         let cert_verifier_base_contract = self
             .get_cert_verifier_base_contract(reference_block_number)
             .await?;
