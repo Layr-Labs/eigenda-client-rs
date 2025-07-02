@@ -117,7 +117,7 @@ impl RelayPayloadRetriever {
             {
                 Ok(blob) => blob,
                 Err(err) => {
-                    println!("Error retrieving blob from relay {}: {}", relay_key, err);
+                    println!("Error retrieving blob from relay {relay_key}: {err}");
                     continue;
                 }
             };
@@ -130,7 +130,7 @@ impl RelayPayloadRetriever {
             )
             .unwrap_or(false);
             if !valid {
-                println!("Retrieved blob from relay {} is not valid", relay_key);
+                println!("Retrieved blob from relay {relay_key} is not valid");
                 continue;
             }
 
@@ -138,8 +138,7 @@ impl RelayPayloadRetriever {
                 Ok(payload) => payload,
                 Err(err) => {
                     println!(
-                        "Error converting blob retrieved from relay {} to payload: {}",
-                        relay_key, err
+                        "Error converting blob retrieved from relay {relay_key} to payload: {err}"
                     );
                     continue;
                 }

@@ -188,7 +188,7 @@ mod tests {
         // Verify that secp256k1::ecdsa::RecoveryId::from_i32 only accepts 0, 1, 2, 3
         for i in 0..=3 {
             let recid = secp_ecdsa::RecoveryId::from_i32(i)
-                .unwrap_or_else(|_| panic!("Failed to create RecoveryId from valid i32: {}", i));
+                .unwrap_or_else(|_| panic!("Failed to create RecoveryId from valid i32: {i}"));
             assert_eq!(recid.to_i32(), i, "Mismatch after creating from valid i32");
         }
 

@@ -131,9 +131,7 @@ impl EncodedPayload {
             for (index, &byte) in remaining_serialized_felts {
                 if byte != 0 {
                     return Err(ConversionError::EncodedPayload(format!(
-                        "byte at index {} was expected to be 0x00, but instead was 0x{:02x}",
-                        index, byte
-                    )));
+                        "byte at index {index} was expected to be 0x00, but instead was 0x{byte:02x}"                    )));
                 }
             }
         }

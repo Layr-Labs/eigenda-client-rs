@@ -117,7 +117,7 @@ mod tests {
         let sig = RecoverableSignature { r, s, v };
 
         // When
-        let display_str = format!("{}", sig);
+        let display_str = format!("{sig}");
 
         // Then
         assert_eq!(display_str, "0x11000000000000000000000000000000000000000000000000000000000000aa22000000000000000000000000000000000000000000000000000000000000bb01")

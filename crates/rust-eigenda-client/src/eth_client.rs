@@ -43,7 +43,7 @@ pub struct RpcErrorResponse {
 
 impl std::fmt::Display for RpcErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RpcErrorResponse: {:?}", self)
+        write!(f, "RpcErrorResponse: {self:?}")
     }
 }
 
@@ -133,7 +133,7 @@ impl EthClient {
                     "from": format!("{:#x}", Address::zero()),
                 }),
                 json!(match block {
-                    Some(block) => format!("{:#x}", block),
+                    Some(block) => format!("{block:#x}"),
                     None => "latest".to_string(),
                 }),
             ]),

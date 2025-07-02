@@ -60,7 +60,7 @@ impl serde::Serialize for BlobCommitments {
         S: serde::Serializer,
     {
         BlobCommitmentsHelper::try_from(self)
-            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {e}")))?
             .serialize(serializer)
     }
 }
@@ -189,7 +189,7 @@ impl serde::Serialize for NonSignerStakesAndSignature {
         S: serde::Serializer,
     {
         NonSignerStakesAndSignatureHelper::try_from(self)
-            .map_err(|e| S::Error::custom(format!("Conversion failed: {}", e)))?
+            .map_err(|e| S::Error::custom(format!("Conversion failed: {e}")))?
             .serialize(serializer)
     }
 }
