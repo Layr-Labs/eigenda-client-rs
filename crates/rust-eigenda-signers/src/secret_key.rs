@@ -155,7 +155,7 @@ mod tests {
         let expected_debug = "SecretKey([redacted])";
 
         // When
-        let debug_str = format!("{:?}", sk);
+        let debug_str = format!("{sk:?}");
 
         // Then
         assert_eq!(debug_str, expected_debug);

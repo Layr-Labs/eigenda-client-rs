@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use rand::seq::SliceRandom;
-use rust_eigenda_v2_common::{Blob, EigenDACert, Payload, PayloadForm};
+use rust_eigenda_v2_common::{Blob, EigenDACert, Payload};
 use rust_kzg_bn254_prover::srs::SRS;
 use tokio::time::timeout;
 
@@ -32,7 +32,6 @@ pub struct SRSConfig {
 
 #[derive(Clone)]
 pub struct RelayPayloadRetrieverConfig {
-    pub payload_form: PayloadForm,
     pub retrieval_timeout_secs: Duration,
 }
 
@@ -118,7 +117,7 @@ impl RelayPayloadRetriever {
             {
                 Ok(blob) => blob,
                 Err(err) => {
-                    println!("Error retrieving blob from relay {}: {}", relay_key, err);
+                    println!("Error retrieving blob from relay {relay_key}: {err}");
                     continue;
                 }
             };
@@ -131,16 +130,15 @@ impl RelayPayloadRetriever {
             )
             .unwrap_or(false);
             if !valid {
-                println!("Retrieved blob from relay {} is not valid", relay_key);
+                println!("Retrieved blob from relay {relay_key} is not valid");
                 continue;
             }
 
-            let payload = match blob.to_payload(self.config.payload_form) {
+            let payload = match blob.to_payload() {
                 Ok(payload) => payload,
                 Err(err) => {
                     println!(
-                        "Error converting blob retrieved from relay {} to payload: {}",
-                        relay_key, err
+                        "Error converting blob retrieved from relay {relay_key} to payload: {err}"
                     );
                     continue;
                 }

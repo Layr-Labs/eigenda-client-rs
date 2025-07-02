@@ -138,8 +138,7 @@ impl CertVerifier {
             CheckDACertStatus::Success => {}
             status => {
                 return Err(CertVerifierError::VerificationFailed(format!(
-                    "check_da_cert returned non-succesfull value: {:?}",
-                    status
+                    "check_da_cert returned non-succesfull value: {status:?}"
                 )));
             }
         }

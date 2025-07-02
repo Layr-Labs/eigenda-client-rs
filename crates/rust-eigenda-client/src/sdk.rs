@@ -331,7 +331,7 @@ impl<S> RawEigenClient<S> {
             .ok_or(CommunicationError::NoResponseFromServer)?;
 
         let Ok(reply) = reply else {
-            return Err(CommunicationError::ErrorFromServer(format!("{:?}", reply)))?;
+            return Err(CommunicationError::ErrorFromServer(format!("{reply:?}")))?;
         };
 
         let reply = reply

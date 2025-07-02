@@ -51,7 +51,7 @@ impl PublicKey {
     pub fn account_id(&self) -> String {
         let hex = hex::encode(self.serialize_uncompressed());
 
-        format!("0x{}", hex)
+        format!("0x{hex}")
     }
 }
 
@@ -63,7 +63,7 @@ impl Display for PublicKey {
 
 impl fmt::Debug for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "PublicKey({})", self)
+        write!(f, "PublicKey({self})")
     }
 }
 
@@ -164,7 +164,7 @@ mod tests {
         let expected_debug = format!("PublicKey({EXPECTED_UNCOMPRESSED_PUB_KEY})");
 
         // When
-        let debug_str = format!("{:?}", pk);
+        let debug_str = format!("{pk:?}");
 
         // Then
         assert_eq!(debug_str, expected_debug);

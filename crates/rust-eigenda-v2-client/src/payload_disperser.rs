@@ -5,7 +5,7 @@ use ark_bn254::G1Affine;
 use ark_ff::{BigInteger, PrimeField};
 use eigensdk::client_avsregistry::reader::{AvsRegistryChainReader, AvsRegistryReader};
 use rust_eigenda_v2_common::{
-    BatchHeaderV2, EigenDACert, NonSignerStakesAndSignature, Payload, PayloadForm, SignedBatch,
+    BatchHeaderV2, EigenDACert, NonSignerStakesAndSignature, Payload, SignedBatch,
 };
 use tiny_keccak::{Hasher, Keccak};
 
@@ -55,12 +55,10 @@ impl TryFrom<SignedBatchProto> for SignedBatch {
 
 #[derive(Clone, Debug)]
 pub struct PayloadDisperserConfig {
-    pub polynomial_form: PayloadForm,
     pub blob_version: u16,
     pub cert_verifier_router_address: String,
     pub eth_rpc_url: SecretUrl,
     pub disperser_rpc: String,
-    pub use_secure_grpc_flag: bool,
     pub registry_coordinator_addr: String,
     pub operator_state_retriever_addr: String,
 }
@@ -86,7 +84,6 @@ impl<S> PayloadDisperser<S> {
         let disperser_config = DisperserClientConfig {
             disperser_rpc: payload_config.disperser_rpc.clone(),
             signer: signer.clone(),
-            use_secure_grpc_flag: payload_config.use_secure_grpc_flag,
         };
         let disperser_client = DisperserClient::new(disperser_config).await?;
         let cert_verifier = CertVerifier::new(
@@ -107,9 +104,7 @@ impl<S> PayloadDisperser<S> {
     where
         S: Sign,
     {
-        let blob = payload
-            .to_blob(self.config.polynomial_form)
-            .map_err(ConversionError::EigenDACommon)?;
+        let blob = payload.to_blob().map_err(ConversionError::EigenDACommon)?;
 
         let required_quorums = self.cert_verifier.quorum_numbers_required().await?;
         let (blob_status, blob_key) = self
@@ -396,7 +391,7 @@ impl<S> PayloadDisperser<S> {
 
 #[cfg(test)]
 mod tests {
-    use rust_eigenda_v2_common::{Payload, PayloadForm};
+    use rust_eigenda_v2_common::Payload;
 
     use crate::{
         payload_disperser::{PayloadDisperser, PayloadDisperserConfig},
@@ -413,12 +408,10 @@ mod tests {
         let timeout = tokio::time::Duration::from_secs(180);
 
         let payload_config = PayloadDisperserConfig {
-            polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
             cert_verifier_router_address: CERT_VERIFIER_ROUTER_ADDRESS.to_string(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
-            use_secure_grpc_flag: false,
             registry_coordinator_addr: REGISTRY_COORDINATOR_ADDRESS.to_string(),
             operator_state_retriever_addr: OPERATOR_STATE_RETRIEVER_ADDRESS.to_string(),
         };

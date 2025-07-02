@@ -65,7 +65,7 @@ impl TryFrom<ProtoBlobHeader> for BlobHeader {
         let mut quorum_numbers: Vec<u8> = Vec::new();
         for number in value.quorum_numbers.iter() {
             quorum_numbers.push((*number).try_into().map_err(|_| {
-                ConversionError::BlobHeader(format!("Invalid quorum number {}", number))
+                ConversionError::BlobHeader(format!("Invalid quorum number {number}"))
             })?);
         }
 

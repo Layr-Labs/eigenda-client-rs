@@ -88,8 +88,7 @@ impl SvcManagerClient for EthClient {
                 current_block = current_block.saturating_sub(U256::from(depth.as_u64())); // safe conversion between U64 and u64
                 let current_block = current_block.try_into().map_err(|_| {
                     ConversionError::Cast(format!(
-                        "Could not parse block number {} as u64",
-                        current_block
+                        "Could not parse block number {current_block} as u64"
                     ))
                 })?;
                 Some(current_block)
@@ -196,8 +195,7 @@ impl<T: SvcManagerClient> Verifier<T> {
 
         if !response.status().is_success() {
             return Err(VerificationError::PointDownloadError(format!(
-                "Failed to download point from source {}",
-                url
+                "Failed to download point from source {url}"
             )));
         }
 
