@@ -28,10 +28,15 @@ const BYTES_PER_SYMBOL: usize = 32;
 pub struct DisperserClientConfig<S = PrivateKeySigner> {
     pub disperser_rpc: String,
     pub signer: S,
+    pub use_secure_grpc_flag: bool,
 }
 
 impl<S> DisperserClientConfig<S> {
-    pub fn new(disperser_rpc: String, signer: S) -> Result<Self, DisperseError> {
+    pub fn new(
+        disperser_rpc: String,
+        signer: S,
+        use_secure_grpc_flag: bool,
+    ) -> Result<Self, DisperseError> {
         if disperser_rpc.is_empty() {
             return Err(DisperseError::ConfigInitialization(
                 "disperser_rpc cannot be empty".to_string(),
@@ -41,6 +46,7 @@ impl<S> DisperserClientConfig<S> {
         Ok(Self {
             disperser_rpc,
             signer,
+            use_secure_grpc_flag,
         })
     }
 }
@@ -64,8 +70,10 @@ impl<S> DisperserClient<S> {
     {
         let mut endpoint = Channel::from_shared(config.disperser_rpc.clone())
             .map_err(|_| DisperseError::InvalidURI(config.disperser_rpc.clone()))?;
-        let tls: ClientTlsConfig = ClientTlsConfig::new();
-        endpoint = endpoint.tls_config(tls)?;
+        if config.use_secure_grpc_flag {
+            let tls: ClientTlsConfig = ClientTlsConfig::new();
+            endpoint = endpoint.tls_config(tls)?;
+        }
         let channel = endpoint.connect().await?;
         let rpc_client = disperser_client::DisperserClient::new(channel);
         let signer = config.signer;
@@ -274,10 +282,29 @@ mod tests {
     #[ignore = "depends on external RPC"]
     #[tokio::test]
     #[serial]
+    async fn test_disperse_non_secure() {
+        let config = DisperserClientConfig {
+            disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+            signer: get_test_private_key_signer(),
+            use_secure_grpc_flag: false,
+        };
+        let client = DisperserClient::new(config).await.unwrap();
+        let data = vec![1, 2, 3, 4, 5];
+        let blob_version = 0;
+        let quorums = vec![0, 1];
+
+        let result = client.disperse_blob(&data, blob_version, &quorums).await;
+        assert!(result.is_ok());
+    }
+
+    #[ignore = "depends on external RPC"]
+    #[tokio::test]
+    #[serial]
     async fn test_disperse_secure() {
         let config = DisperserClientConfig {
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             signer: get_test_private_key_signer(),
+            use_secure_grpc_flag: true,
         };
         let client = DisperserClient::new(config).await.unwrap();
         let data = vec![1, 2, 3, 4, 5];
@@ -294,6 +321,7 @@ mod tests {
         let config = DisperserClientConfig {
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
             signer: get_test_private_key_signer(),
+            use_secure_grpc_flag: true,
         };
         let client = DisperserClient::new(config).await.unwrap();
         let data = vec![1, 2, 3, 4, 5];

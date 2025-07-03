@@ -75,7 +75,7 @@ pub(crate) mod generated {
 mod tests {
     use alloy::primitives::Address;
     use dotenv::dotenv;
-    use rust_eigenda_v2_common::{EigenDACert, Payload};
+    use rust_eigenda_v2_common::{EigenDACert, Payload, PayloadForm};
     use std::{env, str::FromStr, time::Duration};
     use url::Url;
 
@@ -109,10 +109,12 @@ mod tests {
 
     fn get_test_payload_disperser_config() -> PayloadDisperserConfig {
         PayloadDisperserConfig {
+            polynomial_form: PayloadForm::Coeff,
             blob_version: 0,
             cert_verifier_router_address: CERT_VERIFIER_ROUTER_ADDRESS.to_string(),
             eth_rpc_url: get_test_holesky_rpc_url(),
             disperser_rpc: HOLESKY_DISPERSER_RPC_URL.to_string(),
+            use_secure_grpc_flag: false,
             registry_coordinator_addr: REGISTRY_COORDINATOR_ADDRESS.to_string(),
             operator_state_retriever_addr: OPERATOR_STATE_RETRIEVER_ADDRESS.to_string(),
         }
@@ -120,6 +122,7 @@ mod tests {
 
     pub fn get_relay_payload_retriever_test_config() -> RelayPayloadRetrieverConfig {
         RelayPayloadRetrieverConfig {
+            payload_form: PayloadForm::Coeff,
             retrieval_timeout_secs: Duration::from_secs(10),
         }
     }

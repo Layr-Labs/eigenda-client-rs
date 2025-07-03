@@ -1,5 +1,6 @@
-use ark_bn254::{G1Affine, G2Affine};
+use ark_bn254::{Fr, G1Affine, G2Affine};
 use ark_ff::{AdditiveGroup, Fp, Fp2, PrimeField, Zero};
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_serialize::CanonicalSerialize;
 use rust_kzg_bn254_primitives::helpers::{lexicographically_largest, read_g1_point_from_bytes_be};
 
@@ -124,4 +125,29 @@ pub fn g2_commitment_to_bytes(point: &G2Affine) -> Result<Vec<u8>, ConversionErr
 
     bytes[0] |= mask;
     Ok(bytes)
+}
+
+/// coeff_to_eval_poly converts a polynomial in coefficient form to one in evaluation form, using the FFT operation.
+pub(crate) fn coeff_to_eval_poly(
+    coeff_poly: Vec<Fr>,
+    blob_length_symbols: usize,
+) -> Result<Vec<Fr>, ConversionError> {
+    let evals = GeneralEvaluationDomain::<Fr>::new(blob_length_symbols)
+        .ok_or(ConversionError::Poly(
+            "Failed to construct domain for FFT".to_string(),
+        ))?
+        .fft(&coeff_poly);
+    Ok(evals)
+}
+
+/// Converts an eval_poly to a coeff_poly, using the IFFT operation
+///
+/// blob_length_symbols is required, to be able to choose the correct parameters when performing FFT
+pub(crate) fn eval_to_coeff_poly(
+    eval_poly: Vec<Fr>,
+    blob_length_symbols: usize,
+) -> Result<Vec<Fr>, ConversionError> {
+    Ok(GeneralEvaluationDomain::<Fr>::new(blob_length_symbols)
+        .ok_or(ConversionError::Poly("Failed to create domain".to_string()))?
+        .ifft(&eval_poly))
 }
