@@ -1,6 +1,6 @@
 # EigenDA Clients
 
-⚠️ These clients are out-of-date and feature-incomplete wrt our golang [clients](https://github.com/Layr-Labs/eigenda/tree/master/api/clients/v2). We do not currently have the bandwidth to maintain these clients given the still fast pace of EigenDA protocol changes. We strongly advise/recommend rust rollups use the [eigenda-proxy](https://github.com/Layr-Labs/eigenda/tree/master/api/proxy) to interface with EigenDA.
+> ⚠️ These clients are out-of-date and feature-incomplete wrt our golang [clients](https://github.com/Layr-Labs/eigenda/tree/master/api/clients/v2). We do not currently have the bandwidth to maintain these clients given the still fast pace of EigenDA protocol changes. We strongly advise/recommend rust rollups spin-up an [eigenda-proxy](https://github.com/Layr-Labs/eigenda/tree/master/api/proxy) to interface with EigenDA, using the (very simple) [proxy rust client in our monorepo](https://github.com/Layr-Labs/eigenda/tree/master/rust/crates/eigenda-proxy).
 
 Rust clients for interacting with EigenDA. This repo contains 4 crates.
 
